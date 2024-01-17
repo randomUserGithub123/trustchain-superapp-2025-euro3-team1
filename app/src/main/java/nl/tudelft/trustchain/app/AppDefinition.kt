@@ -8,6 +8,7 @@ import nl.tudelft.trustchain.FOC.MainActivityFOC
 import nl.tudelft.trustchain.common.R
 import nl.tudelft.trustchain.debug.DebugActivity
 import nl.tudelft.trustchain.eurotoken.EuroTokenMainActivity
+import nl.tudelft.trustchain.offlineeuro.OfflineEuroMainActivity
 import nl.tudelft.trustchain.valuetransfer.ValueTransferMainActivity
 import nl.tudelft.trustchain.peerai.PeerAIActivity
 
@@ -36,6 +37,12 @@ enum class AppDefinition(
         "EuroToken",
         R.color.metallic_gold,
         EuroTokenMainActivity::class.java
+    ),
+    OFFLINEEURO(
+        R.drawable.ic_baseline_euro_symbol_24,
+        "OfflineEuro",
+        R.color.metallic_gold,
+        OfflineEuroMainActivity::class.java
     ),
     MUSIC_DAO(
         android.R.drawable.ic_media_play,

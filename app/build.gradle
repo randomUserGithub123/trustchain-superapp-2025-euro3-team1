@@ -114,6 +114,7 @@ dependencies {
     implementation project(':debug')
     implementation project(':freedomOfComputing')
     implementation project(':eurotoken')
+    implementation project(':offlineeuro')
     implementation project(':valuetransfer')
     implementation project(':peerai')
     api(project(':common')) {

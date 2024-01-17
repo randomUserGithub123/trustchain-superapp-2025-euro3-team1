@@ -75,7 +75,8 @@ class AppLoader(
             AppDefinition.VALUETRANSFER.appName,
             AppDefinition.MUSIC_DAO.appName,
             AppDefinition.EUROTOKEN.appName,
-            AppDefinition.FREEDOM_OF_COMPUTING.appName
+            AppDefinition.FREEDOM_OF_COMPUTING.appName,
+            AppDefinition.OFFLINEEURO.appName
         )
     }
 }
