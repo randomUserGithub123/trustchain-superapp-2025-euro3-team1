@@ -84,5 +84,7 @@ dependencies {
 
     annotationProcessor "androidx.room:room-compiler:$room_version"
 
+    // For RSA
+    implementation "org.bouncycastle:bcprov-jdk15on:1.68"
 
 }
