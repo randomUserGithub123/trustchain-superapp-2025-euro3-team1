@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/transferFragment"
+        android:id="@+id/homeFragment"
         android:icon="@drawable/ic_baseline_euro_symbol_24"
         android:title="Balance" />
     <item

@@ -4,8 +4,8 @@ import nl.tudelft.trustchain.common.BaseActivity
 
 class OfflineEuroMainActivity : BaseActivity() {
 
-    override val navigationGraph = R.navigation.nav_graph_eurotoken
-    override val bottomNavigationMenu = R.menu.eurotoken_navigation_menu
+    override val navigationGraph = R.navigation.nav_graph_offlineeuro
+    override val bottomNavigationMenu = R.menu.offlineeuro_navigation_menu
 
     /**
      * The values for shared preferences used by this activity.
