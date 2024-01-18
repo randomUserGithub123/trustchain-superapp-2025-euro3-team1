@@ -33,4 +33,39 @@ object Cryptography {
         val d = privateKey.exponent
         return RSAParameters(n, e, d)
     }
+
+    fun generateRandomBigInteger(rangeLow: BigInteger, rangeHigh: BigInteger): BigInteger {
+        val random = SecureRandom()
+        var randomNumber: BigInteger
+        do {
+            randomNumber = BigInteger(rangeHigh.bitLength(), random)
+        } while (randomNumber >= rangeHigh || randomNumber < rangeLow)
+
+        return randomNumber
+    }
+
+    fun solve_for_gamma(w: BigInteger, u: BigInteger, y:BigInteger, d:BigInteger, p: BigInteger): BigInteger {
+
+        val gcd_u_p1 = u.gcd(p - BigInteger.ONE)
+        // Ensure that gcd(u, p - 1) divides (d - wu)
+        if ((d - w * u) % gcd_u_p1 != BigInteger.ZERO) {
+            return BigInteger.ZERO  // No solution for b
+        }
+
+        // Calculate the modular inverse of y modulo(p - 1)
+        val y_inverse = y.modInverse(p - BigInteger.ONE)
+
+        // Calculate b
+        val gamma = (y_inverse * (d - w * u)) % (p - BigInteger.ONE)
+        return gamma
+    }
+
+    fun solve_for_y(gamma: BigInteger, gamma_prime: BigInteger, d: BigInteger, d_prime: BigInteger, p : BigInteger): BigInteger {
+        // Calculate the modular inverse of (b - b') modulo (p - 1)
+        val gg_prime_inverse = (gamma - gamma_prime).abs().modInverse(p - BigInteger.ONE)
+
+        //Calculate y
+        val y = ((d - d_prime) * gg_prime_inverse) % (p - BigInteger.ONE)
+        return y
+    }
 }

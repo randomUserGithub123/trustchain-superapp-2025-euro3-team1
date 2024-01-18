@@ -31,14 +31,14 @@ object CentralAuthority {
         return calculateHash(data) % q
     }
 
-    fun H0(a: BigInteger, b: BigInteger, c: BigInteger, d: BigInteger, e: BigInteger, q: BigInteger): BigInteger {
-        val data = "$a,$b,$c,$d,$e".toByteArray(Charsets.UTF_8)
+    fun H0(a: BigInteger, b: BigInteger, c: BigInteger, d: String, q: BigInteger): BigInteger {
+        val data = "$a,$b,$c,$d".toByteArray(Charsets.UTF_8)
         return calculateHash(data) % q
     }
 
-    fun H1(x: BigInteger, q: BigInteger): BigInteger {
-        val data = "$x".toByteArray(Charsets.UTF_8)
-        return calculateHash(data) % q
+    fun H1(x: String): BigInteger {
+        val data = x.toByteArray(Charsets.UTF_8)
+        return calculateHash(data)
     }
 
     private fun calculateHash(data: ByteArray): BigInteger {
