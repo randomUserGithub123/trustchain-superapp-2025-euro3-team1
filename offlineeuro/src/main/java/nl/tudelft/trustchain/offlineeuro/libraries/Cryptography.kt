@@ -44,28 +44,34 @@ object Cryptography {
         return randomNumber
     }
 
+    fun generateRandomBigInteger(rangeHigh: BigInteger): BigInteger {
+        return generateRandomBigInteger(BigInteger.ONE, rangeHigh)
+    }
     fun solve_for_gamma(w: BigInteger, u: BigInteger, y:BigInteger, d:BigInteger, p: BigInteger): BigInteger {
-
-        val gcd_u_p1 = u.gcd(p - BigInteger.ONE)
-        // Ensure that gcd(u, p - 1) divides (d - wu)
-        if ((d - w * u) % gcd_u_p1 != BigInteger.ZERO) {
-            return BigInteger.ZERO  // No solution for b
-        }
-
         // Calculate the modular inverse of y modulo(p - 1)
         val y_inverse = y.modInverse(p - BigInteger.ONE)
-
-        // Calculate b
-        val gamma = (y_inverse * (d - w * u)) % (p - BigInteger.ONE)
-        return gamma
+        // Calculate gamma
+        return (y_inverse * (d - w * u))
     }
 
     fun solve_for_y(gamma: BigInteger, gamma_prime: BigInteger, d: BigInteger, d_prime: BigInteger, p : BigInteger): BigInteger {
-        // Calculate the modular inverse of (b - b') modulo (p - 1)
-        val gg_prime_inverse = (gamma - gamma_prime).abs().modInverse(p - BigInteger.ONE)
 
-        //Calculate y
-        val y = ((d - d_prime) * gg_prime_inverse) % (p - BigInteger.ONE)
-        return y
+        if (gamma_prime - gamma == BigInteger.ZERO) throw Exception()
+        var gg_prime_inverse = BigInteger.ZERO
+        try {
+            gg_prime_inverse = (gamma - gamma_prime).modInverse(p - BigInteger.ONE)
+            return ((d - d_prime) * gg_prime_inverse).mod(p - BigInteger.ONE)
+        } catch (e: Exception) {
+            gg_prime_inverse = (gamma_prime - gamma).modInverse(p - BigInteger.ONE)
+            return ((d_prime - d) * gg_prime_inverse).mod(p - BigInteger.ONE)
+        }
+    }
+    fun solve_for_w(u: BigInteger, y: BigInteger, gamma: BigInteger, d: BigInteger, p: BigInteger): BigInteger{
+        // Calculate the modular inverse of y modulo(p - 1)
+        val uInv = u.modInverse(p - BigInteger.ONE)
+
+        // Calculate b
+        val w = (uInv * (d - gamma * y)).mod(p - BigInteger.ONE)
+        return w
     }
 }

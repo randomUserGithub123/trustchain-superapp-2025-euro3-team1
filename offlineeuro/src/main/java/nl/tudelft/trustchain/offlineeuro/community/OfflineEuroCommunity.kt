@@ -8,6 +8,10 @@ import nl.tudelft.ipv8.attestation.trustchain.TrustChainSettings
 import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
 import nl.tudelft.trustchain.common.eurotoken.TransactionRepository
 
+enum class Roles {
+    Bank,
+    User
+}
 
 class OfflineEuroCommunity(
     context: Context,

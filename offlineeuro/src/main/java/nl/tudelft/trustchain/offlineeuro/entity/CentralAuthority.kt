@@ -4,36 +4,36 @@ import java.math.BigInteger
 import java.security.MessageDigest
 
 object CentralAuthority {
+
     val p: BigInteger = BigInteger("115792089237316195423570985008687907853269984665640564039457584007913129870127")
-    var q: BigInteger
-    // Current assumption is that 5 is a primitive root of p, squared makes 25
-    val alpha = BigInteger("25")
-    init {
-        q = findQ(p)
-    }
+    val q: BigInteger = findQ(p)
+
+    // Current assumption is that 5 is a primitive root of p
+    val alpha: BigInteger = BigInteger("5").pow(2)
 
     private fun findQ(prime: BigInteger): BigInteger {
+
         // Certainty is calculated as  (1 – (1/2) ^ certainty).
         if (!prime.isProbablePrime(10)) {
-            return BigInteger("-1")
+            throw Exception("The given value is not a prime. Pick a different value")
         }
 
-        q = (prime - BigInteger.ONE)/ BigInteger("2")
-        if (q.isProbablePrime(10)) {
-            return q
+        val potentialQ = (prime - BigInteger.ONE)/ BigInteger("2")
+        if (!potentialQ.isProbablePrime(10)) {
+            throw Exception("q is not prime, pick a different p")
         }
-        return BigInteger("-1")
+        return potentialQ
     }
 
     // Three published hash functions
-    fun H(x: BigInteger, y: BigInteger, z: BigInteger, q: BigInteger): BigInteger {
+    fun H(x: BigInteger, y: BigInteger, z: BigInteger): BigInteger {
         val data = "$x,$y,$z".toByteArray(Charsets.UTF_8)
-        return calculateHash(data) % q
+        return calculateHash(data).mod(q)
     }
 
-    fun H0(a: BigInteger, b: BigInteger, c: BigInteger, d: String, q: BigInteger): BigInteger {
+    fun H0(a: BigInteger, b: BigInteger, c: BigInteger, d: String): BigInteger {
         val data = "$a,$b,$c,$d".toByteArray(Charsets.UTF_8)
-        return calculateHash(data) % q
+        return calculateHash(data).mod(q)
     }
 
     fun H1(x: String): BigInteger {

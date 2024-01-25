@@ -6,7 +6,6 @@ import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Random
 
 class User {
 
@@ -27,6 +26,8 @@ class User {
     private lateinit var v: BigInteger
     private lateinit var r: BigInteger
 
+    lateinit var w: BigInteger
+    lateinit var y: BigInteger
     init {
         rsaParameters = Cryptography.generateRSAParameters(2048)
     }
@@ -71,38 +72,51 @@ class User {
     fun withdrawToken(bank: Bank) {
 
         // Generate the random values
-        var y = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+        y = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+        var u = CentralAuthority.alpha.modPow(y, CentralAuthority.p)
+
         var l = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
-        val e = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+
+        val e = Cryptography.generateRandomBigInteger(BigInteger.ONE, (CentralAuthority.p / BigInteger("4")))
         var beta1 = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
         val beta2 = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
 
         // Conditions on the values
-        while (y.gcd(CentralAuthority.p - BigInteger.ONE) != BigInteger.ONE)
+        // Required: gdc(y,p-1) = 1
+        while (y.gcd(CentralAuthority.p - BigInteger.ONE) != BigInteger.ONE ||
+            u.gcd(CentralAuthority.p - BigInteger.ONE) != BigInteger.ONE) {
             y = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+            u = CentralAuthority.alpha.modPow(y, CentralAuthority.p)
+        }
 
+        // Required: gdc(l,nb) = 1
         while (l.gcd(nb) != BigInteger.ONE)
             l = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
 
+        // Required: gdc(beta1,q) = 1
         while (beta1.gcd(CentralAuthority.q) != BigInteger.ONE)
             beta1 = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
 
         // Computations
-        val u = CentralAuthority.alpha.modPow(y, CentralAuthority.p)
-        val w = BigInteger(r.toString() + e.toString())
+
+        //TODO Find out how to make it work with e
+        //w = BigInteger(r.toString() + e.toString())
+        w = BigInteger(r.toString())
+
         val g = CentralAuthority.alpha.modPow(w, CentralAuthority.p)
         val A =  ((v.modPow(beta1, CentralAuthority.p)) * (CentralAuthority.alpha.modPow(beta2, CentralAuthority.p))).mod(CentralAuthority.p)
         val beta1Inv = beta1.modInverse(CentralAuthority.q)
-        val hash = CentralAuthority.H(u, g, A, CentralAuthority.q)
+        val hash = CentralAuthority.H(u, g, A)
         val c = (beta1Inv * hash).mod(CentralAuthority.q)
         val a = (A * l.modPow(eb, nb)).mod(nb)
 
         val (APrime, cPrime, t) = bank.signToken(Pair(a, c))
 
-        val r = (beta1 * cPrime + beta2).mod(CentralAuthority.q)
+        val r2 = (beta1 * cPrime + beta2).mod(CentralAuthority.q)
         val ADoublePrime = (l.modInverse(nb) * APrime).mod(nb)
-        val signedToken = Token(u, g, A, r, ADoublePrime, t)
+        val signedToken = Token(u, g, A, r2, ADoublePrime, t)
         tokenList.add(Pair(signedToken, Triple(w, u, y)))
+
     }
 
     fun checkReceivedToken(token: Token, bank: Bank) : Boolean {
@@ -110,8 +124,7 @@ class User {
         val checkOne = (token.A * CentralAuthority.H1(token.t)).mod(nb) == token.ADoublePrime.modPow(eb, nb)
 
         //a^r = Az^(H(u,g,A)) mod p
-
-        val zhash = bank.z.modPow(CentralAuthority.H(token.u, token.g, token.A, CentralAuthority.q), CentralAuthority.p)
+        val zhash = bank.z.modPow(CentralAuthority.H(token.u, token.g, token.A), CentralAuthority.p)
         val checkTwo = CentralAuthority.alpha.modPow(token.r, CentralAuthority.p) == (token.A * zhash).mod(CentralAuthority.p)
         return checkOne && checkTwo
     }
@@ -127,8 +140,8 @@ class User {
     @RequiresApi(Build.VERSION_CODES.O)
     fun computeChallenge(token: Token, merchantID: BigInteger): BigInteger {
         val timeStamp = LocalDateTime.now()
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        return CentralAuthority.H0(token.u, token.g, merchantID, timeStamp.format(formatter), CentralAuthority.q)
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+        return CentralAuthority.H0(token.u, token.g, merchantID, timeStamp.format(formatter))
     }
 
     fun onChallengeReceived(d: BigInteger, token: Token): BigInteger {
@@ -141,14 +154,13 @@ class User {
         }
         val (w, u, y) = randomVars
         val gamma = Cryptography.solve_for_gamma(w, u, y, d, CentralAuthority.p)
-        val check = (w * u + gamma * y).mod(CentralAuthority.p - BigInteger.ONE) == d.mod(CentralAuthority.p - BigInteger.ONE)
         return gamma
     }
 
-    fun onChallengeResponseReceived(token: Token, gamma: BigInteger, challenge: BigInteger): Triple<Token, BigInteger, BigInteger>? {
+    fun onChallengeResponseReceived(token: Token, gamma: BigInteger, challenge: BigInteger): Receipt? {
         if (verifyChallengeResponse(token, gamma, challenge)) {
             // TODO store information
-            return Triple(token, challenge, gamma)
+            return Receipt(token, gamma, challenge)
         }
         return null
     }
