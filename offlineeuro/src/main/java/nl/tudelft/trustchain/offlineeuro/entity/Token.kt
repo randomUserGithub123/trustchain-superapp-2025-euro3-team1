@@ -3,7 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import java.math.BigInteger
 import kotlin.reflect.typeOf
 
-class Token (
+data class Token (
     val u: BigInteger,
     val g: BigInteger,
     val A: BigInteger,

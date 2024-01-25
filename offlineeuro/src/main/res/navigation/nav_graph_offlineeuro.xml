@@ -7,5 +7,13 @@
     <fragment
         android:id="@+id/homeFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.HomeFragment"
-        android:label="Home" />
+        android:label="Home" >
+        <action
+            android:id="@+id/nav_home_bankhome"
+            app:destination="@id/bankHomeFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/bankHomeFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.BankHomeFragment"
+        android:label="BankHomeFragment" />
 </navigation>

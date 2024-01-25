@@ -78,13 +78,13 @@ dependencies {
     implementation 'io.github.microutils:kotlin-logging:1.7.7'
 
     testImplementation 'junit:junit:4.12'
-
+    implementation "org.xerial:sqlite-jdbc:3.36.0"
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 
     annotationProcessor "androidx.room:room-compiler:$room_version"
 
     // For RSA
-    //implementation "org.bouncycastle:bcprov-jdk15on:1.68"
     implementation 'org.bouncycastle:bcprov-jdk15to18:1.68'
+    testImplementation "com.squareup.sqldelight:sqlite-driver:1.5.1" // Use the same version as the android-driver
 }

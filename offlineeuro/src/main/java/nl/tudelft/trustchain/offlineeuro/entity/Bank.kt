@@ -28,7 +28,7 @@ class Bank {
         return Pair(rsaParameters.e, rsaParameters.n)
     }
 
-    fun registerUser(senderMessage: Pair<Pair<BigInteger?, BigInteger?>, BigInteger>): Pair<BigInteger, BigInteger> {
+    fun registerUser(senderMessage: Pair<Pair<BigInteger?, BigInteger?>, BigInteger>, name:String = "User"): Pair<BigInteger, BigInteger> {
         val senderI = Pair(senderMessage.first.first?.modPow(rsaParameters.d, rsaParameters.n),
             senderMessage.first.second?.modPow(rsaParameters.d, rsaParameters.n))
         // TODO store information regarding the user 4.1 step 4.1
@@ -41,7 +41,7 @@ class Bank {
         val v = CentralAuthority.alpha.modPow(s, CentralAuthority.p)
         r = v.modPow(x, CentralAuthority.p)
 
-        // TODO Store s, k, v and R in the database and encrypt v and r
+        // TODO Store s, k, v and R in the database and encrypt v and R
 
         return Pair(v, r)
     }

@@ -1,0 +1,98 @@
+--region Bank Tables
+createRegisteredUserTable:
+CREATE TABLE IF NOT EXISTS registered_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    s BLOB NOT NULL,
+    k BLOB NOT NULL,
+    v BLOB NOT NULL,
+    r BLOB UNIQUE NOT NULL
+);
+
+addUser:
+INSERT INTO registered_users(name, s, k, v, r)
+VALUES (?, ?, ?, ?, ?);
+
+getUserById:
+SELECT *
+FROM registered_users
+WHERE id = ?;
+
+getUserByR:
+SELECT *
+FROM registered_users
+WHERE r = ?;
+
+getUserByName:
+SELECT *
+FROM registered_users
+WHERE name = ?;
+
+getRegisteredUserCount:
+SELECT COUNT(*)
+FROM registered_users;
+
+clearAllRegisteredUsers:
+DELETE FROM registered_users;
+
+createDepositedTokensTable:
+CREATE TABLE IF NOT EXISTS deposited_tokens (
+    u BLOB NOT NULL,
+    g BLOB NOT NULL,
+    a BLOB NOT NULL,
+    r BLOB NOT NULL,
+    aPrime BLOB NOT NULL,
+    t TEXT NOT NULL,
+    gamma BLOB NOT NULL,
+    challenge BLOB NOT NULL,
+    PRIMARY KEY (u, g, a, r, aPrime, t)
+);
+
+addDepositedToken:
+INSERT INTO deposited_tokens (u, g, a, r, aPrime, t, gamma, challenge)
+VALUES(?, ?, ?, ?, ?,?, ?, ?);
+
+getDepositedToken:
+SELECT *
+FROM deposited_tokens
+WHERE u = ?
+    AND g = ?
+    AND a = ?
+    AND r = ?
+    AND aPrime = ?
+    AND t = ?;
+-- endRegion Bank Tables
+
+-- region User Tables
+createOwnedTokenTable:
+CREATE TABLE IF NOT EXISTS owned_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    u BLOB NOT NULL,
+    g BLOB NOT NULL,
+    a BLOB NOT NULL,
+    r BLOB NOT NULL,
+    aPrime BLOB NOT NULL,
+    t TEXT NOT NULL,
+    w BLOB NOT NULL,
+    y BLOB NOT NULL,
+    UNIQUE (u, g, a, r, aPrime, t)
+);
+
+addToken:
+INSERT INTO owned_tokens(u, g, a, r, aPrime, t, w, y)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+getTokenById:
+SELECT *
+FROM owned_tokens
+WHERE id = ?;
+
+getAllTokens:
+SELECT *
+FROM owned_tokens;
+
+removeTokenById:
+DELETE
+FROM owned_tokens
+WHERE id = ?;
+-- endRegion User Tables

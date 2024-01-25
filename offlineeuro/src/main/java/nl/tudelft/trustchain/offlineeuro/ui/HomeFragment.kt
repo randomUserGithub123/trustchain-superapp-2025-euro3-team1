@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.Toast
+import androidx.navigation.fragment.findNavController
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 
@@ -19,6 +20,8 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
 
         view.findViewById<Button>(R.id.JoinAsBankButton).setOnClickListener {
             Toast.makeText(context, "Pressed Bank", Toast.LENGTH_LONG).show()
+            findNavController().navigate(R.id.nav_home_bankhome)
+
         }
 
         view.findViewById<Button>(R.id.JoinAsUserButton).setOnClickListener {
