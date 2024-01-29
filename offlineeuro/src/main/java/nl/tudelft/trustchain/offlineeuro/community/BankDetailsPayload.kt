@@ -2,21 +2,21 @@ package nl.tudelft.trustchain.offlineeuro.community
 
 import nl.tudelft.ipv8.messaging.Deserializable
 import nl.tudelft.ipv8.messaging.Serializable
-import nl.tudelft.ipv8.messaging.deserializeLong
 import nl.tudelft.ipv8.messaging.deserializeVarLen
-import nl.tudelft.ipv8.messaging.serializeLong
 import nl.tudelft.ipv8.messaging.serializeVarLen
+import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
+import java.math.BigInteger
 
 class BankDetailsPayload (
-    val name: String,
-    val role: Role
+    val bankDetails: BankDetails
 ): Serializable {
     override fun serialize(): ByteArray {
+
         var payload = ByteArray(0)
-        payload += serializeVarLen(name.toByteArray())
-        val roleInt = role.ordinal
-        val roleLong = roleInt.toLong()
-        payload += serializeLong(roleLong)
+        payload += serializeVarLen(bankDetails.name.toByteArray())
+        payload += serializeVarLen(bankDetails.z.toByteArray())
+        payload += serializeVarLen(bankDetails.eb.toByteArray())
+        payload += serializeVarLen(bankDetails.nb.toByteArray())
         return payload
     }
 
@@ -27,13 +27,25 @@ class BankDetailsPayload (
         ): Pair<BankDetailsPayload, Int> {
             var localOffset = offset
 
-            val (name, nameSize) = deserializeVarLen(buffer, localOffset)
+            val (nameBytes, nameSize) = deserializeVarLen(buffer, localOffset)
             localOffset += nameSize
-            val roleInt = deserializeLong(buffer, localOffset).toInt()
-            val role = Role.fromInt(roleInt)
+            val (zBytes, zSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += zSize
+            val (ebBytes, ebSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += ebSize
+            val (nbBytes, nbSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += nbSize
+
+            val payload = BankDetails(
+                nameBytes.toString(Charsets.UTF_8),
+                BigInteger(zBytes),
+                BigInteger(ebBytes),
+                BigInteger(nbBytes)
+            )
+
 
             return Pair(
-                BankDetailsPayload(name.toString(Charsets.UTF_8), role),
+                BankDetailsPayload(payload),
                 localOffset - offset
             )
         }

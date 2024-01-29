@@ -11,6 +11,7 @@ import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.trustchain.common.eurotoken.TransactionRepository
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
 import nl.tudelft.trustchain.offlineeuro.entity.User
 
 enum class Role {
@@ -75,10 +76,17 @@ class OfflineEuroCommunity(
         if (role == Role.User)
             return
 
+        val (eb, nb) = bank.getPublicRSAValues()
+        val bankDetails = BankDetails(
+            name,
+            bank.z,
+            eb,
+            nb
+        )
         // Create the response
         val responsePacket = serializePacket(
             MessageID.BANK_DETAILS_REPLY,
-            BankDetailsPayload(name, Role.Bank)
+            BankDetailsPayload(bankDetails)
         )
 
         // Send the reply
@@ -92,7 +100,8 @@ class OfflineEuroCommunity(
     }
 
     private fun onBankDetailsReply(bankPeer: Peer, payload: BankDetailsPayload) {
-        val bankName = payload.name
+        val bankDetails = payload.bankDetails
+        val bankName = bankDetails.name
         user.banks.add(Pair(bankName, bankPeer))
         Toast.makeText(context, "Found Bank $bankName", Toast.LENGTH_SHORT).show()
     }
