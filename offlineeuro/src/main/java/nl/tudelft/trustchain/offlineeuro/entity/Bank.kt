@@ -1,14 +1,18 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
+import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-class Bank {
-
+class Bank (
+    private val context: Context,
+    private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context)
+){
     // Values from the Central Authority
     private val p: BigInteger = CentralAuthority.p
     private val alpha: BigInteger = CentralAuthority.alpha
@@ -28,22 +32,22 @@ class Bank {
         return Pair(rsaParameters.e, rsaParameters.n)
     }
 
-    fun registerUser(senderMessage: Pair<Pair<BigInteger?, BigInteger?>, BigInteger>, name:String = "User"): Pair<BigInteger, BigInteger> {
+    fun registerUser(senderMessage: Pair<Pair<BigInteger?, BigInteger?>, BigInteger>, name: String = "User"): Pair<BigInteger, BigInteger> {
         val senderI = Pair(senderMessage.first.first?.modPow(rsaParameters.d, rsaParameters.n),
             senderMessage.first.second?.modPow(rsaParameters.d, rsaParameters.n))
-        // TODO store information regarding the user 4.1 step 4.1
 
-        // TODO Make random
-        val k = BigInteger("32342424")
-        val senderM = senderI.second
-        val s = BigInteger(k.toString() + senderM?.toString()) % CentralAuthority.p
-        firstUserS = s
+        val k = Cryptography.generateRandomBigInteger(CentralAuthority.p)
+        val m = senderI.second
+        val s = BigInteger(k.toString() + m?.toString()).mod(CentralAuthority.p)
         val v = CentralAuthority.alpha.modPow(s, CentralAuthority.p)
-        r = v.modPow(x, CentralAuthority.p)
-
-        // TODO Store s, k, v and R in the database and encrypt v and R
-
+        val r = v.modPow(x, CentralAuthority.p)
+        val user = RegisteredUser(-1, name, s, k, v, r)
+        registeredUserManager.addRegisteredUser(user)
         return Pair(v, r)
+    }
+
+    fun getRegisteredUsers(): List<RegisteredUser> {
+        return registeredUserManager.getAllRegisteredUsers()
     }
 
     fun depositToken(receipt: Receipt): String {

@@ -11,9 +11,16 @@
         <action
             android:id="@+id/nav_home_bankhome"
             app:destination="@id/bankHomeFragment" />
+        <action
+            android:id="@+id/nav_home_userhome"
+            app:destination="@id/userHomeFragment" />
     </fragment>
     <fragment
         android:id="@+id/bankHomeFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.BankHomeFragment"
         android:label="BankHomeFragment" />
+    <fragment
+        android:id="@+id/userHomeFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.UserHomeFragment"
+        android:label="UserHomeFragment" />
 </navigation>

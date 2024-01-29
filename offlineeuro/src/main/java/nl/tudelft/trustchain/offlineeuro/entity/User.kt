@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import nl.tudelft.ipv8.Peer
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
 import java.time.LocalDateTime
@@ -21,6 +22,8 @@ class User {
     // Public RSA values of the bank
     private var eb: BigInteger = BigInteger.ZERO
     private var nb: BigInteger = BigInteger.ZERO
+
+    val banks: ArrayList<Pair<String, Peer>> = arrayListOf()
 
     // Variables after registering
     private lateinit var v: BigInteger

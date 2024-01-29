@@ -32,6 +32,11 @@ getRegisteredUserCount:
 SELECT COUNT(*)
 FROM registered_users;
 
+getAllRegisteredUsers:
+SELECT *
+FROM registered_users;
+
+
 clearAllRegisteredUsers:
 DELETE FROM registered_users;
 

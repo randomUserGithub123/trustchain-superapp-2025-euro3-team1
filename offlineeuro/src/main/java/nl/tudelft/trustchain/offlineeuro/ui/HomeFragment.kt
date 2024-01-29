@@ -8,24 +8,22 @@ import android.widget.Toast
 import androidx.navigation.fragment.findNavController
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.community.Role
 
 class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-    }
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         view.findViewById<Button>(R.id.JoinAsBankButton).setOnClickListener {
-            Toast.makeText(context, "Pressed Bank", Toast.LENGTH_LONG).show()
+            getIpv8().getOverlay<OfflineEuroCommunity>()!!.role = Role.Bank
             findNavController().navigate(R.id.nav_home_bankhome)
 
         }
 
         view.findViewById<Button>(R.id.JoinAsUserButton).setOnClickListener {
-            Toast.makeText(context, "Pressed User", Toast.LENGTH_LONG).show()
+            getIpv8().getOverlay<OfflineEuroCommunity>()!!.role = Role.User
+            findNavController().navigate(R.id.nav_home_userhome)
         }
     }
 

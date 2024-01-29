@@ -91,6 +91,10 @@ class RegisteredUserManager (
         return  database.dbOfflineEuroQueries.getRegisteredUserCount().executeAsOne()
     }
 
+    fun getAllRegisteredUsers(): List<RegisteredUser> {
+        return database.dbOfflineEuroQueries.getAllRegisteredUsers(registeredUserMapper).executeAsList()
+    }
+
     /**
      * Clears all the [RegisteredUser]s from the table.
      */
