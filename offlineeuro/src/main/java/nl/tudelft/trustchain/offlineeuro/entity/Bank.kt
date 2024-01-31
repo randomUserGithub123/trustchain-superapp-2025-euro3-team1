@@ -10,11 +10,12 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 class Bank (
-    private val context: Context,
+    private val context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context)
 ){
     // Values from the Central Authority
     private val p: BigInteger = CentralAuthority.p
+    private val q: BigInteger = CentralAuthority.q
     private val alpha: BigInteger = CentralAuthority.alpha
 
     // Secret x of the bank
@@ -39,11 +40,11 @@ class Bank (
         val senderI = Pair(encryptedI.first.modPow(rsaParameters.d, rsaParameters.n),
             encryptedI.second.modPow(rsaParameters.d, rsaParameters.n))
 
-        val k = Cryptography.generateRandomBigInteger(CentralAuthority.p)
+        val k = Cryptography.generateRandomBigInteger(p)
         val m = senderI.second
-        val s = BigInteger(k.toString() + m.toString()).mod(CentralAuthority.p)
-        val v = CentralAuthority.alpha.modPow(s, CentralAuthority.p)
-        val r = v.modPow(x, CentralAuthority.p)
+        val s = BigInteger(k.toString() + m.toString()).mod(p)
+        val v = alpha.modPow(s, p)
+        val r = v.modPow(x, p)
         val user = RegisteredUser(-1, userRegistrationMessage.userName, s, k, v, r)
 
         if (registeredUserManager.addRegisteredUser(user))
@@ -61,8 +62,8 @@ class Bank (
         for (depositedReceipt in depositedTokens) {
             val token = depositedReceipt.token
             if (token == newToken) {
-                val maliciousY = Cryptography.solve_for_y(depositedReceipt.gamma, receipt.gamma, depositedReceipt.challenge, receipt.challenge, CentralAuthority.p)
-                val maliciousW = Cryptography.solve_for_w(token.u, maliciousY, depositedReceipt.gamma, depositedReceipt.challenge, CentralAuthority.p)
+                val maliciousY = Cryptography.solve_for_y(depositedReceipt.gamma, receipt.gamma, depositedReceipt.challenge, receipt.challenge, p)
+                val maliciousW = Cryptography.solve_for_w(token.u, maliciousY, depositedReceipt.gamma, depositedReceipt.challenge, p)
                 return "Double Spending detected! This is done by y: $maliciousY and w: $maliciousW"
             }
         }

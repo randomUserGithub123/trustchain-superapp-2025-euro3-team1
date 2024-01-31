@@ -12,24 +12,20 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 class User (
-    private val context: Context,
+    private val context: Context?,
     val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
     val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context)
 )
 {
 
     // Private Values
-    private var rsaParameters: RSAParameters
-    private lateinit var I: Pair<BigInteger, BigInteger>
+    private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
     private var tokenList: ArrayList<Pair<Token, Triple<BigInteger, BigInteger, BigInteger>>> = arrayListOf()
 
     // Values of the CA for easier reference
     private val p = CentralAuthority.p
     private val q = CentralAuthority.q
     private val alpha = CentralAuthority.alpha
-
-    private val m: BigInteger = Cryptography.generateRandomBigInteger(p)
-    private val rm: BigInteger = Cryptography.generateRandomBigInteger(p)
 
     // Public RSA values of the bank
     private var eb: BigInteger = BigInteger.ZERO
@@ -41,29 +37,42 @@ class User (
 
     lateinit var w: BigInteger
     lateinit var y: BigInteger
-    init {
-        rsaParameters = Cryptography.generateRSAParameters(2048)
-    }
 
-    fun computeI(bankDetails: BankDetails) {
+    fun computeI(bankDetails: BankDetails, m: BigInteger, rm: BigInteger): Pair<BigInteger, BigInteger> {
         // I = (H1(m||a^r_m),m)^e_b) (mod n_b)
         val arm = alpha.modPow(rm, bankDetails.nb)
         val concat = m.toString() + arm.toString()
         val hash = CentralAuthority.H1(concat).modPow(bankDetails.eb, bankDetails.nb)
         val meb = m.modPow(bankDetails.eb, bankDetails.nb)
-        I = Pair(hash, meb)
+        return Pair(hash, meb)
     }
 
-    fun registerWithBank(userName: String, bankName: String, community: OfflineEuroCommunity) {
-        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return
+    fun registerWithBank(userName: String, bankName: String, community: OfflineEuroCommunity): Boolean {
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return false
 
-        computeI(bank.bankDetails)
+        val m: BigInteger = Cryptography.generateRandomBigInteger(p)
+        val rm: BigInteger = Cryptography.generateRandomBigInteger(p)
+
+        val i = computeI(bank.bankDetails, m, rm)
 
         // Send the message (I, (alpha^r_m mod p)),
         val arm = alpha.modPow(rm, p)
-        val registrationMessage = UserRegistrationMessage(userName, I, arm)
-        bankRegistrationManager.setOwnValuesForBank(bankName, m, rm)
-        community
+        val registrationMessage = UserRegistrationMessage(userName, i, arm)
+        if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm))
+            return false
+
+        return community.sendUserRegistrationMessage(registrationMessage, bank.bankDetails.publicKeyBytes)
+    }
+
+    fun handleRegistrationResponse(userRegistrationResponseMessage: UserRegistrationResponseMessage): Boolean {
+        if (userRegistrationResponseMessage.result == MessageResult.Failed)
+            //TODO display error message
+            return false
+
+        val bankName = userRegistrationResponseMessage.bankName
+        val v = userRegistrationResponseMessage.v
+        val r = userRegistrationResponseMessage.r
+        return bankRegistrationManager.setBankRegistrationValues(bankName, v, r)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -108,22 +117,22 @@ class User (
         val c = (beta1Inv * hash).mod(CentralAuthority.q)
         val a = (A * l.modPow(eb, nb)).mod(nb)
 
-        val (APrime, cPrime, t) = bank.signToken(Pair(a, c))
+        val (aPrime, cPrime, t) = bank.signToken(Pair(a, c))
 
         val r2 = (beta1 * cPrime + beta2).mod(CentralAuthority.q)
-        val ADoublePrime = (l.modInverse(nb) * APrime).mod(nb)
-        val signedToken = Token(u, g, A, r2, ADoublePrime, t)
-        tokenList.add(Pair(signedToken, Triple(w, u, y)))
+        val aDoublePrime = (l.modInverse(nb) * aPrime).mod(nb)
+        val signedToken = Token(u, g, A, r2, aDoublePrime, t)
+        ownedTokenManager.addToken(signedToken, w, y)
 
     }
 
     fun checkReceivedToken(token: Token, bank: Bank) : Boolean {
         // AH1(t) ?= A"^e_b mod nb
-        val checkOne = (token.A * CentralAuthority.H1(token.t)).mod(nb) == token.ADoublePrime.modPow(eb, nb)
+        val checkOne = (token.a * CentralAuthority.H1(token.t)).mod(nb) == token.aPrime.modPow(eb, nb)
 
         //a^r = Az^(H(u,g,A)) mod p
-        val zhash = bank.z.modPow(CentralAuthority.H(token.u, token.g, token.A), CentralAuthority.p)
-        val checkTwo = CentralAuthority.alpha.modPow(token.r, CentralAuthority.p) == (token.A * zhash).mod(CentralAuthority.p)
+        val zhash = bank.z.modPow(CentralAuthority.H(token.u, token.g, token.a), CentralAuthority.p)
+        val checkTwo = CentralAuthority.alpha.modPow(token.r, CentralAuthority.p) == (token.a * zhash).mod(CentralAuthority.p)
         return checkOne && checkTwo
     }
 

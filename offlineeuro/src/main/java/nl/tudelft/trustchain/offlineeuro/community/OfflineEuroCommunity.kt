@@ -12,6 +12,7 @@ import nl.tudelft.trustchain.common.eurotoken.TransactionRepository
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
 import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.UserRegistrationMessage
 
 enum class Role {
     Bank,
@@ -58,7 +59,6 @@ class OfflineEuroCommunity(
     }
 
     fun findBank() {
-
         val findBankPacket = serializePacket(
             MessageID.FIND_BANK,
             FindBankPayload(name, Role.User)
@@ -108,6 +108,18 @@ class OfflineEuroCommunity(
         user.bankRegistrationManager.addNewBank(bankDetails)
     }
 
+    fun sendUserRegistrationMessage(userRegistrationMessage: UserRegistrationMessage,
+                                    publicKeyBank: ByteArray): Boolean {
+        val bankPeer = getPeerByPublicKeyBytes(publicKeyBank) ?: return false
+
+        val packet = serializePacket(
+            MessageID.USER_REGISTRATION,
+            UserRegistrationPayload(userRegistrationMessage)
+        )
+
+        send(bankPeer, packet)
+        return true
+    }
     private fun onUserRegistrationPacket(packet: Packet) {
         val (userPeer, payload) = packet.getAuthPayload(UserRegistrationPayload)
         onUserRegistration(userPeer, payload)

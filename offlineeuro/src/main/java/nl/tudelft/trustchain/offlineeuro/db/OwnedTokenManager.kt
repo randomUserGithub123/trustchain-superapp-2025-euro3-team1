@@ -43,4 +43,17 @@ class OwnedTokenManager(
     fun getAllTokens(): List<TokenEntry> {
         return database.dbOfflineEuroQueries.getAllTokens(ownedTokenMapper).executeAsList()
     }
+
+    fun addToken(token: Token, w: BigInteger, y: BigInteger) {
+        return database.dbOfflineEuroQueries.addToken(
+            token.u.toByteArray(),
+            token.g.toByteArray(),
+            token.a.toByteArray(),
+            token.r.toByteArray(),
+            token.aPrime.toByteArray(),
+            token.t,
+            w.toByteArray(),
+            y.toByteArray()
+        )
+    }
 }

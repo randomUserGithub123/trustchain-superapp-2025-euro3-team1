@@ -1,14 +1,13 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import java.math.BigInteger
-import kotlin.reflect.typeOf
 
 data class Token (
     val u: BigInteger,
     val g: BigInteger,
-    val A: BigInteger,
+    val a: BigInteger,
     val r: BigInteger,
-    val ADoublePrime: BigInteger,
+    val aPrime: BigInteger,
     val t: String
 ) {
     override fun equals(other: Any?): Boolean {
@@ -17,9 +16,9 @@ data class Token (
 
         return u == other.u &&
             g == other.g &&
-            A == other.A &&
+            a == other.a &&
             r == other.r &&
-            ADoublePrime == other.ADoublePrime &&
+            aPrime == other.aPrime &&
             t == other.t
     }
 }
