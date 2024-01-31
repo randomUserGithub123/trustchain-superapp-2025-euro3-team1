@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.community
 
 import android.content.Context
-import android.widget.Toast
 import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.Overlay
 import nl.tudelft.ipv8.Peer
@@ -28,6 +27,8 @@ enum class Role {
 object MessageID {
     const val FIND_BANK = 9
     const val BANK_DETAILS_REPLY = 10
+    const val USER_REGISTRATION = 11
+    const val USER_REGISTRATION_REPLY = 12
 }
 
 class OfflineEuroCommunity(
@@ -41,16 +42,18 @@ class OfflineEuroCommunity(
     private lateinit var transactionRepository: TransactionRepository
 
     var role: Role = Role.User
-    var name: String = "BestBank"
-    var bank: Bank
-    var user: User
+    val name: String = "BestBank"
+    val bank: Bank
+    val user: User
     val context: Context
     init {
         this.context = context
         bank = Bank(context)
-        user = User()
+        user = User(context)
         messageHandlers[MessageID.FIND_BANK] = ::onFindBankPacket
         messageHandlers[MessageID.BANK_DETAILS_REPLY] = ::onBankDetailsReplyPacket
+        messageHandlers[MessageID.USER_REGISTRATION] = ::onUserRegistrationPacket
+        messageHandlers[MessageID.USER_REGISTRATION_REPLY] = ::onUserRegistrationReplyPacket
 
     }
 
@@ -81,7 +84,8 @@ class OfflineEuroCommunity(
             name,
             bank.z,
             eb,
-            nb
+            nb,
+            myPeer.publicKey.keyToBin()
         )
         // Create the response
         val responsePacket = serializePacket(
@@ -94,18 +98,41 @@ class OfflineEuroCommunity(
     }
 
     private fun onBankDetailsReplyPacket(packet: Packet) {
-        val (bankPeer, payload) = packet.getAuthPayload(BankDetailsPayload)
-        onBankDetailsReply(bankPeer, payload)
+        val (_, payload) = packet.getAuthPayload(BankDetailsPayload)
+        onBankDetailsReply(payload)
 
     }
 
-    private fun onBankDetailsReply(bankPeer: Peer, payload: BankDetailsPayload) {
+    private fun onBankDetailsReply(payload: BankDetailsPayload) {
         val bankDetails = payload.bankDetails
-        val bankName = bankDetails.name
-        user.banks.add(Pair(bankName, bankPeer))
-        Toast.makeText(context, "Found Bank $bankName", Toast.LENGTH_SHORT).show()
+        user.bankRegistrationManager.addNewBank(bankDetails)
     }
 
+    private fun onUserRegistrationPacket(packet: Packet) {
+        val (userPeer, payload) = packet.getAuthPayload(UserRegistrationPayload)
+        onUserRegistration(userPeer, payload)
+    }
+
+    private fun onUserRegistration(peer: Peer, payload: UserRegistrationPayload) {
+        val response = bank.registerUser(payload.userRegistrationMessage)
+        val responseMessagePacket = serializePacket(
+            MessageID.USER_REGISTRATION_REPLY,
+            UserRegistrationResponsePayload(response)
+        )
+
+        send(peer, responseMessagePacket)
+    }
+
+
+    private fun onUserRegistrationReplyPacket(packet: Packet) {
+
+    }
+
+    private fun getPeerByPublicKeyBytes(publicKey: ByteArray): Peer? {
+        return getPeers().find {
+            it.publicKey.keyToBin().contentEquals(publicKey)
+        }
+    }
     class Factory(
         private val context: Context,
         private val settings: TrustChainSettings,

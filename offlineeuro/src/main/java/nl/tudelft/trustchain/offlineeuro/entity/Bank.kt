@@ -22,6 +22,8 @@ class Bank (
 
     val z: BigInteger = alpha.modPow(x, p)
 
+    val name: String = "BestBank"
+
     private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
 
     lateinit var r: BigInteger
@@ -32,18 +34,22 @@ class Bank (
         return Pair(rsaParameters.e, rsaParameters.n)
     }
 
-    fun registerUser(senderMessage: Pair<Pair<BigInteger?, BigInteger?>, BigInteger>, name: String = "User"): Pair<BigInteger, BigInteger> {
-        val senderI = Pair(senderMessage.first.first?.modPow(rsaParameters.d, rsaParameters.n),
-            senderMessage.first.second?.modPow(rsaParameters.d, rsaParameters.n))
+    fun registerUser(userRegistrationMessage: UserRegistrationMessage): UserRegistrationResponseMessage {
+        val encryptedI = userRegistrationMessage.i
+        val senderI = Pair(encryptedI.first.modPow(rsaParameters.d, rsaParameters.n),
+            encryptedI.second.modPow(rsaParameters.d, rsaParameters.n))
 
         val k = Cryptography.generateRandomBigInteger(CentralAuthority.p)
         val m = senderI.second
-        val s = BigInteger(k.toString() + m?.toString()).mod(CentralAuthority.p)
+        val s = BigInteger(k.toString() + m.toString()).mod(CentralAuthority.p)
         val v = CentralAuthority.alpha.modPow(s, CentralAuthority.p)
         val r = v.modPow(x, CentralAuthority.p)
-        val user = RegisteredUser(-1, name, s, k, v, r)
-        registeredUserManager.addRegisteredUser(user)
-        return Pair(v, r)
+        val user = RegisteredUser(-1, userRegistrationMessage.userName, s, k, v, r)
+
+        if (registeredUserManager.addRegisteredUser(user))
+            return UserRegistrationResponseMessage(MessageResult.SuccessFul, name, v, r, "")
+        // TODO More detailed error message. F.e. Name already in use
+        return UserRegistrationResponseMessage(MessageResult.Failed, name, BigInteger.ZERO, BigInteger.ZERO, "Something went wrong")
     }
 
     fun getRegisteredUsers(): List<RegisteredUser> {

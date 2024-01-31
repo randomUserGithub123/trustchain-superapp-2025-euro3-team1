@@ -10,7 +10,7 @@ import java.math.BigInteger
 
 class OwnedTokenManager(
     context: Context?,
-    private val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "owned_tokens.db"),
+    driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "owned_tokens.db"),
     ) {
 
     private val database: Database = Database(driver)

@@ -18,6 +18,7 @@ class RegisteredUserManagerTest {
     fun before() {
         registeredUserManager.clearAllRegisteredUsers()
     }
+
     @Test
     fun registerAndGetByNameTest() {
         val name = "Tester"

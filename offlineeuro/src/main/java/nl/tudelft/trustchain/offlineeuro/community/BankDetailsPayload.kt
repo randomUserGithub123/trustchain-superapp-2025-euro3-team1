@@ -17,6 +17,7 @@ class BankDetailsPayload (
         payload += serializeVarLen(bankDetails.z.toByteArray())
         payload += serializeVarLen(bankDetails.eb.toByteArray())
         payload += serializeVarLen(bankDetails.nb.toByteArray())
+        payload += serializeVarLen(bankDetails.publicKeyBytes)
         return payload
     }
 
@@ -36,11 +37,15 @@ class BankDetailsPayload (
             val (nbBytes, nbSize) = deserializeVarLen(buffer, localOffset)
             localOffset += nbSize
 
+            val (publicKeyBytes, publicKeySize) = deserializeVarLen(buffer, localOffset)
+            localOffset += publicKeySize
+
             val payload = BankDetails(
                 nameBytes.toString(Charsets.UTF_8),
                 BigInteger(zBytes),
                 BigInteger(ebBytes),
-                BigInteger(nbBytes)
+                BigInteger(nbBytes),
+                publicKeyBytes
             )
 
 

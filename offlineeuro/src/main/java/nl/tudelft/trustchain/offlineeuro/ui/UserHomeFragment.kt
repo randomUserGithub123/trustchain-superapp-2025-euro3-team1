@@ -23,18 +23,19 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         val parentContext = context
         val registerButton = view.findViewById<Button>(R.id.user_home_register_button)
         registerButton.setOnClickListener {
-            var toast: Toast?
-            if (user.banks.isEmpty())
-                toast = Toast.makeText(parentContext, "No valid Bank found", Toast.LENGTH_SHORT)
-            else {
-                val bank = user.banks[0]
-                toast = Toast.makeText(parentContext, "Could register at ${bank.first}", Toast.LENGTH_SHORT)
-            }
-
-            toast.show()
+//            val toast: Toast = if (user.bankRegistrationManager.getBanks.isEmpty()) {
+//                Toast.makeText(parentContext, "No valid Bank found", Toast.LENGTH_SHORT)
+//            } else {
+//                val bank = user.banks.values.first()
+//                Toast.makeText(parentContext, "Could register at ${bank.second.name}", Toast.LENGTH_SHORT)
+//            }
+//
+//            toast.show()
 
         }
     }
+
+
 
 
 

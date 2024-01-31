@@ -1,29 +1,39 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
-import nl.tudelft.ipv8.Peer
+import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
+import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-class User {
+class User (
+    private val context: Context,
+    val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
+    val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context)
+)
+{
 
     // Private Values
     private var rsaParameters: RSAParameters
-    private var I: Pair<BigInteger?, BigInteger?> = Pair(null, null)
+    private lateinit var I: Pair<BigInteger, BigInteger>
     private var tokenList: ArrayList<Pair<Token, Triple<BigInteger, BigInteger, BigInteger>>> = arrayListOf()
 
-    // TODO randomize
-    private val m: BigInteger = BigInteger("42142132")
-    private val rm: BigInteger = BigInteger("4")
+    // Values of the CA for easier reference
+    private val p = CentralAuthority.p
+    private val q = CentralAuthority.q
+    private val alpha = CentralAuthority.alpha
+
+    private val m: BigInteger = Cryptography.generateRandomBigInteger(p)
+    private val rm: BigInteger = Cryptography.generateRandomBigInteger(p)
 
     // Public RSA values of the bank
     private var eb: BigInteger = BigInteger.ZERO
     private var nb: BigInteger = BigInteger.ZERO
-
-    val banks: ArrayList<Pair<String, Peer>> = arrayListOf()
 
     // Variables after registering
     private lateinit var v: BigInteger
@@ -35,40 +45,25 @@ class User {
         rsaParameters = Cryptography.generateRSAParameters(2048)
     }
 
-    /***
-     * For now input the bank, later find a bank through IP-v8
-     * TODO Bank with IP-v8
-     */
-    fun findBank(bank: Bank) {
-        val (eb, nb) = bank.getPublicRSAValues()
-        this.eb = eb
-        this.nb = nb
-    }
-    fun computeI() {
+    fun computeI(bankDetails: BankDetails) {
         // I = (H1(m||a^r_m),m)^e_b) (mod n_b)
-        val arm = CentralAuthority.alpha.modPow(rm, nb)
+        val arm = alpha.modPow(rm, bankDetails.nb)
         val concat = m.toString() + arm.toString()
-        val hash = CentralAuthority.H1(concat)
-        val hasheb = hash.modPow(eb, nb)
-        val meb = hash.modPow(eb, nb)
-        I = Pair(hasheb, meb)
+        val hash = CentralAuthority.H1(concat).modPow(bankDetails.eb, bankDetails.nb)
+        val meb = m.modPow(bankDetails.eb, bankDetails.nb)
+        I = Pair(hash, meb)
     }
 
-    fun registerWithBank(bank: Bank) {
+    fun registerWithBank(userName: String, bankName: String, community: OfflineEuroCommunity) {
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return
 
-        if (eb == BigInteger.ZERO || nb == BigInteger.ZERO)
-            findBank(bank)
+        computeI(bank.bankDetails)
 
         // Send the message (I, (alpha^r_m mod p)),
-
-        if (I.first == null || I.second == null ) {
-            computeI()
-        }
-        val arm = CentralAuthority.alpha.modPow(rm, CentralAuthority.p)
-        val message = Pair(I, arm)
-        val (v, r) = bank.registerUser(message)
-        this.v = v
-        this.r = r
+        val arm = alpha.modPow(rm, p)
+        val registrationMessage = UserRegistrationMessage(userName, I, arm)
+        bankRegistrationManager.setOwnValuesForBank(bankName, m, rm)
+        community
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

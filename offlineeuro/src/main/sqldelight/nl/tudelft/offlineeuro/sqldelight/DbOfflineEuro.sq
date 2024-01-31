@@ -100,4 +100,42 @@ removeTokenById:
 DELETE
 FROM owned_tokens
 WHERE id = ?;
+
+createBankRegistrationTable:
+CREATE TABLE IF NOT EXISTS bank_registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bankName TEXT UNIQUE NOT NULL,
+    z BLOB NOT NULL,
+    eb BLOB NOT NULL,
+    nb BLOB NOT NULL,
+    publicKey BLOB NOT NULL,
+    m BLOB,
+    rm BLOB,
+    v BLOB,
+    r BLOB
+);
+
+addNewBank:
+INSERT INTO bank_registrations(bankName, z, eb, nb, publicKey)
+VALUES (?, ?, ?, ?, ?);
+
+getBankRegistrationByName:
+SELECT *
+FROM bank_registrations
+WHERE bankName LIKE ?;
+
+setOwnValuesForBank:
+UPDATE bank_registrations
+SET m = ?, rm = ?
+WHERE bankName LIKE ?;
+
+setBankRegistrationValues:
+UPDATE bank_registrations
+SET v = ?, r = ?
+WHERE bankName LIKE ?;
+
+clearAllRegisteredBanks:
+DELETE FROM bank_registrations;
 -- endRegion User Tables
+getChanges:
+SELECT changes();
