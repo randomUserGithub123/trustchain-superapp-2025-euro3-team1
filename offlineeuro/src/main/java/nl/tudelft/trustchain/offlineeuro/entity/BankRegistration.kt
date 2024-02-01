@@ -3,7 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import java.math.BigInteger
 
 class BankRegistration (
-    val id: Int,
+    val id: Long,
     val bankDetails: BankDetails,
     val m: BigInteger?,
     val rm: BigInteger?,

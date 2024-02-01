@@ -5,6 +5,7 @@ import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
 import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
+import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import org.junit.Assert
 import org.junit.Test
@@ -32,7 +33,8 @@ class BankTest {
     // Define a user to get access to some of the user computation methods
     private val user = User(context,
         OwnedTokenManager(context, driver),
-        BankRegistrationManager(context, driver)
+        BankRegistrationManager(context, driver),
+        UnsignedTokenManager(context, driver)
     )
 
     @Test
@@ -45,7 +47,7 @@ class BankTest {
         val userName = "IAmTheRichestUser"
         val userRegistrationMessage = UserRegistrationMessage(userName, userI, arm)
 
-        val bankResponseMessage = bank.registerUser(userRegistrationMessage)
+        val bankResponseMessage = bank.handleUserRegistration(userRegistrationMessage)
 
         Assert.assertEquals("The registration should be valid", MessageResult.SuccessFul, bankResponseMessage.result)
         Assert.assertNotEquals("The v should be set", BigInteger.ZERO, bankResponseMessage.v)
@@ -63,7 +65,7 @@ class BankTest {
         val secondArm = alpha.modPow(secondRm, p)
 
         val secondRegistrationMessage = UserRegistrationMessage(userName, secondI, secondArm)
-        val secondResponseMessage = bank.registerUser(secondRegistrationMessage)
+        val secondResponseMessage = bank.handleUserRegistration(secondRegistrationMessage)
 
         Assert.assertEquals("The registration should be invalid", MessageResult.Failed, secondResponseMessage.result)
         Assert.assertEquals("The v should not be set", BigInteger.ZERO, secondResponseMessage.v)
@@ -74,7 +76,7 @@ class BankTest {
 
         val newName = "JustABitPoorer"
         val thirdRegistrationMessage = UserRegistrationMessage(newName, secondI, secondArm)
-        val thirdResponse = bank.registerUser(thirdRegistrationMessage)
+        val thirdResponse = bank.handleUserRegistration(thirdRegistrationMessage)
 
         Assert.assertEquals("The registration should be valid", MessageResult.SuccessFul, thirdResponse.result)
         Assert.assertNotEquals("The v should be set", BigInteger.ZERO, thirdResponse.v)

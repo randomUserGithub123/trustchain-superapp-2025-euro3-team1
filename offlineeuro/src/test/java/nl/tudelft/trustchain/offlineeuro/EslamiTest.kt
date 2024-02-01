@@ -1,23 +1,103 @@
 package nl.tudelft.trustchain.eurotoken
 
+import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
+import nl.tudelft.offlineeuro.sqldelight.Database
+import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
+import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
+import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
+import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
+import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
+import nl.tudelft.trustchain.offlineeuro.entity.MessageResult
+import nl.tudelft.trustchain.offlineeuro.entity.UnsignedTokenSignRequestEntry
+import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.entity.UserRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
+import org.mockito.Mockito
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.times
 import java.math.BigInteger
 
 class EslamiTest {
 
+    // Set up for in memory databases
+    private val context = null
+    private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
+        Database.Schema.create(this)
+    }
+
+    // Set up a Mock for the Community
+    private lateinit var community: OfflineEuroCommunity
+    private lateinit var registerMessage: UserRegistrationMessage
+    private lateinit var unsignedTokenMessage: List<UnsignedTokenSignRequestEntry>
+    private val captor = argumentCaptor<UserRegistrationMessage>()
+    @Before
+    fun setup() {
+        community  = Mockito.mock(OfflineEuroCommunity::class.java)
+        `when`(community.sendUserRegistrationMessage(any(), any())).doReturn(true)
+
+        `when`(community.sendUnsignedTokens(any(), any())).then {
+            argumentCaptor<List<UnsignedTokenSignRequestEntry>>().capture()
+        }
+
+    }
+
     @Test
     fun eslamiProtocolTest() {
-        // TODO rewrite for IPV8 changes
-//        val bank = Bank()
-//        val user = User()
-//        // The user should start with no tokens
-//        Assert.assertEquals("The user should have no tokens", 0, user.getBalance())
-//        // register the user
-//        user.registerWithBank(bank)
-//        // Withdraw a token
-//        user.withdrawToken(bank)
+
+        // Create a bank and a user with an in memory database
+        val bank = Bank(context, RegisteredUserManager(context, driver))
+        val rsaParameters = bank.getPublicRSAValues()
+        val bankDetails = BankDetails(
+            "BestTestBank",
+            bank.z,
+            rsaParameters.first,
+            rsaParameters.second,
+            "NotAPubKeyJustSomeBytes".toByteArray()
+        )
+
+        val user = User(context,
+            OwnedTokenManager(context, driver),
+            BankRegistrationManager(context, driver),
+            UnsignedTokenManager(context, driver)
+        )
+
+        // The user should start with no tokens
+        Assert.assertEquals("The user should have no tokens", 0, user.getBalance())
+        // Register the user
+        user.handleBankDetailsReplay(bankDetails)
+        user.registerWithBank("TheRichestUser", bankDetails.name, community)
+
+        // Assert that the registration request is sent
+        verify(community, times(1)).sendUserRegistrationMessage(any(), any())
+
+        val registerMessage = captor.allValues[0]
+        Assert.assertNotNull("The registration request should be sent now", registerMessage)
+
+        // Handle the registration request as the bank
+        val registrationResponse = bank.handleUserRegistration(registerMessage)
+
+        // Registration should be successful
+        Assert.assertEquals("The registration should be successful", MessageResult.SuccessFul, registrationResponse.result)
+
+        // Complete the bank registration for the user
+        user.handleRegistrationResponse(registrationResponse)
+
+        // Withdraw a token
+        user.withdrawToken(bank.name, community)
+
+        // Assert that the UnsignedTokenRequest is sent
+        Mockito.verify(community, Mockito.times(1)).sendUnsignedTokens(any(), eq(bankDetails.publicKeyBytes))
+        Assert.assertNotNull("The sign request should be sent now", unsignedTokenMessage)
 //        Assert.assertEquals("The user should now have a token", 1, user.getBalance())
 //
 //        val token = user.getTokens()[0].first

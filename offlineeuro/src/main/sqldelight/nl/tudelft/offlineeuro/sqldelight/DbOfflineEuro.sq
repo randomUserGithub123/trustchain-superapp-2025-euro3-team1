@@ -80,12 +80,14 @@ CREATE TABLE IF NOT EXISTS owned_tokens (
     t TEXT NOT NULL,
     w BLOB NOT NULL,
     y BLOB NOT NULL,
+    bankID INTEGER NOT NULL,
+    FOREIGN KEY (bankID) REFERENCES bank_registrations (id) ON DELETE CASCADE,
     UNIQUE (u, g, a, r, aPrime, t)
 );
 
 addToken:
-INSERT INTO owned_tokens(u, g, a, r, aPrime, t, w, y)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO owned_tokens(u, g, a, r, aPrime, t, w, y, bankID)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 getTokenById:
 SELECT *
@@ -124,6 +126,11 @@ SELECT *
 FROM bank_registrations
 WHERE bankName LIKE ?;
 
+getBankRegistrationById:
+SELECT *
+FROM bank_registrations
+WHERE id = ?;
+
 setOwnValuesForBank:
 UPDATE bank_registrations
 SET m = ?, rm = ?
@@ -136,6 +143,47 @@ WHERE bankName LIKE ?;
 
 clearAllRegisteredBanks:
 DELETE FROM bank_registrations;
+
+createUnsignedTokenTable:
+CREATE TABLE IF NOT EXISTS unsigned_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    a BLOB NOT NULL,
+    c BLOB NOT NULL,
+    bigA BLOB NOT NULL,
+    beta1 BLOB NOT NULL,
+    beta2 BLOB NOT NULL,
+    l BLOB NOT NULL,
+    u BLOB NOT NULL,
+    g BLOB NOT NULL,
+    y BLOB NOT NULL,
+    w BLOB NOT NULL,
+    bankID INTEGER NOT NULL,
+    status INTEGER NOT NULL,
+    FOREIGN KEY (bankID) REFERENCES bank_registrations (id) ON DELETE CASCADE
+);
+
+addUnsignedToken:
+INSERT INTO unsigned_tokens (a, c, bigA, beta1, beta2, l, u, g, y, w, bankID, status)
+VALUES (?, ?, ?, ?, ?, ?, ? ,?, ?, ?, ?, ?);
+
+updateStatusById:
+UPDATE unsigned_tokens
+SET status = ?
+WHERE id = ?;
+
+getUnsignedTokensByIds:
+SELECT *
+FROM unsigned_tokens
+WHERE id IN ?;
+
+getUnsignedTokensById:
+SELECT *
+FROM unsigned_tokens
+WHERE id = ?;
+
 -- endRegion User Tables
 getChanges:
 SELECT changes();
+
+getLastInsertedId:
+SELECT last_insert_rowid();

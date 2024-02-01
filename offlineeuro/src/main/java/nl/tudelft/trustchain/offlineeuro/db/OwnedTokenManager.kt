@@ -23,10 +23,11 @@ class OwnedTokenManager(
             aPrime: ByteArray,
             t: String,
             w: ByteArray,
-            y: ByteArray
+            y: ByteArray,
+            bankId: Long
         ->
         TokenEntry(
-            id.toInt(),
+            id,
             Token(
                 BigInteger(u),
                 BigInteger(g),
@@ -36,15 +37,19 @@ class OwnedTokenManager(
                 t
             ),
             BigInteger(w),
-            BigInteger(y)
+            BigInteger(y),
+            bankId.toInt()
         )
     }
 
+    init {
+        database.dbOfflineEuroQueries.createOwnedTokenTable()
+    }
     fun getAllTokens(): List<TokenEntry> {
         return database.dbOfflineEuroQueries.getAllTokens(ownedTokenMapper).executeAsList()
     }
 
-    fun addToken(token: Token, w: BigInteger, y: BigInteger) {
+    fun addToken(token: Token, w: BigInteger, y: BigInteger, bankId: Long) {
         return database.dbOfflineEuroQueries.addToken(
             token.u.toByteArray(),
             token.g.toByteArray(),
@@ -53,7 +58,8 @@ class OwnedTokenManager(
             token.aPrime.toByteArray(),
             token.t,
             w.toByteArray(),
-            y.toByteArray()
+            y.toByteArray(),
+            bankId
         )
     }
 }

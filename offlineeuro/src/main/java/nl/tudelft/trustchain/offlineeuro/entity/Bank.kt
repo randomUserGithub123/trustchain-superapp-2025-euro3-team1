@@ -34,7 +34,7 @@ class Bank (
         return Pair(rsaParameters.e, rsaParameters.n)
     }
 
-    fun registerUser(userRegistrationMessage: UserRegistrationMessage): UserRegistrationResponseMessage {
+    fun handleUserRegistration(userRegistrationMessage: UserRegistrationMessage): UserRegistrationResponseMessage {
         val encryptedI = userRegistrationMessage.i
         val senderI = Pair(encryptedI.first.modPow(rsaParameters.d, rsaParameters.n),
             encryptedI.second.modPow(rsaParameters.d, rsaParameters.n))
@@ -71,14 +71,24 @@ class Bank (
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun signToken(unsignedToken: Pair<BigInteger, BigInteger>): Triple<BigInteger, BigInteger, String> {
-        val (a, c) = unsignedToken
+    fun handleSignUnsignedTokenRequest(unsignedTokenSignRequestEntries: List<UnsignedTokenSignRequestEntry>): ArrayList<UnsignedTokenSignResponseEntry> {
+        val responseList = arrayListOf<UnsignedTokenSignResponseEntry>()
+        for (unsignedTokenSignRequestEntry in unsignedTokenSignRequestEntries) {
+            responseList.add(signToken(unsignedTokenSignRequestEntry))
+        }
+
+        return responseList
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun signToken(unsignedToken: UnsignedTokenSignRequestEntry): UnsignedTokenSignResponseEntry {
+        val (id, a, c) = unsignedToken
         val timeStamp = LocalDateTime.now().plusYears(1)
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val timeStampString = timeStamp.format(formatter)
         val cPrime = (c * x + firstUserS).mod(q)
         val hash = CentralAuthority.H1(timeStampString)
         val aPrime = (a * hash).modPow(rsaParameters.d, rsaParameters.n)
-        return Triple(aPrime, cPrime, timeStampString)
+        return UnsignedTokenSignResponseEntry(id, aPrime, cPrime, timeStampString, UnsignedTokenStatus.SIGNED)
     }
 }

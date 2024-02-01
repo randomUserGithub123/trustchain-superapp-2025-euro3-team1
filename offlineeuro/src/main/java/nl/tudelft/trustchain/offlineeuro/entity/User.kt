@@ -6,6 +6,7 @@ import androidx.annotation.RequiresApi
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
 import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
+import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
 import java.time.LocalDateTime
@@ -13,30 +14,16 @@ import java.time.format.DateTimeFormatter
 
 class User (
     private val context: Context?,
-    val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
-    val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context)
+    private val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
+    private val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context),
+    private val unsignedTokenManager: UnsignedTokenManager = UnsignedTokenManager(context)
 )
 {
-
-    // Private Values
-    private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
-    private var tokenList: ArrayList<Pair<Token, Triple<BigInteger, BigInteger, BigInteger>>> = arrayListOf()
 
     // Values of the CA for easier reference
     private val p = CentralAuthority.p
     private val q = CentralAuthority.q
     private val alpha = CentralAuthority.alpha
-
-    // Public RSA values of the bank
-    private var eb: BigInteger = BigInteger.ZERO
-    private var nb: BigInteger = BigInteger.ZERO
-
-    // Variables after registering
-    private lateinit var v: BigInteger
-    private lateinit var r: BigInteger
-
-    lateinit var w: BigInteger
-    lateinit var y: BigInteger
 
     fun computeI(bankDetails: BankDetails, m: BigInteger, rm: BigInteger): Pair<BigInteger, BigInteger> {
         // I = (H1(m||a^r_m),m)^e_b) (mod n_b)
@@ -47,6 +34,7 @@ class User (
         return Pair(hash, meb)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun registerWithBank(userName: String, bankName: String, community: OfflineEuroCommunity): Boolean {
         val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return false
 
@@ -76,69 +64,130 @@ class User (
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun withdrawToken(bank: Bank) {
+    fun withdrawToken(bankName: String, community: OfflineEuroCommunity) {
+
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName) ?: return
+
+        if (bank.m == null || bank.rm == null || bank.v == null)
+            // TODO User should register first
+            return
+        val nb = bank.bankDetails.nb
+        val eb = bank.bankDetails.eb
+        val r = bank.r
+        val v = bank.v
 
         // Generate the random values
-        y = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
-        var u = CentralAuthority.alpha.modPow(y, CentralAuthority.p)
+        var y = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
+        var u = CentralAuthority.alpha.modPow(y, p)
 
-        var l = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+        var l = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
 
-        val e = Cryptography.generateRandomBigInteger(BigInteger.ONE, (CentralAuthority.p / BigInteger("4")))
-        var beta1 = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
-        val beta2 = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+        val e = Cryptography.generateRandomBigInteger(BigInteger.ONE, (p / BigInteger("4")))
+        var beta1 = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
+        val beta2 = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
 
         // Conditions on the values
         // Required: gdc(y,p-1) = 1
-        while (y.gcd(CentralAuthority.p - BigInteger.ONE) != BigInteger.ONE ||
-            u.gcd(CentralAuthority.p - BigInteger.ONE) != BigInteger.ONE) {
-            y = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
-            u = CentralAuthority.alpha.modPow(y, CentralAuthority.p)
+        while (y.gcd(p - BigInteger.ONE) != BigInteger.ONE ||
+            u.gcd(p - BigInteger.ONE) != BigInteger.ONE) {
+            y = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
+            u = alpha.modPow(y, p)
         }
 
         // Required: gdc(l,nb) = 1
         while (l.gcd(nb) != BigInteger.ONE)
-            l = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+            l = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
 
         // Required: gdc(beta1,q) = 1
-        while (beta1.gcd(CentralAuthority.q) != BigInteger.ONE)
-            beta1 = Cryptography.generateRandomBigInteger(BigInteger.ONE, CentralAuthority.p)
+        while (beta1.gcd(q) != BigInteger.ONE)
+            beta1 = Cryptography.generateRandomBigInteger(BigInteger.ONE, p)
 
         // Computations
 
         //TODO Find out how to make it work with e
         //w = BigInteger(r.toString() + e.toString())
-        w = BigInteger(r.toString())
+        val w = BigInteger(r.toString())
 
-        val g = CentralAuthority.alpha.modPow(w, CentralAuthority.p)
-        val A =  ((v.modPow(beta1, CentralAuthority.p)) * (CentralAuthority.alpha.modPow(beta2, CentralAuthority.p))).mod(CentralAuthority.p)
-        val beta1Inv = beta1.modInverse(CentralAuthority.q)
-        val hash = CentralAuthority.H(u, g, A)
-        val c = (beta1Inv * hash).mod(CentralAuthority.q)
-        val a = (A * l.modPow(eb, nb)).mod(nb)
+        val g = alpha.modPow(w, p)
+        val bigA =  ((v.modPow(beta1, p)) * (alpha.modPow(beta2, p))).mod(p)
+        val beta1Inv = beta1.modInverse(q)
+        val hash = CentralAuthority.H(u, g, bigA)
+        val c = (beta1Inv * hash).mod(q)
+        val a = (bigA * l.modPow(eb, nb)).mod(nb)
 
-        val (aPrime, cPrime, t) = bank.signToken(Pair(a, c))
+        val unsignedTokenToAdd = UnsignedTokenAdd(a, c, bigA, beta1, beta2, l, u, g, y, w, bank.id)
+        val tokenId = unsignedTokenManager.addUnsignedToken(unsignedTokenToAdd)
 
-        val r2 = (beta1 * cPrime + beta2).mod(CentralAuthority.q)
-        val aDoublePrime = (l.modInverse(nb) * aPrime).mod(nb)
-        val signedToken = Token(u, g, A, r2, aDoublePrime, t)
-        ownedTokenManager.addToken(signedToken, w, y)
-
+        // TODO Put in loop to send more than one at the same time
+        val signRequest = UnsignedTokenSignRequestEntry(tokenId, a, c)
+        val tokensToSign = arrayListOf(signRequest)
+        community.sendUnsignedTokens(tokensToSign, bank.bankDetails.publicKeyBytes)
     }
 
-    fun checkReceivedToken(token: Token, bank: Bank) : Boolean {
+    fun handleUnsignedTokenSignResponse(bankName: String,
+        unsignedTokenSignResponseEntries: List<UnsignedTokenSignResponseEntry>) {
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName) ?: return
+
+        if (bank.m == null || bank.rm == null || bank.v == null)
+        // TODO User should register first error
+            return
+
+        val nb = bank.bankDetails.nb
+
+        for (unsignedTokenSignResponseEntry in unsignedTokenSignResponseEntries) {
+            val (id, aPrime, cPrime, t, status) = unsignedTokenSignResponseEntry
+
+            if (status == UnsignedTokenStatus.REJECTED) {
+                // TODO Consider what to do if a token is rejected
+                unsignedTokenManager.updateUnsignedTokenStatusById(status, id)
+                continue
+            }
+
+            val unsignedToken = unsignedTokenManager.getUnsignedTokenById(id)
+            val bigA = unsignedToken.bigA
+            val beta1 = unsignedToken.beta1
+            val beta2 = unsignedToken.beta2
+            val l = unsignedToken.l
+            val u = unsignedToken.u
+            val g = unsignedToken.g
+            val w = unsignedToken.w
+            val y = unsignedToken.y
+
+            val r2 = (beta1 * cPrime + beta2).mod(q)
+            val aDoublePrime = (l.modInverse(nb) * aPrime).mod(nb)
+            val signedToken = Token(u, g, bigA, r2, aDoublePrime, t)
+
+            ownedTokenManager.addToken(signedToken, w, y, unsignedToken.bankId)
+            // TODO Batch?
+            unsignedTokenManager.updateUnsignedTokenStatusById(UnsignedTokenStatus.SIGNED, id)
+        }
+
+
+
+    }
+    fun checkReceivedToken(token: Token, bankName: String) : Boolean {
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName) ?: return false
+
+        if (bank.m == null || bank.rm == null || bank.v == null)
+        // TODO User should register first error
+            return false
+
+        val nb = bank.bankDetails.nb
+        val eb = bank.bankDetails.eb
+        val z = bank.bankDetails.z
+
         // AH1(t) ?= A"^e_b mod nb
         val checkOne = (token.a * CentralAuthority.H1(token.t)).mod(nb) == token.aPrime.modPow(eb, nb)
 
         //a^r = Az^(H(u,g,A)) mod p
-        val zhash = bank.z.modPow(CentralAuthority.H(token.u, token.g, token.a), CentralAuthority.p)
+        val zhash = z.modPow(CentralAuthority.H(token.u, token.g, token.a), CentralAuthority.p)
         val checkTwo = CentralAuthority.alpha.modPow(token.r, CentralAuthority.p) == (token.a * zhash).mod(CentralAuthority.p)
         return checkOne && checkTwo
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun onTokenReceived(token: Token, bank: Bank, merchantID: BigInteger) : BigInteger? {
-        if (!checkReceivedToken(token, bank)) {
+    fun onTokenReceived(token: Token, bankName: String, merchantID: BigInteger) : BigInteger? {
+        if (!checkReceivedToken(token, bankName)) {
             return null
         }
         return computeChallenge(token, merchantID)
@@ -153,15 +202,19 @@ class User (
 
     fun onChallengeReceived(d: BigInteger, token: Token): BigInteger {
 
-        var randomVars: Triple<BigInteger, BigInteger, BigInteger> = Triple(BigInteger.ZERO,BigInteger.ZERO, BigInteger.ZERO)
-
+        val tokenList = getTokens()
         for (storedToken in tokenList) {
-            if (storedToken.first == token)
-                randomVars = storedToken.second
+            if (storedToken.token == token) {
+                val w = storedToken.w
+                val u = token.u
+                val y = storedToken.y
+                val gamma = Cryptography.solve_for_gamma(w, u, y, d, p)
+                return gamma
+            }
         }
-        val (w, u, y) = randomVars
-        val gamma = Cryptography.solve_for_gamma(w, u, y, d, CentralAuthority.p)
-        return gamma
+
+        // Token is not found
+        return BigInteger.ZERO
     }
 
     fun onChallengeResponseReceived(token: Token, gamma: BigInteger, challenge: BigInteger): Receipt? {
@@ -178,17 +231,21 @@ class User (
         val alpha = CentralAuthority.alpha
         val p = CentralAuthority.p
         val gu = g.modPow(u, p)
-        val ugamma = u.modPow(gamma, p)
-        val leftside = (gu * ugamma).mod(p)
+        val uGamma = u.modPow(gamma, p)
+        val leftSide = (gu * uGamma).mod(p)
         val ad = alpha.modPow(challenge, p)
 
-        return leftside == ad
+        return leftSide == ad
     }
     fun getBalance(): Int {
-        return tokenList.size
+        return ownedTokenManager.getAllTokens().size
     }
 
-    fun getTokens(): ArrayList<Pair<Token, Triple<BigInteger, BigInteger, BigInteger>>> {
-        return tokenList
+    fun getTokens(): List<TokenEntry> {
+        return ownedTokenManager.getAllTokens()
+    }
+
+    fun handleBankDetailsReplay(bankDetails: BankDetails) {
+        bankRegistrationManager.addNewBank(bankDetails)
     }
 }

@@ -33,7 +33,7 @@ class BankRegistrationManager (
             r: ByteArray?,
             ->
         BankRegistration(
-            id.toInt(),
+            id,
             BankDetails(
                 bankName,
                 BigInteger(z),
@@ -65,6 +65,10 @@ class BankRegistrationManager (
 
     fun getBankRegistrationByName(name: String): BankRegistration? {
        return queries.getBankRegistrationByName(name, bankRegistrationMapper).executeAsOneOrNull()
+    }
+
+    fun getBankById(id: Long): BankRegistration? {
+        return queries.getBankRegistrationById(id, bankRegistrationMapper).executeAsOneOrNull()
     }
 
     fun setOwnValuesForBank(bankName: String, m: BigInteger, rm: BigInteger): Boolean {
