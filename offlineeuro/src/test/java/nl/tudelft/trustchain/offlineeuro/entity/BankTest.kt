@@ -34,6 +34,7 @@ class BankTest {
         OwnedTokenManager(context, driver),
         BankRegistrationManager(context, driver)
     )
+
     @Test
     fun registerUserTest() {
 
@@ -50,5 +51,39 @@ class BankTest {
         Assert.assertNotEquals("The v should be set", BigInteger.ZERO, bankResponseMessage.v)
         Assert.assertNotEquals("The r should be set", BigInteger.ZERO, bankResponseMessage.r)
         Assert.assertTrue("The should be no error message", bankResponseMessage.errorMessage.isEmpty())
+
+        val registeredUsers = bank.getRegisteredUsers()
+        Assert.assertEquals("There should be one registered user", 1, registeredUsers.count())
+        Assert.assertEquals("The registered user is correct", userName, registeredUsers[0].name)
+
+        // Test duplicate username
+        val secondM = Cryptography.generateRandomBigInteger(CentralAuthority.p)
+        val secondRm = Cryptography.generateRandomBigInteger(CentralAuthority.p)
+        val secondI = user.computeI(bankDetails, secondM, secondRm)
+        val secondArm = alpha.modPow(secondRm, p)
+
+        val secondRegistrationMessage = UserRegistrationMessage(userName, secondI, secondArm)
+        val secondResponseMessage = bank.registerUser(secondRegistrationMessage)
+
+        Assert.assertEquals("The registration should be invalid", MessageResult.Failed, secondResponseMessage.result)
+        Assert.assertEquals("The v should not be set", BigInteger.ZERO, secondResponseMessage.v)
+        Assert.assertEquals("The r should be not set", BigInteger.ZERO, secondResponseMessage.r)
+        Assert.assertTrue("The should be am error message",
+            secondResponseMessage.errorMessage.isNotEmpty()
+        )
+
+        val newName = "JustABitPoorer"
+        val thirdRegistrationMessage = UserRegistrationMessage(newName, secondI, secondArm)
+        val thirdResponse = bank.registerUser(thirdRegistrationMessage)
+
+        Assert.assertEquals("The registration should be valid", MessageResult.SuccessFul, thirdResponse.result)
+        Assert.assertNotEquals("The v should be set", BigInteger.ZERO, thirdResponse.v)
+        Assert.assertNotEquals("The r should be set", BigInteger.ZERO, thirdResponse.r)
+        Assert.assertTrue("The should be no error message", thirdResponse.errorMessage.isEmpty())
+
+        val secondRegisteredUsers = bank.getRegisteredUsers()
+        Assert.assertEquals("There should be one registered user", 2, secondRegisteredUsers.count())
+        Assert.assertEquals("The registered user is correct", userName, secondRegisteredUsers[0].name)
+        Assert.assertEquals("The registered user is correct", newName, secondRegisteredUsers[1].name)
     }
 }

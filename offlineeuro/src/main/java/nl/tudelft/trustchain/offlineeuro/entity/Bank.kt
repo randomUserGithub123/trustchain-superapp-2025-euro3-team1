@@ -27,7 +27,6 @@ class Bank (
 
     private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
 
-    lateinit var r: BigInteger
     private lateinit var firstUserS: BigInteger
     private var depositedTokens: ArrayList<Receipt> = arrayListOf()
 
@@ -77,7 +76,7 @@ class Bank (
         val timeStamp = LocalDateTime.now().plusYears(1)
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val timeStampString = timeStamp.format(formatter)
-        val cPrime = (c * x + firstUserS).mod(CentralAuthority.q)
+        val cPrime = (c * x + firstUserS).mod(q)
         val hash = CentralAuthority.H1(timeStampString)
         val aPrime = (a * hash).modPow(rsaParameters.d, rsaParameters.n)
         return Triple(aPrime, cPrime, timeStampString)
