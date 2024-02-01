@@ -23,7 +23,6 @@ import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.times
 import java.math.BigInteger
 
@@ -36,18 +35,15 @@ class EslamiTest {
     }
 
     // Set up a Mock for the Community
-    private lateinit var community: OfflineEuroCommunity
-    private lateinit var registerMessage: UserRegistrationMessage
-    private lateinit var unsignedTokenMessage: List<UnsignedTokenSignRequestEntry>
-    private val captor = argumentCaptor<UserRegistrationMessage>()
+    private val community: OfflineEuroCommunity = Mockito.mock(OfflineEuroCommunity::class.java)
+    private val unsignedTokenMessageCaptor = argumentCaptor<List<UnsignedTokenSignRequestEntry>>()
+    private val registrationMessageCaptor = argumentCaptor<UserRegistrationMessage>()
+
     @Before
     fun setup() {
-        community  = Mockito.mock(OfflineEuroCommunity::class.java)
         `when`(community.sendUserRegistrationMessage(any(), any())).doReturn(true)
 
-        `when`(community.sendUnsignedTokens(any(), any())).then {
-            argumentCaptor<List<UnsignedTokenSignRequestEntry>>().capture()
-        }
+        `when`(community.sendUnsignedTokens(any(), any())).then {}
 
     }
 
@@ -55,7 +51,7 @@ class EslamiTest {
     fun eslamiProtocolTest() {
 
         // Create a bank and a user with an in memory database
-        val bank = Bank(context, RegisteredUserManager(context, driver))
+        val bank = Bank("BestTestBank", context, RegisteredUserManager(context, driver))
         val rsaParameters = bank.getPublicRSAValues()
         val bankDetails = BankDetails(
             "BestTestBank",
@@ -65,7 +61,9 @@ class EslamiTest {
             "NotAPubKeyJustSomeBytes".toByteArray()
         )
 
-        val user = User(context,
+        val user = User (
+            "TheRichestUser",
+            context,
             OwnedTokenManager(context, driver),
             BankRegistrationManager(context, driver),
             UnsignedTokenManager(context, driver)
@@ -75,12 +73,12 @@ class EslamiTest {
         Assert.assertEquals("The user should have no tokens", 0, user.getBalance())
         // Register the user
         user.handleBankDetailsReplay(bankDetails)
-        user.registerWithBank("TheRichestUser", bankDetails.name, community)
+        user.registerWithBank(bankDetails.name, community)
 
         // Assert that the registration request is sent
-        verify(community, times(1)).sendUserRegistrationMessage(any(), any())
+        verify(community, times(1)).sendUserRegistrationMessage(registrationMessageCaptor.capture(), any())
 
-        val registerMessage = captor.allValues[0]
+        val registerMessage = registrationMessageCaptor.allValues[0]
         Assert.assertNotNull("The registration request should be sent now", registerMessage)
 
         // Handle the registration request as the bank
@@ -93,16 +91,23 @@ class EslamiTest {
         user.handleRegistrationResponse(registrationResponse)
 
         // Withdraw a token
-        user.withdrawToken(bank.name, community)
+        user.withdrawToken(bankDetails.name, community)
 
         // Assert that the UnsignedTokenRequest is sent
-        Mockito.verify(community, Mockito.times(1)).sendUnsignedTokens(any(), eq(bankDetails.publicKeyBytes))
+        verify(community, Mockito.times(1)).sendUnsignedTokens(unsignedTokenMessageCaptor.capture(), any())
+        val unsignedTokenMessage = unsignedTokenMessageCaptor.allValues[0]
         Assert.assertNotNull("The sign request should be sent now", unsignedTokenMessage)
-//        Assert.assertEquals("The user should now have a token", 1, user.getBalance())
-//
-//        val token = user.getTokens()[0].first
-//        // The token should be valid
-//        Assert.assertTrue("The token should be valid", user.checkReceivedToken(token, bank))
+
+        // Sign the tokens with the bank
+        val signedTokenResponse = bank.handleSignUnsignedTokenRequest(user.name, unsignedTokenMessage)
+
+        // Handle the response with the user
+        user.handleUnsignedTokenSignResponse(bankDetails.name, signedTokenResponse)
+
+        // The user should now have one valid token
+        Assert.assertEquals("The user should now have a token", 1, user.getBalance())
+        val token = user.getTokens()[0].token
+        Assert.assertTrue("The token should be valid", user.checkReceivedToken(token, bank.name))
 //        val randomToken = Token(token.u, token.g, token.r, token.A, token.ADoublePrime, token.t)
 //        Assert.assertFalse("The token should be invalid", user.checkReceivedToken(randomToken, bank))
 //

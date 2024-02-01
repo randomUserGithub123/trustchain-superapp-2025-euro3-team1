@@ -11,11 +11,14 @@ import nl.tudelft.trustchain.offlineeuro.entity.UnsignedTokenSignRequestEntry
 import java.math.BigInteger
 
 class UnsignedTokenPayload(
+    val userName: String,
     val tokensToSign: List<UnsignedTokenSignRequestEntry>
 ): Serializable {
     override fun serialize(): ByteArray {
 
         var payload = ByteArray(0)
+
+        payload += serializeVarLen(userName.toByteArray())
 
         for (tokenToSign in tokensToSign) {
             payload += serializeLong(tokenToSign.id)
@@ -34,7 +37,8 @@ class UnsignedTokenPayload(
 
             var localOffset = offset
             val requestEntries = arrayListOf<UnsignedTokenSignRequestEntry>()
-
+            val (userNameBytes, userNameSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += userNameSize
             while (localOffset < buffer.size) {
 
                 val id = deserializeLong(buffer, localOffset)
@@ -50,7 +54,7 @@ class UnsignedTokenPayload(
             }
 
             return Pair(
-                UnsignedTokenPayload(requestEntries),
+                UnsignedTokenPayload(userNameBytes.toString(), requestEntries),
                 localOffset - offset
             )
         }

@@ -21,7 +21,7 @@ class UnsignedToken (
 data class UnsignedTokenSignRequestEntry (
     val id: Long,
     val a: BigInteger,
-    val c: BigInteger
+    val c: BigInteger,
 )
 
 data class UnsignedTokenSignResponseEntry (

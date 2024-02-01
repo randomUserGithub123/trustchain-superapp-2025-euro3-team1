@@ -54,9 +54,11 @@ class OfflineEuroCommunity(
     val user: User
     val context: Context
     init {
+
+        // TODO FIX NAMING
         this.context = context
-        bank = Bank(context)
-        user = User(context)
+        bank = Bank(name, context)
+        user = User(name, context)
         messageHandlers[MessageID.FIND_BANK] = ::onFindBankPacket
         messageHandlers[MessageID.BANK_DETAILS_REPLY] = ::onBankDetailsReplyPacket
         messageHandlers[MessageID.USER_REGISTRATION] = ::onUserRegistrationPacket
@@ -149,7 +151,7 @@ class OfflineEuroCommunity(
 
         val signRequestPacket = serializePacket(
             MessageID.TOKEN_SIGN_REQUEST,
-            UnsignedTokenPayload(tokensToSign)
+            UnsignedTokenPayload(user.name, tokensToSign)
         )
 
         send(bankPeer, signRequestPacket)
@@ -172,7 +174,7 @@ class OfflineEuroCommunity(
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun onTokenSignRequest(peer: Peer, payload: UnsignedTokenPayload) {
-        val responseList = bank.handleSignUnsignedTokenRequest(payload.tokensToSign)
+        val responseList = bank.handleSignUnsignedTokenRequest(payload.userName, payload.tokensToSign)
 
         val responsePacket = serializePacket(
             MessageID.TOKEN_SIGN_REPLY,

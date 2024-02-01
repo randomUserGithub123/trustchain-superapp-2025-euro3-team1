@@ -13,6 +13,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 class User (
+    val name: String,
     private val context: Context?,
     private val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
     private val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context),
@@ -35,7 +36,7 @@ class User (
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun registerWithBank(userName: String, bankName: String, community: OfflineEuroCommunity): Boolean {
+    fun registerWithBank(bankName: String, community: OfflineEuroCommunity): Boolean {
         val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return false
 
         val m: BigInteger = Cryptography.generateRandomBigInteger(p)
@@ -45,7 +46,7 @@ class User (
 
         // Send the message (I, (alpha^r_m mod p)),
         val arm = alpha.modPow(rm, p)
-        val registrationMessage = UserRegistrationMessage(userName, i, arm)
+        val registrationMessage = UserRegistrationMessage(name, i, arm)
         if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm))
             return false
 

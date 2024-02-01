@@ -10,6 +10,7 @@ class UnsignedTokenPayloadTest {
 
     @Test
     fun serializeAndDeserializeTest() {
+        val userName = "TestUser"
         val listOfEntries = arrayListOf<UnsignedTokenSignRequestEntry>()
 
         for (i in 0 until 10) {
@@ -19,11 +20,12 @@ class UnsignedTokenPayloadTest {
             listOfEntries.add(UnsignedTokenSignRequestEntry(id, a, c))
         }
 
-        val payload = UnsignedTokenPayload(listOfEntries)
+        val payload = UnsignedTokenPayload(userName, listOfEntries)
         val serializedMessage = payload.serialize()
         val (deserializedMessage, _) = UnsignedTokenPayload.Deserializer.deserialize(serializedMessage, 0)
         val deserializedTokensToSign = deserializedMessage.tokensToSign
 
+        Assert.assertEquals("The username should be correct", userName, deserializedMessage.userName)
         Assert.assertEquals("The lists should have the same size", listOfEntries.size, deserializedTokensToSign.size)
         listOfEntries.sortedBy { x -> x.id }
         deserializedTokensToSign.sortedBy { x -> x.id }

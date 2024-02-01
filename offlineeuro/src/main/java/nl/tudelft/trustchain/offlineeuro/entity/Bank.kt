@@ -10,6 +10,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 class Bank (
+    val name: String = "BestBank",
     private val context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context)
 ){
@@ -23,11 +24,7 @@ class Bank (
 
     val z: BigInteger = alpha.modPow(x, p)
 
-    val name: String = "BestBank"
-
     private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
-
-    private lateinit var firstUserS: BigInteger
     private var depositedTokens: ArrayList<Receipt> = arrayListOf()
 
     fun getPublicRSAValues(): Pair<BigInteger, BigInteger> {
@@ -71,22 +68,25 @@ class Bank (
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun handleSignUnsignedTokenRequest(unsignedTokenSignRequestEntries: List<UnsignedTokenSignRequestEntry>): ArrayList<UnsignedTokenSignResponseEntry> {
+    fun handleSignUnsignedTokenRequest(userName: String, unsignedTokenSignRequestEntries: List<UnsignedTokenSignRequestEntry>): ArrayList<UnsignedTokenSignResponseEntry> {
+
         val responseList = arrayListOf<UnsignedTokenSignResponseEntry>()
+        // TODO Error handling if user not found
+        val user = registeredUserManager.getRegisteredUserByName(userName)!!
         for (unsignedTokenSignRequestEntry in unsignedTokenSignRequestEntries) {
-            responseList.add(signToken(unsignedTokenSignRequestEntry))
+            responseList.add(signToken(user, unsignedTokenSignRequestEntry))
         }
 
         return responseList
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun signToken(unsignedToken: UnsignedTokenSignRequestEntry): UnsignedTokenSignResponseEntry {
+    fun signToken(user: RegisteredUser, unsignedToken: UnsignedTokenSignRequestEntry): UnsignedTokenSignResponseEntry {
         val (id, a, c) = unsignedToken
         val timeStamp = LocalDateTime.now().plusYears(1)
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val timeStampString = timeStamp.format(formatter)
-        val cPrime = (c * x + firstUserS).mod(q)
+        val cPrime = (c * x + user.s).mod(q)
         val hash = CentralAuthority.H1(timeStampString)
         val aPrime = (a * hash).modPow(rsaParameters.d, rsaParameters.n)
         return UnsignedTokenSignResponseEntry(id, aPrime, cPrime, timeStampString, UnsignedTokenStatus.SIGNED)
