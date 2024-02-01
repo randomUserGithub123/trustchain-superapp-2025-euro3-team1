@@ -83,6 +83,16 @@ class RegisteredUserManager (
     }
 
     /**
+     * Gets a [RegisteredUser] by its [w].
+     *
+     * @param w the name of the [RegisteredUser]
+     * @return the [RegisteredUser] with the [w] or null if the user does not exist.
+     */
+    fun getRegisteredUserByW(w: BigInteger): RegisteredUser? {
+        return database.dbOfflineEuroQueries.getUserByR(w.toByteArray(), registeredUserMapper)
+            .executeAsOneOrNull()
+    }
+    /**
      * Gets the number of [RegisteredUser]s.
      *
      * @return The number of [RegisteredUser]s.

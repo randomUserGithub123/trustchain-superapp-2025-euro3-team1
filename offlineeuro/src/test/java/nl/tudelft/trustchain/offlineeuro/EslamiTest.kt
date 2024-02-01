@@ -10,6 +10,7 @@ import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
 import nl.tudelft.trustchain.offlineeuro.entity.MessageResult
+import nl.tudelft.trustchain.offlineeuro.entity.Token
 import nl.tudelft.trustchain.offlineeuro.entity.UnsignedTokenSignRequestEntry
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.entity.UserRegistrationMessage
@@ -108,31 +109,31 @@ class EslamiTest {
         Assert.assertEquals("The user should now have a token", 1, user.getBalance())
         val token = user.getTokens()[0].token
         Assert.assertTrue("The token should be valid", user.checkReceivedToken(token, bank.name))
-//        val randomToken = Token(token.u, token.g, token.r, token.A, token.ADoublePrime, token.t)
-//        Assert.assertFalse("The token should be invalid", user.checkReceivedToken(randomToken, bank))
-//
-//        val merchant1ID = "101212121"
-//        val firstChallenge = user.onTokenReceived(token, bank, BigInteger(merchant1ID))
-//        Assert.assertNotNull("The merchant should respond with a challenge", firstChallenge)
-//        val firstGamma = user.onChallengeReceived(firstChallenge!!, token)
-//        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, firstGamma)
-//        Assert.assertTrue("The challenge should return true", user.verifyChallengeResponse(token, firstGamma, firstChallenge))
-//        val receipt = user.onChallengeResponseReceived(token, firstGamma, firstChallenge)
-//        Assert.assertNotNull("The challenge response should be valid", receipt!!)
-//
-//        Assert.assertEquals("Deposit was successful!", bank.depositToken(receipt))
-//
-//        val merchant2ID = "32132131321"
-//        val secondChallenge = user.onTokenReceived(token, bank, BigInteger(merchant2ID))
-//
-//        Assert.assertNotNull("The merchant should respond with a challenge", secondChallenge)
-//        val secondGamma = user.onChallengeReceived(secondChallenge!!, token)
-//        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, secondGamma)
-//        Assert.assertTrue("The challenge should return true", user.verifyChallengeResponse(token, secondGamma, secondChallenge))
-//        val checkTwo = user.onChallengeResponseReceived(token, secondGamma, secondChallenge)
-//        Assert.assertNotNull("The challenge response should be valid", checkTwo!!)
-//        val result = bank.depositToken(checkTwo)
-//        Assert.assertTrue(result.contains("Double Spending detected! This is done by"))
+        val randomToken = Token(token.u, token.g, token.r, token.a, token.aPrime, token.t)
+        Assert.assertFalse("The token should be invalid", user.checkReceivedToken(randomToken, bank.name))
+
+        val merchant1ID = "101212121"
+        val firstChallenge = user.onTokenReceived(token, bank.name, BigInteger(merchant1ID))
+        Assert.assertNotNull("The merchant should respond with a challenge", firstChallenge)
+        val firstGamma = user.onChallengeReceived(firstChallenge!!, token)
+        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, firstGamma)
+        Assert.assertTrue("The challenge should return true", user.verifyChallengeResponse(token, firstGamma, firstChallenge))
+        val receipt = user.onChallengeResponseReceived(token, firstGamma, firstChallenge)
+        Assert.assertNotNull("The challenge response should be valid", receipt!!)
+
+        Assert.assertEquals("Deposit was successful!", bank.depositToken(receipt))
+
+        val merchant2ID = "32132131321"
+        val secondChallenge = user.onTokenReceived(token, bank.name, BigInteger(merchant2ID))
+
+        Assert.assertNotNull("The merchant should respond with a challenge", secondChallenge)
+        val secondGamma = user.onChallengeReceived(secondChallenge!!, token)
+        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, secondGamma)
+        Assert.assertTrue("The challenge should return true", user.verifyChallengeResponse(token, secondGamma, secondChallenge))
+        val checkTwo = user.onChallengeResponseReceived(token, secondGamma, secondChallenge)
+        Assert.assertNotNull("The challenge response should be valid", checkTwo!!)
+        val result = bank.depositToken(checkTwo)
+        Assert.assertTrue(result.contains("Double Spending detected! This is done by"))
 
     }
 

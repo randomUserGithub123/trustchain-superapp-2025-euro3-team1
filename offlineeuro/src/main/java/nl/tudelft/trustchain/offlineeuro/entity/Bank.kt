@@ -60,6 +60,7 @@ class Bank (
             if (token == newToken) {
                 val maliciousY = Cryptography.solve_for_y(depositedReceipt.gamma, receipt.gamma, depositedReceipt.challenge, receipt.challenge, p)
                 val maliciousW = Cryptography.solve_for_w(token.u, maliciousY, depositedReceipt.gamma, depositedReceipt.challenge, p)
+                val maliciousUser = registeredUserManager.getRegisteredUserByW(maliciousW)
                 return "Double Spending detected! This is done by y: $maliciousY and w: $maliciousW"
             }
         }
