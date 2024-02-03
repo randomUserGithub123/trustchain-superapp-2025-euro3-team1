@@ -31,7 +31,7 @@ class BankTest {
     private val alpha = CentralAuthority.alpha
 
     // Define a user to get access to some of the user computation methods
-    private val user = User(
+    private val user = User (
         "IAmTheRichestUser",
         context,
         OwnedTokenManager(context, driver),

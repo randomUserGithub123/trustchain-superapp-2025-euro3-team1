@@ -6,6 +6,7 @@ import androidx.annotation.RequiresApi
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
 import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
+import nl.tudelft.trustchain.offlineeuro.db.ReceiptManager
 import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
@@ -17,7 +18,8 @@ class User (
     private val context: Context?,
     private val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
     private val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context),
-    private val unsignedTokenManager: UnsignedTokenManager = UnsignedTokenManager(context)
+    private val unsignedTokenManager: UnsignedTokenManager = UnsignedTokenManager(context),
+    private val receiptManager: ReceiptManager = ReceiptManager(context)
 )
 {
 
@@ -162,10 +164,8 @@ class User (
             // TODO Batch?
             unsignedTokenManager.updateUnsignedTokenStatusById(UnsignedTokenStatus.SIGNED, id)
         }
-
-
-
     }
+
     fun checkReceivedToken(token: Token, bankName: String) : Boolean {
         val bank = bankRegistrationManager.getBankRegistrationByName(bankName) ?: return false
 
@@ -186,12 +186,34 @@ class User (
         return checkOne && checkTwo
     }
 
+
     @RequiresApi(Build.VERSION_CODES.O)
-    fun onTokenReceived(token: Token, bankName: String, merchantID: BigInteger) : BigInteger? {
-        if (!checkReceivedToken(token, bankName)) {
-            return null
+    fun sendTokenToRandomPeer(community: OfflineEuroCommunity, keepToken: Boolean = false) {
+        val tokenToSent = getTokens().first()
+        val tokensToSent = arrayListOf<Token>(tokenToSent.token)
+        val bank = bankRegistrationManager.getBankById(tokenToSent.bankId)!!
+        community.sendTokensToRandomPeer(tokensToSent, bank)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun onTokensReceived(tokens: List<Token>, bankName: String) : List<Challenge> {
+        val challenges = arrayListOf<Challenge>()
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)
+
+        // Check if you are registered to this bank
+        if (bank?.m == null || bank.rm == null || bank.v == null) {
+            return arrayListOf()
         }
-        return computeChallenge(token, merchantID)
+        // TODO State per token
+        val myI = computeI(bank.bankDetails, bank.m, bank.rm)
+        for (token in tokens) {
+            if (!checkReceivedToken(token, bankName)) {
+                return arrayListOf()
+            }
+            val challenge = computeChallenge(token, myI.first)
+            challenges.add(Challenge(token, challenge))
+        }
+        return challenges
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -201,31 +223,59 @@ class User (
         return CentralAuthority.H0(token.u, token.g, merchantID, timeStamp.format(formatter))
     }
 
-    fun onChallengeReceived(d: BigInteger, token: Token): BigInteger {
+    fun onChallenges(challenges: List<Challenge>, bankName: String, doubleSpend: Boolean = false): List<ChallengeResponse> {
+        val responses = arrayListOf<ChallengeResponse>()
+        for (challenge in challenges) {
+            val response = resolveChallenge(challenge, doubleSpend)
+            responses.add(response)
+        }
 
+        return responses
+    }
+
+    fun resolveChallenge(challenge: Challenge, doubleSpend: Boolean = false): ChallengeResponse {
         val tokenList = getTokens()
+        val challengedToken = challenge.token
+        val challengeValue = challenge.challenge
         for (storedToken in tokenList) {
-            if (storedToken.token == token) {
+            if (storedToken.token == challengedToken) {
                 val w = storedToken.w
-                val u = token.u
+                val u = challengedToken.u
                 val y = storedToken.y
-                val gamma = Cryptography.solve_for_gamma(w, u, y, d, p)
-                return gamma
+                val gamma = Cryptography.solve_for_gamma(w, u, y, challengeValue, p)
+                return ChallengeResponse(challengedToken, challengeValue, gamma)
             }
         }
 
         // Token is not found
-        return BigInteger.ZERO
+        return ChallengeResponse(challengedToken, challengeValue, BigInteger.ZERO)
     }
 
-    fun onChallengeResponseReceived(token: Token, gamma: BigInteger, challenge: BigInteger): Receipt? {
-        if (verifyChallengeResponse(token, gamma, challenge)) {
-            // TODO store information
-            return Receipt(token, gamma, challenge)
+    fun onChallengesResponseReceived(challenges: List<ChallengeResponse>, bankName: String): List<ReceiptEntry> {
+
+        val receipts = arrayListOf<ReceiptEntry>()
+        val bankRegistration: BankRegistration = bankRegistrationManager.getBankRegistrationByName(bankName)?: return receipts
+        val bankId = bankRegistration.id
+        for (challengeResponse in challenges) {
+            val (token, challenge, gamma) = challengeResponse
+            if (verifyChallengeResponse(token, gamma, challenge)) {
+                val receipt = ReceiptEntry(token, challenge, gamma, bankId)
+                receiptManager.addReceipt(receipt)
+                receipts.add(ReceiptEntry(token, challenge, gamma, bankId))
+            }
         }
-        return null
+
+        return receipts
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun depositReceiptsAtBank(bankName: String, community: OfflineEuroCommunity) {
+        // TODO Possible join?
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return
+        val receipts = receiptManager.getAllReceiptsByBankId(bank.id)
+        val message = receipts.map { Receipt(it.token, it.gamma, it.challenge) }
+        community.sendReceiptsToBank(message, name, bank.bankDetails.publicKeyBytes)
+    }
     fun verifyChallengeResponse(token: Token, gamma: BigInteger, challenge: BigInteger): Boolean {
         val g = token.g
         val u = token.u
@@ -246,7 +296,11 @@ class User (
         return ownedTokenManager.getAllTokens()
     }
 
-    fun handleBankDetailsReplay(bankDetails: BankDetails) {
+    fun handleBankDetailsReply(bankDetails: BankDetails) {
         bankRegistrationManager.addNewBank(bankDetails)
+    }
+
+    fun getBankRegistrationByName(bankName: String): BankRegistration? {
+        return bankRegistrationManager.getBankRegistrationByName(bankName)
     }
 }

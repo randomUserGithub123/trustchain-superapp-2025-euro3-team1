@@ -4,30 +4,28 @@ import android.content.Context
 import com.squareup.sqldelight.android.AndroidSqliteDriver
 import com.squareup.sqldelight.db.SqlDriver
 import nl.tudelft.offlineeuro.sqldelight.Database
+import nl.tudelft.trustchain.offlineeuro.entity.ReceiptEntry
 import nl.tudelft.trustchain.offlineeuro.entity.Token
-import nl.tudelft.trustchain.offlineeuro.entity.TokenEntry
 import java.math.BigInteger
 
-class OwnedTokenManager(
+class ReceiptManager(
     context: Context?,
-    driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "owned_tokens.db"),
-    ) {
+    driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "receipts.db"),
+) {
 
     private val database: Database = Database(driver)
-    private val ownedTokenMapper = {
-            id: Long,
+    private val receiptsMapper = {
             u: ByteArray,
             g: ByteArray,
             a: ByteArray,
             r: ByteArray,
             aPrime: ByteArray,
             t: String,
-            w: ByteArray,
-            y: ByteArray,
+            challenge: ByteArray,
+            gamma: ByteArray,
             bankId: Long
         ->
-        TokenEntry(
-            id,
+        ReceiptEntry(
             Token(
                 BigInteger(u),
                 BigInteger(g),
@@ -36,8 +34,8 @@ class OwnedTokenManager(
                 BigInteger(aPrime),
                 t
             ),
-            BigInteger(w),
-            BigInteger(y),
+            BigInteger(challenge),
+            BigInteger(gamma),
             bankId
         )
     }
@@ -45,21 +43,27 @@ class OwnedTokenManager(
     init {
         database.dbOfflineEuroQueries.createOwnedTokenTable()
     }
-    fun getAllTokens(): List<TokenEntry> {
-        return database.dbOfflineEuroQueries.getAllTokens(ownedTokenMapper).executeAsList()
+    fun getAllReceipts(): List<ReceiptEntry> {
+        return database.dbOfflineEuroQueries.getAllReceipts(receiptsMapper).executeAsList()
     }
 
-    fun addToken(token: Token, w: BigInteger, y: BigInteger, bankId: Long) {
-        return database.dbOfflineEuroQueries.addToken(
+    fun getAllReceiptsByBankId(bankId: Long): List<ReceiptEntry> {
+        return database.dbOfflineEuroQueries.getReceiptsByBankId(bankId, receiptsMapper).executeAsList()
+    }
+
+
+    fun addReceipt(receipt: ReceiptEntry) {
+        val token = receipt.token
+        return database.dbOfflineEuroQueries.addReceipt(
             token.u.toByteArray(),
             token.g.toByteArray(),
             token.a.toByteArray(),
             token.r.toByteArray(),
             token.aPrime.toByteArray(),
             token.t,
-            w.toByteArray(),
-            y.toByteArray(),
-            bankId
+            receipt.challenge.toByteArray(),
+            receipt.gamma.toByteArray(),
+            receipt.bankId
         )
     }
 }

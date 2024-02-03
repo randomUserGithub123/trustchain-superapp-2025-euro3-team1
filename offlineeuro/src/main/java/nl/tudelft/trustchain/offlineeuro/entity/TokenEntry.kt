@@ -7,6 +7,6 @@ class TokenEntry (
     val token: Token,
     val w: BigInteger,
     val y: BigInteger,
-    private val bankId: Int
+    val bankId: Long
 ){
 }

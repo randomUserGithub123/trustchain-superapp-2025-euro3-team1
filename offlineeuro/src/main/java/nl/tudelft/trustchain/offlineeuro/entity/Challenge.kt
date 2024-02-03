@@ -2,15 +2,13 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import java.math.BigInteger
 
-data class Receipt(
+data class Challenge(
     val token: Token,
-    val gamma: BigInteger,
     val challenge: BigInteger,
 )
 
-data class ReceiptEntry(
+data class ChallengeResponse(
     val token: Token,
-    val gamma: BigInteger,
     val challenge: BigInteger,
-    val bankId: Long
+    val gamma: BigInteger
 )

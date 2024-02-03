@@ -39,6 +39,9 @@ class DepositedTokenManager(
         )
     }
 
+    init {
+        database.dbOfflineEuroQueries.createDepositedTokensTable()
+    }
     fun depositToken(receipt: Receipt) {
         val (u, g, a, r, aPrime, t) = receipt.token
         database.dbOfflineEuroQueries.addDepositedToken(
@@ -50,5 +53,9 @@ class DepositedTokenManager(
             t,
             receipt.gamma.toByteArray(),
             receipt.challenge.toByteArray())
+    }
+
+    fun getAllReceipts(): List<Receipt> {
+        return database.dbOfflineEuroQueries.getAllDepositedTokens(depositedTokenMapper).executeAsList()
     }
 }

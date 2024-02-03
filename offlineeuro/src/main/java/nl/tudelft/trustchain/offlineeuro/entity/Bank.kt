@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
+import nl.tudelft.trustchain.offlineeuro.db.DepositedTokenManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
@@ -12,7 +13,8 @@ import java.time.format.DateTimeFormatter
 class Bank (
     val name: String = "BestBank",
     private val context: Context?,
-    private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context)
+    private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context),
+    private val depositedTokensManager: DepositedTokenManager = DepositedTokenManager(context)
 ){
     // Values from the Central Authority
     private val p: BigInteger = CentralAuthority.p
@@ -55,17 +57,22 @@ class Bank (
 
     fun depositToken(receipt: Receipt): String {
         val newToken = receipt.token
-        for (depositedReceipt in depositedTokens) {
+        val receipts = getDepositedTokens()
+        for (depositedReceipt in receipts) {
             val token = depositedReceipt.token
             if (token == newToken) {
                 val maliciousY = Cryptography.solve_for_y(depositedReceipt.gamma, receipt.gamma, depositedReceipt.challenge, receipt.challenge, p)
                 val maliciousW = Cryptography.solve_for_w(token.u, maliciousY, depositedReceipt.gamma, depositedReceipt.challenge, p)
                 val maliciousUser = registeredUserManager.getRegisteredUserByW(maliciousW)
-                return "Double Spending detected! This is done by y: $maliciousY and w: $maliciousW"
+                return "Double Spending detected! This is done by y: $maliciousY and w: $maliciousW, username ${maliciousUser!!.name}"
             }
         }
-        depositedTokens.add(receipt)
+        depositedTokensManager.depositToken(receipt)
         return "Deposit was successful!"
+    }
+
+    fun getDepositedTokens(): List<Receipt> {
+        return depositedTokensManager.getAllReceipts()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -79,6 +86,12 @@ class Bank (
         }
 
         return responseList
+    }
+
+    fun handleOnDeposit(receipts: List<Receipt>, userName: String) {
+        for (receipt in receipts) {
+            depositToken(receipt)
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
