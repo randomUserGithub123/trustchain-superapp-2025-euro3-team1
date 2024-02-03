@@ -41,7 +41,7 @@ class ReceiptManager(
     }
 
     init {
-        database.dbOfflineEuroQueries.createOwnedTokenTable()
+        database.dbOfflineEuroQueries.createReceiptsTable()
     }
     fun getAllReceipts(): List<ReceiptEntry> {
         return database.dbOfflineEuroQueries.getAllReceipts(receiptsMapper).executeAsList()

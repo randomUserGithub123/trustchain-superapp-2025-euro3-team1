@@ -88,10 +88,13 @@ class Bank (
         return responseList
     }
 
-    fun handleOnDeposit(receipts: List<Receipt>, userName: String) {
+    fun handleOnDeposit(receipts: List<Receipt>, userName: String): List<String> {
+        // TODO better return data structure
+        val results = arrayListOf<String>()
         for (receipt in receipts) {
-            depositToken(receipt)
+            results.add(depositToken(receipt))
         }
+        return results
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

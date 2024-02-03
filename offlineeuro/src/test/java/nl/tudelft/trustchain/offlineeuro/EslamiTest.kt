@@ -12,6 +12,7 @@ import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
 import nl.tudelft.trustchain.offlineeuro.entity.MessageResult
+import nl.tudelft.trustchain.offlineeuro.entity.Receipt
 import nl.tudelft.trustchain.offlineeuro.entity.Token
 import nl.tudelft.trustchain.offlineeuro.entity.UnsignedTokenSignRequestEntry
 import nl.tudelft.trustchain.offlineeuro.entity.User
@@ -26,6 +27,7 @@ import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.times
 import java.math.BigInteger
 
@@ -49,12 +51,13 @@ class EslamiTest {
     private val community: OfflineEuroCommunity = Mockito.mock(OfflineEuroCommunity::class.java)
     private val unsignedTokenMessageCaptor = argumentCaptor<List<UnsignedTokenSignRequestEntry>>()
     private val registrationMessageCaptor = argumentCaptor<UserRegistrationMessage>()
+    private val receiptCaptor = argumentCaptor<List<Receipt>>()
 
     @Before
     fun setup() {
         `when`(community.sendUserRegistrationMessage(any(), any())).doReturn(true)
-
         `when`(community.sendUnsignedTokens(any(), any())).then {}
+        `when`(community.sendReceiptsToBank(any(), any(), any())).doReturn(true)
 
     }
 
@@ -140,6 +143,25 @@ class EslamiTest {
         Assert.assertNull("The merchant does not know of any bank", merchantOne.getBankRegistrationByName(bankDetails.name))
         Assert.assertNotNull("The merchant does not know of any bank", user.getBankRegistrationByName(bankDetails.name))
 
+        // Register the First Merchant
+        merchantOne.handleBankDetailsReply(bankDetails)
+        merchantOne.registerWithBank(bankDetails.name, community)
+
+        // Assert that the registration request is sent
+        verify(community, times(2)).sendUserRegistrationMessage(registrationMessageCaptor.capture(), any())
+
+        val registerMessageMerchant = registrationMessageCaptor.lastValue
+        Assert.assertNotNull("The registration request should be sent now", registerMessageMerchant)
+
+        // Handle the registration request as the bank
+        val registrationResponseMerchant = bank.handleUserRegistration(registerMessageMerchant)
+
+        // Registration should be successful
+        Assert.assertEquals("The registration should be successful", MessageResult.SuccessFul, registrationResponseMerchant.result)
+
+        // Complete the bank registration for the user
+        merchantOne.handleRegistrationResponse(registrationResponseMerchant)
+
         val merchantTwo = User(
             "MerchantTwo",
             context,
@@ -149,17 +171,74 @@ class EslamiTest {
             ReceiptManager(context, driver3)
         )
 
-//        val merchant1ID = "101212121"
-//        val firstChallenge = user.onTokensReceived(token, bank.name, BigInteger(merchant1ID))
-//        Assert.assertNotNull("The merchant should respond with a challenge", firstChallenge)
-//        val firstGamma = user.onChallengeReceived(firstChallenge!!, token)
-//        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, firstGamma)
-//        Assert.assertTrue("The challenge should return true", user.verifyChallengeResponse(token, firstGamma, firstChallenge))
-//        val receipt = user.onChallengeResponseReceived(token, firstGamma, firstChallenge)
-//        Assert.assertNotNull("The challenge response should be valid", receipt!!)
-//
-//        Assert.assertEquals("Deposit was successful!", bank.depositToken(receipt))
-//
+        // Register the second Merchant
+        merchantTwo.handleBankDetailsReply(bankDetails)
+        merchantTwo.registerWithBank(bankDetails.name, community)
+
+        // Assert that the registration request is sent
+        verify(community, times(3)).sendUserRegistrationMessage(registrationMessageCaptor.capture(), any())
+        val registerMessageMerchantTwo = registrationMessageCaptor.lastValue
+        Assert.assertNotNull("The registration request should be sent now", registerMessageMerchantTwo)
+
+        // Handle the registration request as the bank
+        val registrationResponseMerchantTwo = bank.handleUserRegistration(registerMessageMerchantTwo)
+
+        // Registration should be successful
+        Assert.assertEquals("The registration should be successful", MessageResult.SuccessFul, registrationResponseMerchantTwo.result)
+
+        // Complete the bank registration for the user
+        merchantTwo.handleRegistrationResponse(registrationResponseMerchantTwo)
+
+        // The bank should now have 3 registered users
+        val userList = bank.getRegisteredUsers()
+        Assert.assertEquals("The bank should now have 3 registered users", 3, userList.size)
+
+        val tokenList = user.getTokens()
+        val payment = tokenList.map { it.token }
+        val firstChallenge = merchantOne.onTokensReceived(payment, bank.name)
+        Assert.assertEquals("The merchant should respond with a challenge", payment.size, firstChallenge.size)
+        val response = user.onChallenges(firstChallenge, bank.name, true)
+        val firstChallengeResponse = response[0]
+
+        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, firstChallengeResponse.gamma)
+        Assert.assertTrue("The challenge should return true", merchantOne.verifyChallengeResponse(token, firstChallengeResponse.gamma, firstChallengeResponse.challenge))
+        val receipts = merchantOne.onChallengesResponseReceived(response, bank.name)
+        Assert.assertNotNull("The challenge response should be valid", receipts)
+        Assert.assertEquals("There should be one valid receipt", 1, receipts.size)
+
+        merchantOne.depositReceiptsAtBank(bank.name, community)
+        verify(community, times(1)).sendReceiptsToBank(receiptCaptor.capture(), eq(merchantOne.name), eq(bankDetails.publicKeyBytes))
+
+        val receiptMessage = receiptCaptor.firstValue
+        bank.handleOnDeposit(receiptMessage, merchantOne.name)
+
+        val depositedTokens = bank.getDepositedTokens()
+        Assert.assertEquals("There should only be one token deposited", 1, depositedTokens.size)
+        Assert.assertEquals("The deposited token should be the initial token", token, depositedTokens[0].token)
+
+        val secondChallenge = merchantTwo.onTokensReceived(payment, bank.name)
+        Assert.assertEquals("The merchant should respond with a challenge", payment.size, secondChallenge.size)
+        val responseTwo = user.onChallenges(secondChallenge, bank.name, true)
+        val secondChallengeResponse = responseTwo[0]
+
+        Assert.assertNotEquals("The gamma should be valid", BigInteger.ZERO, secondChallengeResponse.gamma)
+        Assert.assertTrue("The challenge should return true", merchantTwo.verifyChallengeResponse(token, secondChallengeResponse.gamma, secondChallengeResponse.challenge))
+        val receiptsTwo = merchantTwo.onChallengesResponseReceived(responseTwo, bank.name)
+        Assert.assertNotNull("The challenge response should be valid", receiptsTwo)
+        Assert.assertEquals("There should be one valid receipt", 1, receiptsTwo.size)
+
+        merchantTwo.depositReceiptsAtBank(bank.name, community)
+        verify(community, times(1)).sendReceiptsToBank(receiptCaptor.capture(), eq(merchantTwo.name), eq(bankDetails.publicKeyBytes))
+
+        val receiptMessageTwo = receiptCaptor.lastValue
+        val secondDepositResult = bank.handleOnDeposit(receiptMessageTwo, merchantTwo.name)
+        Assert.assertTrue(secondDepositResult[0].contains("Double Spending detected! This is done by y:"))
+        Assert.assertTrue(secondDepositResult[0].endsWith("username ${user.name}"))
+        val depositedTokensAgain = bank.getDepositedTokens()
+        Assert.assertEquals("There should only be one token deposited", 1, depositedTokensAgain.size)
+        Assert.assertEquals("The deposited token should be the initial token", token, depositedTokensAgain[0].token)
+
+
 //        val merchant2ID = "32132131321"
 //        val secondChallenge = user.onTokenReceived(token, bank.name, BigInteger(merchant2ID))
 //
@@ -173,6 +252,7 @@ class EslamiTest {
 //        Assert.assertTrue(result.contains("Double Spending detected! This is done by"))
 
     }
+
 
     @Test
     fun solvingTest(){

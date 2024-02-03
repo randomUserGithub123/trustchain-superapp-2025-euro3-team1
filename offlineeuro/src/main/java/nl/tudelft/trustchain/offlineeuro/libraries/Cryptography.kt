@@ -56,15 +56,20 @@ object Cryptography {
 
     fun solve_for_y(gamma: BigInteger, gamma_prime: BigInteger, d: BigInteger, d_prime: BigInteger, p : BigInteger): BigInteger {
 
-        if (gamma_prime - gamma == BigInteger.ZERO) throw Exception()
         var gg_prime_inverse = BigInteger.ZERO
         try {
             gg_prime_inverse = (gamma - gamma_prime).modInverse(p - BigInteger.ONE)
             return ((d - d_prime) * gg_prime_inverse).mod(p - BigInteger.ONE)
         } catch (e: Exception) {
-            gg_prime_inverse = (gamma_prime - gamma).modInverse(p - BigInteger.ONE)
-            return ((d_prime - d) * gg_prime_inverse).mod(p - BigInteger.ONE)
-        }
+            try {
+                gg_prime_inverse = (gamma_prime - gamma).modInverse(p - BigInteger.ONE)
+                return ((d_prime - d) * gg_prime_inverse).mod(p - BigInteger.ONE)
+            } catch (e: Exception) {
+                gamma_prime.modInverse(p - BigInteger.ONE)
+                gamma.modInverse(p - BigInteger.ONE)
+                throw Exception("Was separately invertable tho")
+            }
+            }
     }
     fun solve_for_w(u: BigInteger, y: BigInteger, gamma: BigInteger, d: BigInteger, p: BigInteger): BigInteger{
         // Calculate the modular inverse of y modulo(p - 1)
