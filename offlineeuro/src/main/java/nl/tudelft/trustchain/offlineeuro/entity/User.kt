@@ -13,8 +13,14 @@ import java.math.BigInteger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+enum class CommunicationState {
+    INPROGRESS,
+    COMPLETE,
+    FAILED
+}
+
 class User (
-    val name: String,
+    var name: String,
     private val context: Context?,
     private val ownedTokenManager: OwnedTokenManager = OwnedTokenManager(context),
     private val bankRegistrationManager: BankRegistrationManager = BankRegistrationManager(context),
@@ -28,6 +34,10 @@ class User (
     private val q = CentralAuthority.q
     private val alpha = CentralAuthority.alpha
 
+    // TODO Cleaner solution for this
+    var communicationState: CommunicationState = CommunicationState.COMPLETE
+
+    var keepToken = true
     fun computeI(bankDetails: BankDetails, m: BigInteger, rm: BigInteger): Pair<BigInteger, BigInteger> {
         // I = (H1(m||a^r_m),m)^e_b) (mod n_b)
         val arm = alpha.modPow(rm, bankDetails.nb)
@@ -39,7 +49,14 @@ class User (
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun registerWithBank(bankName: String, community: OfflineEuroCommunity, userName: String): Boolean {
-        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return false
+        communicationState = CommunicationState.INPROGRESS
+
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)
+
+        if (bank == null) {
+            communicationState = CommunicationState.FAILED
+            return false
+        }
 
         val m: BigInteger = Cryptography.generateRandomBigInteger(p)
         val rm: BigInteger = Cryptography.generateRandomBigInteger(p)
@@ -49,8 +66,11 @@ class User (
         // Send the message (I, (alpha^r_m mod p)),
         val arm = alpha.modPow(rm, p)
         val registrationMessage = UserRegistrationMessage(userName, i, arm)
-        if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm))
+        if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm)) {
+            communicationState = CommunicationState.FAILED
             return false
+
+        }
 
         return community.sendUserRegistrationMessage(registrationMessage, bank.bankDetails.publicKeyBytes)
     }
@@ -63,17 +83,24 @@ class User (
         val bankName = userRegistrationResponseMessage.bankName
         val v = userRegistrationResponseMessage.v
         val r = userRegistrationResponseMessage.r
-        return bankRegistrationManager.setBankRegistrationValues(bankName, v, r)
+        val result: Boolean = bankRegistrationManager.setBankRegistrationValues(bankName, v, r)
+
+        communicationState = if (result)
+            CommunicationState.COMPLETE
+        else
+            CommunicationState.FAILED
+        return result
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun withdrawToken(bankName: String, community: OfflineEuroCommunity) {
+        communicationState = CommunicationState.INPROGRESS
+        val bank = bankRegistrationManager.getBankRegistrationByName(bankName)
 
-        val bank = bankRegistrationManager.getBankRegistrationByName(bankName) ?: return
-
-        if (bank.m == null || bank.rm == null || bank.v == null)
-            // TODO User should register first
+        if (bank?.m == null || bank.rm == null || bank.v == null) {
+            CommunicationState.FAILED
             return
+        }
         val nb = bank.bankDetails.nb
         val eb = bank.bankDetails.eb
         val r = bank.r
@@ -163,6 +190,7 @@ class User (
             ownedTokenManager.addToken(signedToken, w, y, unsignedToken.bankId)
             // TODO Batch?
             unsignedTokenManager.updateUnsignedTokenStatusById(UnsignedTokenStatus.SIGNED, id)
+            communicationState = CommunicationState.COMPLETE
         }
     }
 
@@ -189,6 +217,8 @@ class User (
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun sendTokenToRandomPeer(community: OfflineEuroCommunity, keepToken: Boolean = false) {
+        communicationState = CommunicationState.INPROGRESS
+        this.keepToken = keepToken
         val tokenToSent = getTokens().first()
         val tokensToSent = arrayListOf<Token>(tokenToSent.token)
         val bank = bankRegistrationManager.getBankById(tokenToSent.bankId)!!
@@ -226,10 +256,11 @@ class User (
     fun onChallenges(challenges: List<Challenge>, bankName: String, doubleSpend: Boolean = false): List<ChallengeResponse> {
         val responses = arrayListOf<ChallengeResponse>()
         for (challenge in challenges) {
-            val response = resolveChallenge(challenge, doubleSpend)
+            val response = resolveChallenge(challenge, keepToken)
             responses.add(response)
         }
 
+        CommunicationState.COMPLETE
         return responses
     }
 
@@ -243,6 +274,8 @@ class User (
                 val u = challengedToken.u
                 val y = storedToken.y
                 val gamma = Cryptography.solve_for_gamma(w, u, y, challengeValue, p)
+                if (!doubleSpend)
+                    ownedTokenManager.removeTokenById(storedToken.id)
                 return ChallengeResponse(challengedToken, challengeValue, gamma)
             }
         }
@@ -306,5 +339,13 @@ class User (
 
     fun getBankRegistrations(): List<BankRegistration> {
         return bankRegistrationManager.getBankRegistrations()
+    }
+
+    fun getReceipts(): List<ReceiptEntry> {
+        return receiptManager.getAllReceipts()
+    }
+
+    fun removeAllTokens() {
+        ownedTokenManager.removeAllTokens()
     }
 }

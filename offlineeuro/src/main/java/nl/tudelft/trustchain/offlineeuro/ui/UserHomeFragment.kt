@@ -21,6 +21,7 @@ import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.entity.BankDetails
 import nl.tudelft.trustchain.offlineeuro.entity.BankRegistration
+import nl.tudelft.trustchain.offlineeuro.entity.CommunicationState
 import nl.tudelft.trustchain.offlineeuro.entity.User
 
 class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
@@ -34,18 +35,17 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
         community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
         user = community.user
-        Toast.makeText(context, "Trying to find banks", Toast.LENGTH_SHORT).show()
         community.findBank()
-        val wrapper = this
+        syncBankList(view)
         val syncButton = view.findViewById<Button>(R.id.user_home_sync_banks)
         syncButton.setOnClickListener {
             if (user.getBankRegistrations().isEmpty()) {
-                Toast.makeText(wrapper.context, "No valid Bank founds please try again later", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "No valid Bank founds please try again later", Toast.LENGTH_SHORT).show()
                 community.findBank()
             }
             else
             {
-                wrapper.syncBankList(view)
+                syncBankList(view)
             }
         }
 
@@ -142,7 +142,23 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         alertDialogBuilder.setPositiveButton("Register!") { dialog, which ->
             val userInput = editText.text.toString()
             user.registerWithBank(bankDetails.name, community, userInput)
-            moveToBankSelected(userInput, bankDetails.name)
+
+            var maxLoops = 20
+            while (user.communicationState == CommunicationState.INPROGRESS) {
+                maxLoops -= 1
+
+                if (maxLoops == 0)
+                    break
+                Thread.sleep(500)
+            }
+
+            if (user.communicationState == CommunicationState.COMPLETE) {
+                Toast.makeText(context, "Registration succeeded", Toast.LENGTH_SHORT).show()
+                moveToBankSelected(userInput, bankDetails.name)
+            }
+            else {
+                Toast.makeText(context, "Registration Failed", Toast.LENGTH_SHORT).show()
+            }
         }
 
         // Set negative button

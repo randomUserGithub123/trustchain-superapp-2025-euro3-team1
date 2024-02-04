@@ -31,12 +31,19 @@
                 android:layout_marginStart="20dp"
                 android:orientation="vertical">
             <TextView
-                android:id="@+id/textView2"
+                android:id="@+id/user_bank_selected_tokens_received"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Number of tokens withdrawn: 0"
+                android:text="Number of tokens received: 0"
                 app:layout_constraintTop_toTopOf="parent"
                 />
+                <TextView
+                    android:id="@+id/user_bank_selected_balance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Number of tokens withdrawn: 0"
+                    app:layout_constraintTop_toTopOf="parent"
+                    />
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content">
@@ -74,6 +81,18 @@
                 android:layout_height="wrap_content"
                 android:text="Send token to random peer"
                 />
+                <Button
+                    android:id="@+id/user_bank_selected_sync_received_tokens"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Sync received tokens"
+                    />
+                <Button
+                    android:id="@+id/user_bank_selected_deposit_tokens"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Deposit tokens"
+                    />
             </LinearLayout>
         </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import nl.tudelft.trustchain.offlineeuro.db.DepositedTokenManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
@@ -22,12 +23,11 @@ class Bank (
     private val alpha: BigInteger = CentralAuthority.alpha
 
     // Secret x of the bank
-    private var x: BigInteger = Cryptography.generateRandomBigInteger(CentralAuthority.p)
+    private val x: BigInteger = Cryptography.generateRandomBigInteger(CentralAuthority.p)
 
     val z: BigInteger = alpha.modPow(x, p)
 
     private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
-    private var depositedTokens: ArrayList<Receipt> = arrayListOf()
 
     fun getPublicRSAValues(): Pair<BigInteger, BigInteger> {
         return Pair(rsaParameters.e, rsaParameters.n)
@@ -80,19 +80,24 @@ class Bank (
 
         val responseList = arrayListOf<UnsignedTokenSignResponseEntry>()
         // TODO Error handling if user not found
-        val user = registeredUserManager.getRegisteredUserByName(userName)!!
+        val user = registeredUserManager.getRegisteredUserByName(userName)
+
         for (unsignedTokenSignRequestEntry in unsignedTokenSignRequestEntries) {
-            responseList.add(signToken(user, unsignedTokenSignRequestEntry))
+            responseList.add(signToken(user!!, unsignedTokenSignRequestEntry))
         }
 
         return responseList
     }
 
-    fun handleOnDeposit(receipts: List<Receipt>, userName: String): List<String> {
+    fun handleOnDeposit(receipts: List<Receipt>, userName: String, context: Context? = null): List<String> {
         // TODO better return data structure
         val results = arrayListOf<String>()
         for (receipt in receipts) {
-            results.add(depositToken(receipt))
+            val result = depositToken(receipt)
+            results.add(result)
+            if (context != null) {
+                Toast.makeText(context, result, Toast.LENGTH_LONG).show()
+            }
         }
         return results
     }

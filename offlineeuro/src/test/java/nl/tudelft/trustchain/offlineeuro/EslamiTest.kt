@@ -93,7 +93,7 @@ class EslamiTest {
         Assert.assertEquals("The user should have no tokens", 0, user.getBalance())
         // Register the user
         user.handleBankDetailsReply(bankDetails)
-        user.registerWithBank(bankDetails.name, community)
+        user.registerWithBank(bankDetails.name, community, user.name)
 
         // Assert that the registration request is sent
         verify(community, times(1)).sendUserRegistrationMessage(registrationMessageCaptor.capture(), any())
@@ -145,7 +145,7 @@ class EslamiTest {
 
         // Register the First Merchant
         merchantOne.handleBankDetailsReply(bankDetails)
-        merchantOne.registerWithBank(bankDetails.name, community)
+        merchantOne.registerWithBank(bankDetails.name, community, merchantOne.name)
 
         // Assert that the registration request is sent
         verify(community, times(2)).sendUserRegistrationMessage(registrationMessageCaptor.capture(), any())
@@ -173,7 +173,7 @@ class EslamiTest {
 
         // Register the second Merchant
         merchantTwo.handleBankDetailsReply(bankDetails)
-        merchantTwo.registerWithBank(bankDetails.name, community)
+        merchantTwo.registerWithBank(bankDetails.name, community, merchantTwo.name)
 
         // Assert that the registration request is sent
         verify(community, times(3)).sendUserRegistrationMessage(registrationMessageCaptor.capture(), any())

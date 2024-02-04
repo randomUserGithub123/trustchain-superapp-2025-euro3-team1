@@ -207,7 +207,9 @@ class OfflineEuroCommunity(
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun onTokenSignRequest(peer: Peer, payload: UnsignedTokenPayload) {
-        val responseList = bank.handleSignUnsignedTokenRequest(payload.userName, payload.tokensToSign)
+        val userName = payload.userName
+        val tokensToSign = payload.tokensToSign
+        val responseList = bank.handleSignUnsignedTokenRequest(userName, tokensToSign)
 
         val responsePacket = serializePacket(
             MessageID.TOKEN_SIGN_REPLY,
@@ -263,7 +265,7 @@ class OfflineEuroCommunity(
 
     private fun onDepositPacket(packet: Packet) {
         val (_, payload) = packet.getAuthPayload(DepositPayload)
-
+        onDeposit(payload)
     }
 
     private fun onDeposit(payload: DepositPayload) {

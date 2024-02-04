@@ -62,4 +62,12 @@ class OwnedTokenManager(
             bankId
         )
     }
+
+    fun removeTokenById(id: Long) {
+        database.dbOfflineEuroQueries.removeTokenById(id)
+    }
+
+    fun removeAllTokens() {
+        database.dbOfflineEuroQueries.removeAllTokens()
+    }
 }

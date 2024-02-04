@@ -102,6 +102,9 @@ getAllTokens:
 SELECT *
 FROM owned_tokens;
 
+removeAllTokens:
+DELETE FROM owned_tokens;
+
 removeTokenById:
 DELETE
 FROM owned_tokens

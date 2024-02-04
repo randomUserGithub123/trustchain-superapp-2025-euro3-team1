@@ -54,7 +54,7 @@ class UnsignedTokenPayload(
             }
 
             return Pair(
-                UnsignedTokenPayload(userNameBytes.toString(), requestEntries),
+                UnsignedTokenPayload(userNameBytes.toString(Charsets.UTF_8), requestEntries),
                 localOffset - offset
             )
         }

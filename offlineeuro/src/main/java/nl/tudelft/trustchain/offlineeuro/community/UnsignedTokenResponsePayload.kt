@@ -54,19 +54,19 @@ class UnsignedTokenResponsePayload (
                 val (cBytes, cSize) = deserializeVarLen(buffer, localOffset)
                 localOffset += cSize
 
-                val (tBytes, tSize) = deserializeVarLen(buffer, offset)
+                val (tBytes, tSize) = deserializeVarLen(buffer, localOffset)
                 localOffset += tSize
 
                 val statusLong = deserializeLong(buffer, localOffset)
                 localOffset += SERIALIZED_LONG_SIZE
 
                 val status = UnsignedTokenStatus.fromInt(statusLong.toInt())
-                val responseEntry = UnsignedTokenSignResponseEntry(id, BigInteger(aBytes), BigInteger(cBytes), tBytes.toString(), status)
+                val responseEntry = UnsignedTokenSignResponseEntry(id, BigInteger(aBytes), BigInteger(cBytes), tBytes.toString(Charsets.UTF_8), status)
                 responseEntries.add(responseEntry)
             }
 
             return Pair(
-                UnsignedTokenResponsePayload(bankName.toString(), responseEntries),
+                UnsignedTokenResponsePayload(bankName.toString(Charsets.UTF_8), responseEntries),
                 localOffset - offset
             )
         }
