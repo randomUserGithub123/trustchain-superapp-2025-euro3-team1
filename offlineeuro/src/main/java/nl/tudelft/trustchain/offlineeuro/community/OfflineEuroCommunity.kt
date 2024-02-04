@@ -86,6 +86,7 @@ class OfflineEuroCommunity(
             FindBankPayload(name, Role.User)
         )
 
+        val peerCount = getPeers().size
         for (peer: Peer in getPeers()) {
             send(peer, findBankPacket)
         }

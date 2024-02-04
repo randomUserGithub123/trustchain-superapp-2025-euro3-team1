@@ -61,7 +61,7 @@ class BankSelectedFragment : OfflineEuroBaseFragment(R.layout.fragment_user_bank
             }
 
             val checkBox = view.findViewById<CheckBox>(R.id.user_bank_selected_double_spend)
-            user.sendTokenToRandomPeer(community, keepToken = checkBox.isChecked)
+            val sendSucceeded = user.sendTokenToRandomPeer(community, keepToken = checkBox.isChecked)
 
 
             Toast.makeText(context, "Starting sending a token to a random peer....", Toast.LENGTH_SHORT).show()

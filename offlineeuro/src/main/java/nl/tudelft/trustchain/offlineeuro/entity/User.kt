@@ -216,13 +216,13 @@ class User (
 
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun sendTokenToRandomPeer(community: OfflineEuroCommunity, keepToken: Boolean = false) {
+    fun sendTokenToRandomPeer(community: OfflineEuroCommunity, keepToken: Boolean = false): Boolean {
         communicationState = CommunicationState.INPROGRESS
         this.keepToken = keepToken
         val tokenToSent = getTokens().first()
         val tokensToSent = arrayListOf<Token>(tokenToSent.token)
         val bank = bankRegistrationManager.getBankById(tokenToSent.bankId)!!
-        community.sendTokensToRandomPeer(tokensToSent, bank)
+        return community.sendTokensToRandomPeer(tokensToSent, bank)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
