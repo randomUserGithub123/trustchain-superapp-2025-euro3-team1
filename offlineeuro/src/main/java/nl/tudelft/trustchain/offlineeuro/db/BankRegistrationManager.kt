@@ -67,6 +67,10 @@ class BankRegistrationManager (
        return queries.getBankRegistrationByName(name, bankRegistrationMapper).executeAsOneOrNull()
     }
 
+    fun getBankRegistrations(): List<BankRegistration> {
+        return queries.getBankRegistrations(bankRegistrationMapper).executeAsList()
+    }
+
     fun getBankById(id: Long): BankRegistration? {
         return queries.getBankRegistrationById(id, bankRegistrationMapper).executeAsOneOrNull()
     }

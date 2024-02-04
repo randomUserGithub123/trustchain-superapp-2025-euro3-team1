@@ -12,7 +12,7 @@ object TableHelpers {
         val rowCount = table.childCount
         val rowsToBeRemoved = rowCount - 1
 
-        for (i in rowsToBeRemoved - 1 downTo 1) {
+        for (i in rowsToBeRemoved downTo 1) {
             val row = table.getChildAt(i)
             table.removeView(row)
         }
@@ -21,7 +21,7 @@ object TableHelpers {
     fun addRegisteredUsersToTable(table: TableLayout, users: List<RegisteredUser>) {
         val context = table.context
         for (user in users) {
-            registeredUserToTableRow(user, context)
+            table.addView(registeredUserToTableRow(user, context))
         }
     }
 

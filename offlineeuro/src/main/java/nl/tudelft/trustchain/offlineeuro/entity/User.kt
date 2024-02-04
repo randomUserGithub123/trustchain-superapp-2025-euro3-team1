@@ -38,7 +38,7 @@ class User (
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun registerWithBank(bankName: String, community: OfflineEuroCommunity): Boolean {
+    fun registerWithBank(bankName: String, community: OfflineEuroCommunity, userName: String): Boolean {
         val bank = bankRegistrationManager.getBankRegistrationByName(bankName)?: return false
 
         val m: BigInteger = Cryptography.generateRandomBigInteger(p)
@@ -48,7 +48,7 @@ class User (
 
         // Send the message (I, (alpha^r_m mod p)),
         val arm = alpha.modPow(rm, p)
-        val registrationMessage = UserRegistrationMessage(name, i, arm)
+        val registrationMessage = UserRegistrationMessage(userName, i, arm)
         if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm))
             return false
 
@@ -302,5 +302,9 @@ class User (
 
     fun getBankRegistrationByName(bankName: String): BankRegistration? {
         return bankRegistrationManager.getBankRegistrationByName(bankName)
+    }
+
+    fun getBankRegistrations(): List<BankRegistration> {
+        return bankRegistrationManager.getBankRegistrations()
     }
 }

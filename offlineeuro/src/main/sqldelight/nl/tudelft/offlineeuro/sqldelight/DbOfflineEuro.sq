@@ -135,6 +135,11 @@ SELECT *
 FROM bank_registrations
 WHERE id = ?;
 
+getBankRegistrations:
+SELECT *
+FROM bank_registrations;
+
+
 setOwnValuesForBank:
 UPDATE bank_registrations
 SET m = ?, rm = ?
