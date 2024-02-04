@@ -66,7 +66,7 @@ class User (
         // Send the message (I, (alpha^r_m mod p)),
         val arm = alpha.modPow(rm, p)
         val registrationMessage = UserRegistrationMessage(userName, i, arm)
-        if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm)) {
+        if (!bankRegistrationManager.setOwnValuesForBank(bankName, m, rm, userName)) {
             communicationState = CommunicationState.FAILED
             return false
 

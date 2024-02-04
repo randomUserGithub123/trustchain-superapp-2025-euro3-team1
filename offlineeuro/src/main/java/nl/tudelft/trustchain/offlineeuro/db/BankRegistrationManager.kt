@@ -29,6 +29,7 @@ class BankRegistrationManager (
             publicKey: ByteArray,
             m: ByteArray?,
             rm: ByteArray?,
+            userName: String?,
             v: ByteArray?,
             r: ByteArray?,
             ->
@@ -39,10 +40,11 @@ class BankRegistrationManager (
                 BigInteger(z),
                 BigInteger(eb),
                 BigInteger(nb),
-                publicKey
+                publicKey,
             ),
             if (m != null) BigInteger(m) else null,
             if (rm != null) BigInteger(rm) else null,
+            userName,
             if (v != null) BigInteger(v) else null,
             if (r != null) BigInteger(r) else null,
         )
@@ -71,13 +73,14 @@ class BankRegistrationManager (
         return queries.getBankRegistrationById(id, bankRegistrationMapper).executeAsOneOrNull()
     }
 
-    fun setOwnValuesForBank(bankName: String, m: BigInteger, rm: BigInteger): Boolean {
+    fun setOwnValuesForBank(bankName: String, m: BigInteger, rm: BigInteger, userName: String): Boolean {
         var result = true
 
         database.transaction {
             queries.setOwnValuesForBank(
                 m.toByteArray(),
                 rm.toByteArray(),
+                userName,
                 bankName)
 
             val rowsAffected = queries.getChanges().executeAsOne().toInt()

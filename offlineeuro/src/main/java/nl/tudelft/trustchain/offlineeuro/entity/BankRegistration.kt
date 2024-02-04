@@ -7,6 +7,7 @@ class BankRegistration (
     val bankDetails: BankDetails,
     val m: BigInteger?,
     val rm: BigInteger?,
+    val userName: String?,
     val v: BigInteger?,
-    val r: BigInteger?
+    val r: BigInteger?,
 )

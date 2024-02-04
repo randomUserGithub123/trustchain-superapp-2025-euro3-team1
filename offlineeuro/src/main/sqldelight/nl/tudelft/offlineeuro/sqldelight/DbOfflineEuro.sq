@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS bank_registrations (
     publicKey BLOB NOT NULL,
     m BLOB,
     rm BLOB,
+    userName TEXT,
     v BLOB,
     r BLOB
 );
@@ -145,7 +146,7 @@ FROM bank_registrations;
 
 setOwnValuesForBank:
 UPDATE bank_registrations
-SET m = ?, rm = ?
+SET m = ?, rm = ?, userName = ?
 WHERE bankName LIKE ?;
 
 setBankRegistrationValues:

@@ -42,6 +42,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             if (user.getBankRegistrations().isEmpty()) {
                 Toast.makeText(context, "No valid Bank founds please try again later", Toast.LENGTH_SHORT).show()
                 community.findBank()
+                syncBankList(view)
             }
             else
             {
@@ -88,14 +89,26 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
         val button = Button(context)
         button.layoutParams = LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 0.25f)
-        button.text = "Register"
-        val wrapperContext = context
-        button.setOnClickListener {
-            Toast.makeText(wrapperContext, "Register at ${bank.bankDetails.name}", Toast.LENGTH_SHORT).show()
-            showAlertDialog(bank.bankDetails)
+
+        val bankRegistration = user.getBankRegistrationByName(bank.bankDetails.name)
+
+        if (bankRegistration?.userName == null) {
+            button.text = "Register"
+
+            button.setOnClickListener {
+                Toast.makeText(
+                    context,
+                    "Register at ${bank.bankDetails.name}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                showAlertDialog(bank.bankDetails)
+            }
+        } else {
+            button.text = "Open"
+            button.setOnClickListener {
+                moveToBankSelected(bank.userName!!, bank.bankDetails.name)
+            }
         }
-
-
         layoutWrapper.addView(bankIcon)
         layoutWrapper.addView(textView)
         layoutWrapper.addView(button)
