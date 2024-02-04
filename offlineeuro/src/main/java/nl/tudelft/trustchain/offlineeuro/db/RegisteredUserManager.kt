@@ -45,6 +45,7 @@ class RegisteredUserManager (
      */
     init {
         database.dbOfflineEuroQueries.createRegisteredUserTable()
+        database.dbOfflineEuroQueries.clearAllRegisteredUsers()
     }
 
     /**

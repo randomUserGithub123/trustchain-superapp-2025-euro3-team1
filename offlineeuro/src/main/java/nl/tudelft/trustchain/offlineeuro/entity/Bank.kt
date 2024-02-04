@@ -22,8 +22,8 @@ class Bank (
     private val q: BigInteger = CentralAuthority.q
     private val alpha: BigInteger = CentralAuthority.alpha
 
-    // Secret x of the bank
-    private val x: BigInteger = Cryptography.generateRandomBigInteger(CentralAuthority.p)
+    // Secret x of the bank TODO RANDOM
+    private val x: BigInteger = BigInteger("123254213215123")
 
     val z: BigInteger = alpha.modPow(x, p)
 

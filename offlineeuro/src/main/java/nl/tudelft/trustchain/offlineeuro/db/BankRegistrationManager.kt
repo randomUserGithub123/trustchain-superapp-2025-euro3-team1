@@ -18,6 +18,7 @@ class BankRegistrationManager (
 
     init {
         queries.createBankRegistrationTable()
+        queries.clearAllRegisteredBanks()
     }
 
     private val bankRegistrationMapper = {
