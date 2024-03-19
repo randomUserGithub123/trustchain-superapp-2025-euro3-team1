@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.libraries
 
+import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.RSAParameters
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.generators.RSAKeyPairGenerator
@@ -29,6 +30,9 @@ object Cryptography {
         val privateKey = keyPair.private as org.bouncycastle.crypto.params.RSAKeyParameters
 
         val n = publicKey.modulus
+
+        if (n <= CentralAuthority.p)
+            return  generateRSAParameters(bitLength)
         val e = publicKey.exponent
         val d = privateKey.exponent
         return RSAParameters(n, e, d)
@@ -51,7 +55,7 @@ object Cryptography {
         // Calculate the modular inverse of y modulo(p - 1)
         val y_inverse = y.modInverse(p - BigInteger.ONE)
         // Calculate gamma
-        return (y_inverse * (d - w * u))
+        return (y_inverse * (d - w * u)).mod(p - BigInteger.ONE)
     }
 
     fun solve_for_y(gamma: BigInteger, gamma_prime: BigInteger, d: BigInteger, d_prime: BigInteger, p : BigInteger): BigInteger {
@@ -70,6 +74,14 @@ object Cryptography {
                 throw Exception("Was separately invertable tho")
             }
             }
+    }
+
+    fun solveForY(gamma: BigInteger, gamma_prime: BigInteger, d: BigInteger, d_prime: BigInteger, p : BigInteger) : BigInteger {
+        val primeInv = gamma_prime.modInverse(p - BigInteger.ONE)
+        val gInv = gamma.modInverse(p - BigInteger.ONE)
+        val dsum = d - d_prime
+        return (dsum * (primeInv - gInv)).mod(p - BigInteger.ONE)
+
     }
     fun solve_for_w(u: BigInteger, y: BigInteger, gamma: BigInteger, d: BigInteger, p: BigInteger): BigInteger{
         // Calculate the modular inverse of y modulo(p - 1)

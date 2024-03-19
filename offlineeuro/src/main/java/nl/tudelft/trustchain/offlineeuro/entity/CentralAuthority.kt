@@ -1,12 +1,20 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import it.unisa.dia.gas.jpbc.Element
 import java.math.BigInteger
 import java.security.MessageDigest
 
 object CentralAuthority {
 
+    val groupDescription: BilinearGroup = BilinearGroup()
+    private val CRSPair = CRSGenerator.generateCRSMap(groupDescription)
+    private val crsMap = CRSPair.second
+    val crs = CRSPair.first
+
     val p: BigInteger = BigInteger("115792089237316195423570985008687907853269984665640564039457584007913129870127")
     val q: BigInteger = findQ(p)
+
+    val registeredUsers = mutableMapOf<Element, Element>()
 
     // Current assumption is that 5 is a primitive root of p
     val alpha: BigInteger = BigInteger("5").pow(2)
@@ -23,6 +31,18 @@ object CentralAuthority {
             throw Exception("q is not prime, pick a different p")
         }
         return potentialQ
+    }
+
+    fun registerUser(): Pair<Element, Element> {
+        var secretKey = groupDescription.pairing.zr.newRandomElement().immutable
+        var publicKey = groupDescription.g.duplicate().powZn(secretKey).immutable
+
+        while (registeredUsers.containsKey(publicKey)) {
+            secretKey = groupDescription.pairing.zr.newRandomElement().immutable
+            publicKey = groupDescription.g.duplicate().powZn(secretKey).immutable
+        }
+        registeredUsers[publicKey] = secretKey
+        return Pair(secretKey, publicKey)
     }
 
     // Three published hash functions

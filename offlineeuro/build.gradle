@@ -88,6 +88,11 @@ dependencies {
     implementation 'org.bouncycastle:bcprov-jdk15to18:1.68'
     testImplementation "com.squareup.sqldelight:sqlite-driver:1.5.1"
 
+    // JPBC
+    implementation(files("lib/jpbc-api-2.0.0.jar"))
+    implementation(files("lib/jpbc-plaf-2.0.0.jar"))
+    implementation(files("lib/jpbc-crypto-2.0.0.jar"))
+
     // Add mocking options for tests
     testImplementation "io.mockk:mockk:1.10.4"
     testImplementation "org.mockito:mockito-core:4.0.0"

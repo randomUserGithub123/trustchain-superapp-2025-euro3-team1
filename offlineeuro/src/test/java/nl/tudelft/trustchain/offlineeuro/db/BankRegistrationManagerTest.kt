@@ -28,7 +28,7 @@ class BankRegistrationManagerTest {
         val bigInt = BigInteger("12345667878532412")
         val nonExistingBank = "Bank404"
 
-        val setOwnValues = bankRegistrationManager.setOwnValuesForBank(nonExistingBank, bigInt, bigInt)
+        val setOwnValues = bankRegistrationManager.setOwnValuesForBank(nonExistingBank, bigInt, bigInt, "User")
         val setBankValues = bankRegistrationManager.setBankRegistrationValues(nonExistingBank, bigInt, bigInt)
 
         Assert.assertFalse("There should be no record affected", setOwnValues)
@@ -66,7 +66,7 @@ class BankRegistrationManagerTest {
         val m = BigInteger("2321421897529103201")
         val rm = BigInteger("321421576967455213")
 
-        val setOwnValues = bankRegistrationManager.setOwnValuesForBank(name, m, rm)
+        val setOwnValues = bankRegistrationManager.setOwnValuesForBank(name, m, rm, "UserName")
         Assert.assertTrue("The registration should be updated", setOwnValues)
 
         val updatedRegistration = bankRegistrationManager.getBankRegistrationByName(name)

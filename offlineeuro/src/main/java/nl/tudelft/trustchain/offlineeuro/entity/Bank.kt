@@ -23,11 +23,11 @@ class Bank (
     private val alpha: BigInteger = CentralAuthority.alpha
 
     // Secret x of the bank TODO RANDOM
-    private val x: BigInteger = BigInteger("123254213215123")
+    private val x: BigInteger = Cryptography.generateRandomBigInteger(p)//BigInteger("123254213215123")
 
     val z: BigInteger = alpha.modPow(x, p)
 
-    private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(2048)
+    private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(512)
 
     fun getPublicRSAValues(): Pair<BigInteger, BigInteger> {
         return Pair(rsaParameters.e, rsaParameters.n)

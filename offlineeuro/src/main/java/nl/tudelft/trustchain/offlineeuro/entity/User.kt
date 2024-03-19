@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
+import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
 import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
@@ -28,6 +29,23 @@ class User (
     private val receiptManager: ReceiptManager = ReceiptManager(context)
 )
 {
+    val privateKey: Element
+    val publicKey: Element
+    val groupDescription: BilinearGroup
+    val crs: CRS
+
+    init {
+        val keyPair = CentralAuthority.registerUser()
+        privateKey = keyPair.first.immutable
+        publicKey = keyPair.second.immutable
+        groupDescription = CentralAuthority.groupDescription
+        crs = CentralAuthority.crs
+    }
+
+//    fun spendEuro(digitalEuro: DigitalEuro, ): TransactionDetails {
+//        val transaction = Transaction.createTransaction(groupDescription, privateKey, publicKey, crs, digitalEuro)
+//        return transaction
+//    }
 
     // Values of the CA for easier reference
     private val p = CentralAuthority.p
