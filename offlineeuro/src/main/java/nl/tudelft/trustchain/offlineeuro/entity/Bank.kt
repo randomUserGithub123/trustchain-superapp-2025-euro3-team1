@@ -10,6 +10,7 @@ import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import java.math.BigInteger
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.math.min
 
 class Bank (
     val name: String = "BestBank",
@@ -21,6 +22,8 @@ class Bank (
     private val p: BigInteger = CentralAuthority.p
     private val q: BigInteger = CentralAuthority.q
     private val alpha: BigInteger = CentralAuthority.alpha
+
+    val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
 
     // Secret x of the bank TODO RANDOM
     private val x: BigInteger = Cryptography.generateRandomBigInteger(p)//BigInteger("123254213215123")
@@ -51,8 +54,45 @@ class Bank (
         return UserRegistrationResponseMessage(MessageResult.Failed, name, BigInteger.ZERO, BigInteger.ZERO, "Something went wrong")
     }
 
+
     fun getRegisteredUsers(): List<RegisteredUser> {
         return registeredUserManager.getAllRegisteredUsers()
+    }
+
+    // TODO Make this a spend transaction
+    fun depositEuro(euro: DigitalEuro): String {
+
+        for (depositedEuro in depositedEuros) {
+            if (depositedEuro.signature == euro.signature){
+                // Loop over the proofs to find the double spending
+                val depositedEuroProofs = depositedEuro.proofs
+                val euroProofs = euro.proofs
+
+                for (i in 0 until min(depositedEuroProofs.size, euroProofs.size)) {
+                    val currentDepositProof = depositedEuroProofs[i]
+                    val currentProof = euroProofs[i]
+
+                    if (currentDepositProof == currentProof)
+                        continue
+
+                    val doubleSpendingPK = CentralAuthority.getUserFromProofs(Pair(currentProof, currentDepositProof))
+
+                    return if (doubleSpendingPK != null) {
+                        "Double spending detected. PK of the perpetrator: $doubleSpendingPK"
+                    } else {
+                        "Detected double spending but could not blame anyone"
+                    }
+                }
+
+                return "Detected double spending by finding the exact two same tokens, the depositor tries to double spend"
+
+            }
+
+        }
+
+        depositedEuros.add(euro)
+        return "Deposit was successful!"
+
     }
 
     fun depositToken(receipt: Receipt): String {

@@ -31,6 +31,7 @@ class User (
 {
     val privateKey: Element
     val publicKey: Element
+    val wallet: Wallet
     val groupDescription: BilinearGroup
     val crs: CRS
 
@@ -40,6 +41,7 @@ class User (
         publicKey = keyPair.second.immutable
         groupDescription = CentralAuthority.groupDescription
         crs = CentralAuthority.crs
+        wallet = Wallet(privateKey, publicKey)
     }
 
 //    fun spendEuro(digitalEuro: DigitalEuro, ): TransactionDetails {
@@ -51,6 +53,7 @@ class User (
     private val p = CentralAuthority.p
     private val q = CentralAuthority.q
     private val alpha = CentralAuthority.alpha
+
 
     // TODO Cleaner solution for this
     var communicationState: CommunicationState = CommunicationState.COMPLETE

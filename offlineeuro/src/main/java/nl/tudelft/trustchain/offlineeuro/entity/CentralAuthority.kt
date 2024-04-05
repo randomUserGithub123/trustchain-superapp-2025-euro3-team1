@@ -45,6 +45,33 @@ object CentralAuthority {
         return Pair(secretKey, publicKey)
     }
 
+    fun getUserFromProof(grothSahaiProof: GrothSahaiProof): Element? {
+        val crsExponent = crsMap[crs.u]
+        val publicKey = grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
+
+        for (knownPublicKey in registeredUsers.keys) {
+            if (knownPublicKey == publicKey) {
+                return publicKey
+            }
+        }
+
+        return if (registeredUsers.keys.contains(publicKey))
+            publicKey
+        else {
+            null
+        }
+    }
+
+    fun getUserFromProofs(proofs: Pair<GrothSahaiProof, GrothSahaiProof>) : Element? {
+        val firstPK = getUserFromProof(proofs.first)
+        val secondPK = getUserFromProof(proofs.second)
+
+        return if (firstPK == secondPK)
+            firstPK
+        else
+            null
+    }
+
     // Three published hash functions
     fun H(x: BigInteger, y: BigInteger, z: BigInteger): BigInteger {
         val data = "$x,$y,$z".toByteArray(Charsets.UTF_8)

@@ -5,11 +5,18 @@ import it.unisa.dia.gas.jpbc.Element
 
 data class TransactionDetails (
     val digitalEuro: DigitalEuro,
-    val currentProofs: Pair<GrothSahaiProof, GrothSahaiProof>,
-    val sharedY: Element
+    val currentProofs: Pair<TransactionProof, GrothSahaiProof>,
+    val spenderPublicKey: Element,
 )
 
 object Transaction {
+
+    val bilinearGroup = CentralAuthority.groupDescription
+    val crs = CentralAuthority.crs
+
+    val pairing = bilinearGroup.pairing
+    val g = bilinearGroup.g
+    val h = bilinearGroup.h
 
     fun createTransaction (
         privateKey: Element,
@@ -27,7 +34,7 @@ object Transaction {
             val targetBytes = digitalEuro.proofs.last().target.toCanonicalRepresentation()
             CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(targetBytes)
         }
-        val (firstStatement, yDetails) = GrothSahai.createFirstStatement(
+        val (firstStatement, y) = GrothSahai.createFirstStatement(
             privateKey,
             publicKey,
             target,
@@ -35,18 +42,26 @@ object Transaction {
             randomizationElements
         )
 
-        val (y, sharedY) = yDetails
         val secondStatement = GrothSahai.createSecondStatement(privateKey, y)
 
-        return TransactionDetails(digitalEuro, Pair(firstStatement, secondStatement),sharedY)
+        return TransactionDetails(digitalEuro, Pair(firstStatement, secondStatement), publicKey)
     }
 
 
     fun validate(transaction: TransactionDetails): Boolean {
 
         // Check the GS proofs
-        val firstProofValid = GrothSahai.verifyProof(transaction.currentProofs.first, transaction.sharedY)
-        val secondProofValid = GrothSahai.verifySecondStatement(transaction.currentProofs.second, transaction.sharedY)
+        val firstProofValid = GrothSahai.verifyFirstProof(transaction.currentProofs.first)
+        val secondProofValid = GrothSahai.verifySecondStatement(transaction.currentProofs.second)
+
+        // Check if the public key is used in the proof
+        val publicKeyPairing = pairing.pairing(transaction.spenderPublicKey, transaction.currentProofs.first.usedY)
+
+        if (publicKeyPairing != transaction.currentProofs.first.grothSahaiProof.target)
+            return false
+
+        if (!verifyTransactionProof(transaction.currentProofs.first))
+            return false
 
         val previousProofs = transaction.digitalEuro.proofs
         if (previousProofs.isEmpty())
@@ -65,24 +80,19 @@ object Transaction {
         }
 
         // Compare last proof to current transaction proof
-        if (!verifyProofChain(previousProof, transaction.currentProofs.first))
+        if (!verifyProofChain(previousProof, transaction.currentProofs.first.grothSahaiProof)) {
+
             return false
 
-        if (transaction.currentProofs.first.target == previousProof.target)
+        }
+
+        if (transaction.currentProofs.first.grothSahaiProof.target == previousProof.target)
             throw Exception("Big mistake")
 
         return true
     }
 
     fun verifyProofChain(previousProof: GrothSahaiProof, currentProof: GrothSahaiProof): Boolean {
-
-        val bilinearGroup = CentralAuthority.groupDescription
-        val crs = CentralAuthority.crs
-
-        val pairing = bilinearGroup.pairing
-        val g = bilinearGroup.g
-        val h = bilinearGroup.h
-
         val previousTargetToBytes = previousProof.target.toCanonicalRepresentation()
         val previousTargetAsPower = pairing.zr.newElementFromBytes(previousTargetToBytes)
         val expectedTarget = pairing.pairing(g, h).powZn(previousTargetAsPower)
@@ -100,6 +110,18 @@ object Transaction {
         val actualPairing = pairing.pairing(previousTheta1, currentD1)
 
         if (expectedPairing != actualPairing)
+            return false
+
+        return true
+    }
+
+    fun verifyTransactionProof(transactionProof: TransactionProof): Boolean {
+        val usedY = transactionProof.usedY
+        val usedVS = transactionProof.usedVS
+
+        val d2 = transactionProof.grothSahaiProof.d2
+
+        if (usedVS.mul(usedY) != d2)
             return false
 
         return true
