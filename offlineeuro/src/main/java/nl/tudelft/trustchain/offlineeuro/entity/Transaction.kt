@@ -5,16 +5,13 @@ import it.unisa.dia.gas.jpbc.Element
 
 data class TransactionDetails (
     val digitalEuro: DigitalEuro,
-    val currentProofs: Pair<TransactionProof, GrothSahaiProof>,
+    val currentTransactionProof: TransactionProof,
     val spenderPublicKey: Element,
 )
 
 object Transaction {
 
     val bilinearGroup = CentralAuthority.groupDescription
-    val crs = CentralAuthority.crs
-
-    val pairing = bilinearGroup.pairing
     val g = bilinearGroup.g
     val h = bilinearGroup.h
 
@@ -34,7 +31,7 @@ object Transaction {
             val targetBytes = digitalEuro.proofs.last().target.toCanonicalRepresentation()
             CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(targetBytes)
         }
-        val (firstStatement, y) = GrothSahai.createFirstStatement(
+        val transactionProof = GrothSahai.createTransactionProof(
             privateKey,
             publicKey,
             target,
@@ -42,63 +39,73 @@ object Transaction {
             randomizationElements
         )
 
-        val secondStatement = GrothSahai.createSecondStatement(privateKey, y)
-
-        return TransactionDetails(digitalEuro, Pair(firstStatement, secondStatement), publicKey)
+        return TransactionDetails(digitalEuro, transactionProof, publicKey)
     }
 
 
     fun validate(transaction: TransactionDetails): Boolean {
 
-        // Check the GS proofs
-        val firstProofValid = GrothSahai.verifyFirstProof(transaction.currentProofs.first)
-        val secondProofValid = GrothSahai.verifySecondStatement(transaction.currentProofs.second)
+        val transactionProof = transaction.currentTransactionProof
 
-        // Check if the public key is used in the proof
-        val publicKeyPairing = pairing.pairing(transaction.spenderPublicKey, transaction.currentProofs.first.usedY)
+        // Validate if the given Transaction proof is a valid Groth-Sahai proof
+        if (!GrothSahai.verifyTransactionProof(transactionProof)) {
+            return false
+        }
 
-        if (publicKeyPairing != transaction.currentProofs.first.grothSahaiProof.target)
+        // Validate that d2 is constructed correctly
+        val usedY = transactionProof.usedY
+        val usedVS = transactionProof.usedVS
+        val d2 = transactionProof.grothSahaiProof.d2
+
+        if (d2.div(usedY) != usedVS)
             return false
 
-        if (!verifyTransactionProof(transaction.currentProofs.first))
+        // Validate if the public key is used correctly
+        val spenderPublicKey = transaction.spenderPublicKey
+        val expectedTarget = bilinearGroup.pair(spenderPublicKey, usedY)
+
+        if (expectedTarget != transactionProof.grothSahaiProof.target)
             return false
 
-        val previousProofs = transaction.digitalEuro.proofs
-        if (previousProofs.isEmpty())
-            return firstProofValid && secondProofValid
 
-        var previousProof = previousProofs.first()
+        return validateProofChain(transaction)
+    }
 
-        // Check previous Proofs
-        for (i: Int in 1 until previousProofs.size ) {
-            val currentProof = previousProofs[i]
+    fun validateProofChain(currentTransactionDetails: TransactionDetails) : Boolean {
 
-            if (!verifyProofChain(previousProof, currentProof))
+        val digitalEuro = currentTransactionDetails.digitalEuro
+        val currentProof = currentTransactionDetails.currentTransactionProof
+        val previousProofs = digitalEuro.proofs
+
+        // Current proof is the first proof
+        if (previousProofs.isEmpty()) {
+            return validateTSRelation(digitalEuro.firstTheta1, currentProof.grothSahaiProof.d1)
+        }
+
+        // Special case for the first proof
+        val firstProof = previousProofs.first()
+
+        if (!validateTSRelation(digitalEuro.firstTheta1, firstProof.d1))
+            return false
+
+
+        // Verify the remainder of the chain
+        var previousProof = firstProof
+        for (i: Int in 1 until previousProofs.size) {
+            val proof = previousProofs[i]
+            if(!verifyProofChain(previousProof, proof))
                 return false
-
-            previousProof = currentProof
+            previousProof = proof
         }
 
-        // Compare last proof to current transaction proof
-        if (!verifyProofChain(previousProof, transaction.currentProofs.first.grothSahaiProof)) {
-
-            return false
-
-        }
-
-        if (transaction.currentProofs.first.grothSahaiProof.target == previousProof.target)
-            throw Exception("Big mistake")
-
-        return true
+        // Verify the proof of the transaction to the last proof in the chain
+        return verifyProofChain(previousProof, currentProof.grothSahaiProof)
     }
 
     fun verifyProofChain(previousProof: GrothSahaiProof, currentProof: GrothSahaiProof): Boolean {
         val previousTargetToBytes = previousProof.target.toCanonicalRepresentation()
-        val previousTargetAsPower = pairing.zr.newElementFromBytes(previousTargetToBytes)
-        val expectedTarget = pairing.pairing(g, h).powZn(previousTargetAsPower)
-
-        if (currentProof.target == previousProof.target)
-            throw Exception("Big mistake")
+        val previousTargetAsPower = bilinearGroup.pairing.zr.newElementFromBytes(previousTargetToBytes)
+        val expectedTarget = bilinearGroup.pair(g, h).powZn(previousTargetAsPower)
 
         if (expectedTarget != currentProof.target)
             return false
@@ -106,24 +113,13 @@ object Transaction {
         // Check if the relation with t and s is correct
         val previousTheta1 = previousProof.theta1
         val currentD1 = currentProof.d1
-        val expectedPairing = pairing.pairing(g, h)
-        val actualPairing = pairing.pairing(previousTheta1, currentD1)
-
-        if (expectedPairing != actualPairing)
-            return false
-
-        return true
+        return validateTSRelation(previousTheta1, currentD1)
     }
 
-    fun verifyTransactionProof(transactionProof: TransactionProof): Boolean {
-        val usedY = transactionProof.usedY
-        val usedVS = transactionProof.usedVS
-
-        val d2 = transactionProof.grothSahaiProof.d2
-
-        if (usedVS.mul(usedY) != d2)
-            return false
-
-        return true
+    fun validateTSRelation(theta: Element, s: Element): Boolean {
+        val expectedPairing = bilinearGroup.pair(g, h)
+        val actualPairing = bilinearGroup.pair(theta, s)
+        return expectedPairing == actualPairing
     }
+
 }

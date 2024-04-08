@@ -86,7 +86,9 @@ dependencies {
 
     // For RSA
     implementation 'org.bouncycastle:bcprov-jdk15to18:1.68'
-    testImplementation "com.squareup.sqldelight:sqlite-driver:1.5.1"
+
+    // In memory database
+    implementation "com.squareup.sqldelight:sqlite-driver:1.5.1"
 
     // JPBC
     implementation(files("lib/jpbc-api-2.0.0.jar"))

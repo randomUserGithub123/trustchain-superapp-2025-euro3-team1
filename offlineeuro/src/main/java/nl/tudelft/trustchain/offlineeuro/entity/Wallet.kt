@@ -13,7 +13,7 @@ class Wallet(
 
     fun addToWallet(transactionDetails: TransactionDetails, t: Element){
         val digitalEuro = transactionDetails.digitalEuro
-        digitalEuro.proofs.add(transactionDetails.currentProofs.first.grothSahaiProof)
+        digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
         euros.add(WalletEntry(digitalEuro, t))
     }
 
@@ -28,7 +28,7 @@ class Wallet(
         val euroToSpend = euros.removeAt(0)
         val copiedProofs = arrayListOf<GrothSahaiProof>()
         copiedProofs.addAll(euroToSpend.digitalEuro.proofs)
-        val copiedEuro = DigitalEuro(copiedProofs, euroToSpend.digitalEuro.signature)
+        val copiedEuro = DigitalEuro(euroToSpend.digitalEuro.signature, euroToSpend.digitalEuro.firstTheta1.duplicate().immutable, euroToSpend.digitalEuro.signature , copiedProofs)
 
         spentEuros.add(WalletEntry(copiedEuro, euroToSpend.t))
         return Transaction.createTransaction(privateKey, publicKey, euroToSpend, randomizationElements)

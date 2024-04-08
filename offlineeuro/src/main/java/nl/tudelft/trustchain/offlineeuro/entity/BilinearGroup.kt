@@ -24,4 +24,12 @@ class BilinearGroup() {
         h = pairing.g2.newRandomElement().immutable
         gt = pairing.gt.newRandomElement().immutable
     }
+
+    fun getRandomZr(): Element {
+        return pairing.zr.newRandomElement().immutable
+    }
+
+    fun pair(elementG: Element,  elementH: Element): Element {
+        return pairing.pairing(elementG, elementH).immutable
+    }
 }

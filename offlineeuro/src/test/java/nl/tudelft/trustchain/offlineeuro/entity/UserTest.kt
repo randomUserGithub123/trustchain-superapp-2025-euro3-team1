@@ -3,12 +3,6 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.offlineeuro.sqldelight.Database
-import nl.tudelft.trustchain.offlineeuro.db.BankRegistrationManager
-import nl.tudelft.trustchain.offlineeuro.db.DepositedTokenManager
-import nl.tudelft.trustchain.offlineeuro.db.OwnedTokenManager
-import nl.tudelft.trustchain.offlineeuro.db.ReceiptManager
-import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
-import nl.tudelft.trustchain.offlineeuro.db.UnsignedTokenManager
 import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import org.junit.Assert
 import org.junit.Test
@@ -21,13 +15,12 @@ class UserTest {
         Database.Schema.create(this)
     }
 
+    val test = CentralAuthority.initializeRegisteredUserManager(null, driver)
     val usedSignatures = arrayListOf<BigInteger>()
     // Create a bank and a user with an in memory database
     val bank = Bank(
         "BestTestBank",
         context,
-        RegisteredUserManager(context, driver),
-        DepositedTokenManager(context, driver)
     )
 
     val group = CentralAuthority.groupDescription
@@ -36,35 +29,31 @@ class UserTest {
     private val user = User (
         "IAmTheRichestUser",
         context,
-        OwnedTokenManager(context, driver),
-        BankRegistrationManager(context, driver),
-        UnsignedTokenManager(context, driver),
-        ReceiptManager(context, driver)
     )
-
 
     private fun createTestUser(userName: String): User {
         return User (
             userName,
             context,
-            OwnedTokenManager(context, driver),
-            BankRegistrationManager(context, driver),
-            UnsignedTokenManager(context, driver),
-            ReceiptManager(context, driver)
         )
     }
 
-    private fun generateNewDigitalEuro(): DigitalEuro {
+    private fun generateNewDigitalEuro(): Pair<DigitalEuro, Element> {
         var signature = Cryptography.generateRandomBigInteger(BigInteger("9999999999"))
 
         while (usedSignatures.contains(signature))
             signature = Cryptography.generateRandomBigInteger(BigInteger("9999999999"))
 
-        return DigitalEuro(arrayListOf<GrothSahaiProof>(), signature)
+        val randomT = group.getRandomZr()
+        val tInv = randomT.mul(-1)
+        val initialTheta = group.g.powZn(tInv).immutable
+
+        return Pair(DigitalEuro(signature, initialTheta, signature, arrayListOf()), randomT)
     }
 
     private fun withdrawEuro(user: User) {
-        user.wallet.addToWallet(generateNewDigitalEuro(), null)
+        val (digitalEuro, t) = generateNewDigitalEuro()
+        user.wallet.addToWallet(digitalEuro, t)
     }
 
     private fun getRandomizationElements(): Pair<Element, RandomizationElements> {
@@ -73,11 +62,8 @@ class UserTest {
     }
     @Test
     fun singleTransactionTest() {
-        val bankSignature = BigInteger("12451241252134612")
-        val digitalEuro = DigitalEuro(arrayListOf<GrothSahaiProof>(), bankSignature)
+        withdrawEuro(user)
         val userWallet = user.wallet
-        userWallet.addToWallet(digitalEuro, null)
-
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
         val transactionDetails = userWallet.spendEuro(randomizationElements.second)
@@ -88,10 +74,8 @@ class UserTest {
 
     @Test
     fun twoTransactionsTest() {
-        val bankSignature = BigInteger("12451241252134612")
-        val digitalEuro = DigitalEuro(arrayListOf<GrothSahaiProof>(), bankSignature)
+        withdrawEuro(user)
         val userWallet = user.wallet
-        userWallet.addToWallet(digitalEuro, null)
 
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
@@ -109,10 +93,8 @@ class UserTest {
 
     @Test
     fun twentyTransactionsTest() {
-        val bankSignature = Cryptography.generateRandomBigInteger(BigInteger("999999999999999999999999999"))
-        val digitalEuro = DigitalEuro(arrayListOf<GrothSahaiProof>(), bankSignature)
-        val userWallet = Wallet(user.privateKey, user.publicKey)
-        userWallet.addToWallet(digitalEuro, null)
+        withdrawEuro(user)
+        val userWallet = user.wallet
         val amountOfTransactions = 20
 
         for (i in 0 until amountOfTransactions) {
@@ -131,15 +113,13 @@ class UserTest {
 
     @Test
     fun revokeAnonymityTest() {
-        val bankSignature = BigInteger("12451241252134612")
-        val digitalEuro = DigitalEuro(arrayListOf<GrothSahaiProof>(), bankSignature)
-        val userWallet = Wallet(user.privateKey, user.publicKey)
-        userWallet.addToWallet(digitalEuro, null)
+        withdrawEuro(user)
+        val userWallet = user.wallet
 
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
         val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val foundPK = CentralAuthority.getUserFromProof(transactionDetails!!.currentProofs.first.grothSahaiProof)
+        val foundPK = CentralAuthority.getUserFromProof(transactionDetails!!.currentTransactionProof.grothSahaiProof)
 
         Assert.assertNotNull(foundPK)
         Assert.assertEquals(user.publicKey, foundPK)
@@ -147,10 +127,8 @@ class UserTest {
 
     @Test
     fun doubleSpendingDetectionSimple() {
-        val bankSignature = BigInteger("12451241252134612")
-        val digitalEuro = DigitalEuro(arrayListOf<GrothSahaiProof>(), bankSignature)
-        val userWallet = Wallet(user.privateKey, user.publicKey)
-        userWallet.addToWallet(digitalEuro, null)
+        withdrawEuro(user)
+        val userWallet = user.wallet
 
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)

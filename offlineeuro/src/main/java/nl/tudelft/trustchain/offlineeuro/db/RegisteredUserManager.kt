@@ -3,10 +3,11 @@ package nl.tudelft.trustchain.offlineeuro.db
 import android.content.Context
 import com.squareup.sqldelight.android.AndroidSqliteDriver
 import com.squareup.sqldelight.db.SqlDriver
+import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.offlineeuro.sqldelight.Database
+import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import org.sqlite.SQLiteException
-import java.math.BigInteger
 
 /**
  * An overlay for the *RegisteredUsers* table.
@@ -18,6 +19,7 @@ import java.math.BigInteger
  */
 class RegisteredUserManager (
     context: Context?,
+    private val bilinearGroup: BilinearGroup,
     private val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "registered_users.db"),
 ) {
 
@@ -25,18 +27,12 @@ class RegisteredUserManager (
     private val registeredUserMapper = {
             id: Long,
             name: String,
-            s: ByteArray,
-            k: ByteArray,
-            v: ByteArray,
-            r: ByteArray,
+            publicKey: ByteArray
         ->
         RegisteredUser(
-            id.toInt(),
+            id,
             name,
-            BigInteger(s),
-            BigInteger(k),
-            BigInteger(v),
-            BigInteger(r)
+            bilinearGroup.pairing.g1.newElementFromBytes(publicKey).immutable
         )
     }
 
@@ -44,8 +40,8 @@ class RegisteredUserManager (
      * Creates the RegisteredUser table if it not yet exists.
      */
     init {
-        database.dbOfflineEuroQueries.createRegisteredUserTable()
-        database.dbOfflineEuroQueries.clearAllRegisteredUsers()
+        database.registeredUsersQueries.createRegisteredUserTable()
+        database.registeredUsersQueries.clearAllRegisteredUsers()
     }
 
     /**
@@ -54,15 +50,12 @@ class RegisteredUserManager (
      * @param user the user that should be registered. Its id will be omitted.
      * @return true iff registering the user is successful.
      */
-    fun addRegisteredUser(user: RegisteredUser): Boolean {
-        val (_, name, s, k, v, r) = user
+    fun addRegisteredUser(userName: String, publicKey: Element): Boolean {
         try {
-            database.dbOfflineEuroQueries.addUser(
-                name,
-                s.toByteArray(),
-                k.toByteArray(),
-                v.toByteArray(),
-                r.toByteArray()
+            database.registeredUsersQueries.addUser(
+                userName,
+                publicKey.toBytes(),
+
             )
             return true
         }
@@ -79,7 +72,7 @@ class RegisteredUserManager (
      * @return the [RegisteredUser] with the [name] or null if the user does not exist.
      */
     fun getRegisteredUserByName(name: String): RegisteredUser? {
-        return database.dbOfflineEuroQueries.getUserByName(name, registeredUserMapper)
+        return database.registeredUsersQueries.getUserByName(name, registeredUserMapper)
             .executeAsOneOrNull()
     }
 
@@ -89,8 +82,8 @@ class RegisteredUserManager (
      * @param w the name of the [RegisteredUser]
      * @return the [RegisteredUser] with the [w] or null if the user does not exist.
      */
-    fun getRegisteredUserByW(w: BigInteger): RegisteredUser? {
-        return database.dbOfflineEuroQueries.getUserByR(w.toByteArray(), registeredUserMapper)
+    fun getRegisteredUserByPublicKey(publicKey: Element): RegisteredUser? {
+        return database.registeredUsersQueries.getUserByPublicKey(publicKey.toBytes(), registeredUserMapper)
             .executeAsOneOrNull()
     }
     /**
@@ -99,17 +92,17 @@ class RegisteredUserManager (
      * @return The number of [RegisteredUser]s.
      */
     fun getUserCount(): Long {
-        return  database.dbOfflineEuroQueries.getRegisteredUserCount().executeAsOne()
+        return  database.registeredUsersQueries.getRegisteredUserCount().executeAsOne()
     }
 
     fun getAllRegisteredUsers(): List<RegisteredUser> {
-        return database.dbOfflineEuroQueries.getAllRegisteredUsers(registeredUserMapper).executeAsList()
+        return database.registeredUsersQueries.getAllRegisteredUsers(registeredUserMapper).executeAsList()
     }
 
     /**
      * Clears all the [RegisteredUser]s from the table.
      */
     fun clearAllRegisteredUsers() {
-        database.dbOfflineEuroQueries.clearAllRegisteredUsers()
+        database.registeredUsersQueries.clearAllRegisteredUsers()
     }
 }

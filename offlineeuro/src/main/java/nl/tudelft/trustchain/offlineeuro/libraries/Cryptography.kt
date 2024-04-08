@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.offlineeuro.libraries
 
-import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.RSAParameters
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.generators.RSAKeyPairGenerator
@@ -31,8 +30,8 @@ object Cryptography {
 
         val n = publicKey.modulus
 
-        if (n <= CentralAuthority.p)
-            return  generateRSAParameters(bitLength)
+//        if (n <= CentralAuthority.p)
+//            return  generateRSAParameters(bitLength)
         val e = publicKey.exponent
         val d = privateKey.exponent
         return RSAParameters(n, e, d)
