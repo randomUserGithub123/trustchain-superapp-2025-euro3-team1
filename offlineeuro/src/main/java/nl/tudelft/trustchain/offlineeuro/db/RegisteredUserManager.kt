@@ -5,6 +5,7 @@ import com.squareup.sqldelight.android.AndroidSqliteDriver
 import com.squareup.sqldelight.db.SqlDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.offlineeuro.sqldelight.Database
+import nl.tudelft.offlineeuro.sqldelight.RegisteredUsersQueries
 import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import org.sqlite.SQLiteException
@@ -24,6 +25,8 @@ class RegisteredUserManager (
 ) {
 
     private val database: Database = Database(driver)
+    private val queries: RegisteredUsersQueries = database.registeredUsersQueries
+
     private val registeredUserMapper = {
             id: Long,
             name: String,
@@ -40,8 +43,8 @@ class RegisteredUserManager (
      * Creates the RegisteredUser table if it not yet exists.
      */
     init {
-        database.registeredUsersQueries.createRegisteredUserTable()
-        database.registeredUsersQueries.clearAllRegisteredUsers()
+        queries.createRegisteredUserTable()
+        queries.clearAllRegisteredUsers()
     }
 
     /**
@@ -52,7 +55,7 @@ class RegisteredUserManager (
      */
     fun addRegisteredUser(userName: String, publicKey: Element): Boolean {
         try {
-            database.registeredUsersQueries.addUser(
+            queries.addUser(
                 userName,
                 publicKey.toBytes(),
 
@@ -72,7 +75,7 @@ class RegisteredUserManager (
      * @return the [RegisteredUser] with the [name] or null if the user does not exist.
      */
     fun getRegisteredUserByName(name: String): RegisteredUser? {
-        return database.registeredUsersQueries.getUserByName(name, registeredUserMapper)
+        return queries.getUserByName(name, registeredUserMapper)
             .executeAsOneOrNull()
     }
 
@@ -83,7 +86,7 @@ class RegisteredUserManager (
      * @return the [RegisteredUser] with the [w] or null if the user does not exist.
      */
     fun getRegisteredUserByPublicKey(publicKey: Element): RegisteredUser? {
-        return database.registeredUsersQueries.getUserByPublicKey(publicKey.toBytes(), registeredUserMapper)
+        return queries.getUserByPublicKey(publicKey.toBytes(), registeredUserMapper)
             .executeAsOneOrNull()
     }
     /**
@@ -92,17 +95,17 @@ class RegisteredUserManager (
      * @return The number of [RegisteredUser]s.
      */
     fun getUserCount(): Long {
-        return  database.registeredUsersQueries.getRegisteredUserCount().executeAsOne()
+        return  queries.getRegisteredUserCount().executeAsOne()
     }
 
     fun getAllRegisteredUsers(): List<RegisteredUser> {
-        return database.registeredUsersQueries.getAllRegisteredUsers(registeredUserMapper).executeAsList()
+        return queries.getAllRegisteredUsers(registeredUserMapper).executeAsList()
     }
 
     /**
      * Clears all the [RegisteredUser]s from the table.
      */
     fun clearAllRegisteredUsers() {
-        database.registeredUsersQueries.clearAllRegisteredUsers()
+        queries.clearAllRegisteredUsers()
     }
 }

@@ -14,22 +14,16 @@ class UserTest {
     private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
         Database.Schema.create(this)
     }
+    private val group = CentralAuthority.groupDescription
 
-    val test = CentralAuthority.initializeRegisteredUserManager(null, driver)
-    val usedSignatures = arrayListOf<BigInteger>()
-    // Create a bank and a user with an in memory database
-    val bank = Bank(
-        "BestTestBank",
-        context,
-    )
+    private val user: User
+    private val bank: Bank
 
-    val group = CentralAuthority.groupDescription
-    val crs = CentralAuthority.crs
-
-    private val user = User (
-        "IAmTheRichestUser",
-        context,
-    )
+    init {
+        CentralAuthority.initializeRegisteredUserManager(context, driver)
+        user = User("IAmTheRichestUser", context)
+        bank = Bank ("BestTestBank", context)
+    }
 
     private fun createTestUser(userName: String): User {
         return User (
@@ -39,10 +33,7 @@ class UserTest {
     }
 
     private fun generateNewDigitalEuro(): Pair<DigitalEuro, Element> {
-        var signature = Cryptography.generateRandomBigInteger(BigInteger("9999999999"))
-
-        while (usedSignatures.contains(signature))
-            signature = Cryptography.generateRandomBigInteger(BigInteger("9999999999"))
+        val signature = Cryptography.generateRandomBigInteger(BigInteger("999999999999999"))
 
         val randomT = group.getRandomZr()
         val tInv = randomT.mul(-1)

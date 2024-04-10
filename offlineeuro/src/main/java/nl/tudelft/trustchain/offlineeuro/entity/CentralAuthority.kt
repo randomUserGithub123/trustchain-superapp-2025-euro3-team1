@@ -12,9 +12,12 @@ object CentralAuthority {
     private val crsMap = CRSPair.second
     private var registeredUserManager: RegisteredUserManager? = null
     val crs = CRSPair.first
-    val registeredUsers = mutableMapOf<Element, Element>()
 
     fun initializeRegisteredUserManager(context: Context? = null, driver: JdbcSqliteDriver? = null) {
+
+        // Check if the manager is already initialized
+        if (registeredUserManager != null)
+            return
 
         registeredUserManager = if (context != null)
             RegisteredUserManager(context, groupDescription)

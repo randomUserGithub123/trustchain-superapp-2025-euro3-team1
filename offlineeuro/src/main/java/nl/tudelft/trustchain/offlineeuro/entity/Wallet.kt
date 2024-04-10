@@ -2,10 +2,10 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
 
-data class WalletEntry(val digitalEuro: DigitalEuro, val t: Element?)
+data class WalletEntry(val digitalEuro: DigitalEuro, val t: Element)
 
 class Wallet(
-    val privateKey: Element,
+    private val privateKey: Element,
     val publicKey: Element,
     val euros: ArrayList<WalletEntry> = arrayListOf(),
     val spentEuros: ArrayList<WalletEntry> = arrayListOf()
@@ -17,7 +17,7 @@ class Wallet(
         euros.add(WalletEntry(digitalEuro, t))
     }
 
-    fun addToWallet(digitalEuro: DigitalEuro, t: Element?) {
+    fun addToWallet(digitalEuro: DigitalEuro, t: Element) {
         euros.add(WalletEntry(digitalEuro, t))
     }
 

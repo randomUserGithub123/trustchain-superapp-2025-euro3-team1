@@ -5,6 +5,7 @@ import it.unisa.dia.gas.jpbc.Pairing
 import it.unisa.dia.gas.jpbc.PairingParametersGenerator
 import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory
 import it.unisa.dia.gas.plaf.jpbc.pairing.a.TypeACurveGenerator
+import java.math.BigInteger
 
 class BilinearGroup() {
     val pairing: Pairing
@@ -31,5 +32,9 @@ class BilinearGroup() {
 
     fun pair(elementG: Element,  elementH: Element): Element {
         return pairing.pairing(elementG, elementH).immutable
+    }
+
+    fun getZrOrder(): BigInteger {
+        return pairing.zr.order
     }
 }

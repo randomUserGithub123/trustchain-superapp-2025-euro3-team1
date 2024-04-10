@@ -1,0 +1,37 @@
+createWalletTable:
+CREATE TABLE IF NOT EXISTS wallet (
+    serialNumber BLOB PRIMARY KEY,
+    firstTheta1 BLOB NOT NULL,
+    signature BLOB NOT NULL,
+    previousProofs BLOB,
+    secretT BLOB NOT NULL,
+    timesSpent INTEGER,
+    timesDeposited INTEGER
+);
+
+insertDigitalEuro:
+INSERT INTO wallet(serialNumber,
+    firstTheta1,
+    signature,
+    previousProofs,
+    secretT,
+    timesSpent,
+    timesDeposited)
+VALUES (?,
+    ?,
+    ?,
+    ?,
+    ?,
+    0,
+    0
+);
+
+incrementTimesSpent:
+UPDATE wallet
+SET timesSpent = timesSpent + 1
+WHERE serialNumber = ?;
+
+incrementTimesDeposited:
+UPDATE wallet
+SET timesDeposited = timesDeposited + 1
+WHERE serialNumber = ?;
