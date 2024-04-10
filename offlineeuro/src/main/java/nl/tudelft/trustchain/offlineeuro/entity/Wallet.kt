@@ -1,8 +1,9 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 
-data class WalletEntry(val digitalEuro: DigitalEuro, val t: Element)
+data class WalletEntry(val digitalEuro: DigitalEuro, val t: Element, val transactionSignature: SchnorrSignature?)
 
 class Wallet(
     private val privateKey: Element,
@@ -14,11 +15,13 @@ class Wallet(
     fun addToWallet(transactionDetails: TransactionDetails, t: Element){
         val digitalEuro = transactionDetails.digitalEuro
         digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
-        euros.add(WalletEntry(digitalEuro, t))
+
+        val transactionSignature = transactionDetails.theta1Signature
+        euros.add(WalletEntry(digitalEuro, t, transactionSignature))
     }
 
     fun addToWallet(digitalEuro: DigitalEuro, t: Element) {
-        euros.add(WalletEntry(digitalEuro, t))
+        euros.add(WalletEntry(digitalEuro, t, null))
     }
 
     fun spendEuro(randomizationElements: RandomizationElements): TransactionDetails? {
@@ -28,10 +31,10 @@ class Wallet(
         val euroToSpend = euros.removeAt(0)
         val copiedProofs = arrayListOf<GrothSahaiProof>()
         copiedProofs.addAll(euroToSpend.digitalEuro.proofs)
-        val copiedEuro = DigitalEuro(euroToSpend.digitalEuro.signature, euroToSpend.digitalEuro.firstTheta1.duplicate().immutable, euroToSpend.digitalEuro.signature , copiedProofs)
+        val copiedEuro = DigitalEuro(euroToSpend.digitalEuro.serialNumber, euroToSpend.digitalEuro.firstTheta1.duplicate().immutable, euroToSpend.digitalEuro.signature , copiedProofs)
 
-        spentEuros.add(WalletEntry(copiedEuro, euroToSpend.t))
-        return Transaction.createTransaction(privateKey, publicKey, euroToSpend, randomizationElements)
+        spentEuros.add(WalletEntry(copiedEuro, euroToSpend.t, euroToSpend.transactionSignature))
+        return Transaction.createTransaction(privateKey, publicKey, euroToSpend, randomizationElements, euroToSpend.transactionSignature)
     }
 
     fun doubleSpendEuro(randomizationElements: RandomizationElements): TransactionDetails? {
@@ -40,7 +43,7 @@ class Wallet(
         }
         val euroToSpend = spentEuros.removeAt(0)
 
-        return Transaction.createTransaction(privateKey, publicKey, euroToSpend, randomizationElements)
+        return Transaction.createTransaction(privateKey, publicKey, euroToSpend, randomizationElements, euroToSpend.transactionSignature)
     }
 
     fun depositEuro(bank: Bank): String {

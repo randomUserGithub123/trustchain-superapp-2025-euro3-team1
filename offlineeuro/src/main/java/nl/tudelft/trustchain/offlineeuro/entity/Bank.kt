@@ -1,7 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
-import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
+import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import java.math.BigInteger
 import kotlin.math.min
 
@@ -9,13 +10,33 @@ class Bank (
     val name: String = "BestBank",
     private val context: Context?,
 ){
-    val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
-    private var rsaParameters: RSAParameters = Cryptography.generateRSAParameters(512)
+    private val privateKey: Element
+    val publicKey: Element
+    val group = CentralAuthority.groupDescription
+    private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
+    private val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
 
-    fun getPublicRSAValues(): Pair<BigInteger, BigInteger> {
-        return Pair(rsaParameters.e, rsaParameters.n)
+    init {
+        privateKey = group.getRandomZr()
+        publicKey = group.g.powZn(privateKey)
     }
 
+    fun getBlindSignatureRandomness(userPublicKey: Element): Element {
+        if (withdrawUserRandomness.containsKey(userPublicKey)) {
+            val randomness = withdrawUserRandomness[userPublicKey]!!
+            return group.g.powZn(randomness)
+        }
+        val randomness = group.getRandomZr()
+        withdrawUserRandomness[userPublicKey] = randomness
+        return group.g.powZn(randomness)
+    }
+
+    fun createBlindSignature(challenge: BigInteger, userPublicKey: Element): BigInteger {
+        val k = withdrawUserRandomness[userPublicKey] ?: return BigInteger.ZERO
+        withdrawUserRandomness.remove(userPublicKey)
+        // <Subtract balance here>
+        return Schnorr.signBlindedChallenge(k, challenge, privateKey)
+    }
 
     // TODO Make this a spend transaction
     fun depositEuro(euro: DigitalEuro): String {

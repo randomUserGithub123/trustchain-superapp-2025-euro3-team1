@@ -3,10 +3,8 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.offlineeuro.sqldelight.Database
-import nl.tudelft.trustchain.offlineeuro.libraries.Cryptography
 import org.junit.Assert
 import org.junit.Test
-import java.math.BigInteger
 
 class UserTest {
 
@@ -14,15 +12,16 @@ class UserTest {
     private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
         Database.Schema.create(this)
     }
-    private val group = CentralAuthority.groupDescription
+    private val group: BilinearGroup
 
     private val user: User
     private val bank: Bank
 
     init {
+        group = CentralAuthority.groupDescription
         CentralAuthority.initializeRegisteredUserManager(context, driver)
         user = User("IAmTheRichestUser", context)
-        bank = Bank ("BestTestBank", context)
+        bank = Bank("BestTestBank", context)
     }
 
     private fun createTestUser(userName: String): User {
@@ -32,19 +31,8 @@ class UserTest {
         )
     }
 
-    private fun generateNewDigitalEuro(): Pair<DigitalEuro, Element> {
-        val signature = Cryptography.generateRandomBigInteger(BigInteger("999999999999999"))
-
-        val randomT = group.getRandomZr()
-        val tInv = randomT.mul(-1)
-        val initialTheta = group.g.powZn(tInv).immutable
-
-        return Pair(DigitalEuro(signature, initialTheta, signature, arrayListOf()), randomT)
-    }
-
     private fun withdrawEuro(user: User) {
-        val (digitalEuro, t) = generateNewDigitalEuro()
-        user.wallet.addToWallet(digitalEuro, t)
+        user.withdrawDigitalEuro(bank)
     }
 
     private fun getRandomizationElements(): Pair<Element, RandomizationElements> {
@@ -58,8 +46,7 @@ class UserTest {
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
         val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val isValid = Transaction.validate(transactionDetails!!)
-
+        val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
         Assert.assertTrue(isValid)
     }
 
@@ -71,14 +58,14 @@ class UserTest {
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
         val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val isValid = Transaction.validate(transactionDetails!!)
+        val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
         Assert.assertTrue(isValid)
 
         userWallet.addToWallet(transactionDetails, randomT)
         val nextT = group.pairing.zr.newRandomElement().immutable
         val nextRandomizationElements = GrothSahai.tToRandomizationElements(nextT)
         val transactionDetails2 = userWallet.spendEuro(nextRandomizationElements.second)
-        val isValid2 = Transaction.validate(transactionDetails2!!)
+        val isValid2 = Transaction.validate(transactionDetails2!!, bank.publicKey)
         Assert.assertTrue(isValid2)
     }
 
@@ -92,7 +79,7 @@ class UserTest {
             val randomT = group.pairing.zr.newRandomElement().immutable
             val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
             val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-            val isValid = Transaction.validate(transactionDetails!!)
+            val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
             Assert.assertTrue(isValid)
             userWallet.addToWallet(transactionDetails, randomT)
         }
@@ -124,14 +111,14 @@ class UserTest {
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
         val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val isValid = Transaction.validate(transactionDetails!!)
+        val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
         Assert.assertTrue(isValid)
         userWallet.addToWallet(transactionDetails, randomT)
 
         val nextT = group.pairing.zr.newRandomElement().immutable
         val nextRandomizationElements = GrothSahai.tToRandomizationElements(nextT)
         val transactionDetails2 = userWallet.doubleSpendEuro(nextRandomizationElements.second)
-        val isValid2 = Transaction.validate(transactionDetails2!!)
+        val isValid2 = Transaction.validate(transactionDetails2!!, bank.publicKey)
         Assert.assertTrue(isValid2)
         userWallet.addToWallet(transactionDetails2, randomT)
         // Deposit the two Euros

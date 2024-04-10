@@ -3,6 +3,8 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import java.util.UUID
 
 enum class CommunicationState {
     INPROGRESS,
@@ -18,13 +20,13 @@ class User (
     val privateKey: Element
     val publicKey: Element
     val wallet: Wallet
-    val groupDescription: BilinearGroup
+    val group: BilinearGroup
     val crs: CRS
 
     init {
-        groupDescription = CentralAuthority.groupDescription
-        privateKey = groupDescription.getRandomZr()
-        publicKey = groupDescription.g.powZn(privateKey)
+        group = CentralAuthority.groupDescription
+        privateKey = group.getRandomZr()
+        publicKey = group.g.powZn(privateKey)
         CentralAuthority.registerUser(name, publicKey)
         crs = CentralAuthority.crs
         wallet = Wallet(privateKey, publicKey)
@@ -43,12 +45,19 @@ class User (
         return false
     }
 
+    fun withdrawDigitalEuro(bank: Bank) {
+        val serialNumber = UUID.randomUUID().toString()
+        val firstT = group.getRandomZr()
+        val tInv = firstT.mul(-1)
+        val initialTheta = group.g.powZn(tInv).immutable
 
-//    fun getBalance(): Int {
-//        return ownedTokenManager.getAllTokens().size
-//    }
-//
-//    fun removeAllTokens() {
-//        ownedTokenManager.removeAllTokens()
-//    }
+        val bytesToSign = serialNumber.toByteArray() + initialTheta.toBytes()
+        val bankRandomness = bank.getBlindSignatureRandomness(publicKey)
+
+        val blindedChallenge = Schnorr.createBlindedChallenge(bankRandomness, bytesToSign, bank.publicKey, group)
+        val blindSignature = bank.createBlindSignature(blindedChallenge.blindedChallenge, publicKey)
+        val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
+        val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
+        wallet.addToWallet(digitalEuro, firstT)
+    }
 }

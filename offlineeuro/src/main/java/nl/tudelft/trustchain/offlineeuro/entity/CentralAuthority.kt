@@ -41,6 +41,11 @@ object CentralAuthority {
         val publicKey = grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
         checkManagerInitialized()
         val registeredUser = registeredUserManager!!.getRegisteredUserByPublicKey(publicKey)
+
+        if (registeredUser == null) {
+            val users = registeredUserManager!!.getAllRegisteredUsers()
+            val count = users.count()
+        }
         return registeredUser?.publicKey
     }
 

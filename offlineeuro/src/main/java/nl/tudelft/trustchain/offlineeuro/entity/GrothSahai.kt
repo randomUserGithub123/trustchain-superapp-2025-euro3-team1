@@ -17,7 +17,7 @@ object GrothSahai {
         target: Element,
         previousT: Element,
         randomizationElements: RandomizationElements
-    ): TransactionProof {
+    ): Pair<TransactionProof, Element> {
         val signatureElement = target.immutable
         val X = publicKey
         val y = signatureElement.div(privateKey).immutable
@@ -44,7 +44,7 @@ object GrothSahai {
 
         val grothSahaiProof = GrothSahaiProof(c1, c2, d1, d2, theta1, theta2, pi1, pi2, T)
 
-        return TransactionProof(grothSahaiProof, Y, v.powZn(s).immutable)
+        return Pair(TransactionProof(grothSahaiProof, Y, v.powZn(s).immutable), r)
     }
 
     fun verifyTransactionProof(transactionProof: TransactionProof): Boolean {

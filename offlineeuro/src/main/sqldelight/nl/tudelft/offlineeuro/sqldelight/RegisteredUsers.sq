@@ -1,7 +1,7 @@
 createRegisteredUserTable:
 CREATE TABLE IF NOT EXISTS registered_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     publicKey BLOB NOT NULL
 );
 

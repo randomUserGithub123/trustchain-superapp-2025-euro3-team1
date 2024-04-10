@@ -5,8 +5,12 @@ import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
 import java.math.BigInteger
 import java.security.MessageDigest
 
-data class SchnorrSignature(val signature: BigInteger, val encryption: BigInteger, val signedMessage: ByteArray)
 data class BlindedChallenge(val challenge: BigInteger, val blindedChallenge: BigInteger, val alpha: BigInteger, val message: ByteArray)
+data class SchnorrSignature(val signature: BigInteger, val encryption: BigInteger, val signedMessage: ByteArray) {
+    fun toBytes(): ByteArray {
+        return signature.toByteArray() + encryption.toByteArray() + signedMessage
+    }
+}
 
 /**
  * Object that contains methods to create and verify Schnorr signatures.

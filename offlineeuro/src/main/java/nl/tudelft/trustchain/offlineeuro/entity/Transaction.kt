@@ -1,11 +1,15 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 
 
 data class TransactionDetails (
     val digitalEuro: DigitalEuro,
     val currentTransactionProof: TransactionProof,
+    val previousThetaSignature: SchnorrSignature?,
+    val theta1Signature: SchnorrSignature,
     val spenderPublicKey: Element,
 )
 
@@ -15,23 +19,24 @@ object Transaction {
     val g = bilinearGroup.g
     val h = bilinearGroup.h
 
-    fun createTransaction (
+    fun createTransaction(
         privateKey: Element,
         publicKey: Element,
         walletEntry: WalletEntry,
-        randomizationElements: RandomizationElements
+        randomizationElements: RandomizationElements,
+        previousThetaSignature: SchnorrSignature?
     ): TransactionDetails {
 
         val digitalEuro = walletEntry.digitalEuro
 
         val target = if (digitalEuro.proofs.isEmpty()) {
-            CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(digitalEuro.signature.toByteArray())
+            CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(digitalEuro.signature.toBytes())
         } else
         {
-            val targetBytes = digitalEuro.proofs.last().target.toCanonicalRepresentation()
+            val targetBytes = digitalEuro.proofs.last().target.toBytes()
             CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(targetBytes)
         }
-        val transactionProof = GrothSahai.createTransactionProof(
+        val (transactionProof, r) = GrothSahai.createTransactionProof(
             privateKey,
             publicKey,
             target,
@@ -39,13 +44,26 @@ object Transaction {
             randomizationElements
         )
 
-        return TransactionDetails(digitalEuro, transactionProof, publicKey)
+        val theta1Signature = Schnorr.schnorrSignature(r, randomizationElements.group1TInv.toBytes(), bilinearGroup)
+        val test = Schnorr.verifySchnorrSignature(theta1Signature, transactionProof.grothSahaiProof.c1, bilinearGroup)
+        return TransactionDetails(digitalEuro, transactionProof, previousThetaSignature, theta1Signature, publicKey)
     }
 
 
-    fun validate(transaction: TransactionDetails): Boolean {
+    fun validate(transaction: TransactionDetails, publicKeyBank: Element): Boolean {
 
+        // Verify if the Digital euro is signed
+        val digitalEuro = transaction.digitalEuro
+        if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup))
+            return false
+
+        // Verify if the current transaction signature is correct
         val transactionProof = transaction.currentTransactionProof
+        val transactionSignature = transaction.theta1Signature
+        if (!Schnorr.verifySchnorrSignature(transactionSignature, transactionProof.grothSahaiProof.c1, bilinearGroup)) {
+            return false
+        }
+
 
         // Validate if the given Transaction proof is a valid Groth-Sahai proof
         if (!GrothSahai.verifyTransactionProof(transactionProof)) {
@@ -82,7 +100,7 @@ object Transaction {
             return validateTSRelation(digitalEuro.firstTheta1, currentProof.grothSahaiProof.d1)
         }
 
-        // Special case for the first proof
+        // Special cases for the first proof
         val firstProof = previousProofs.first()
 
         if (!validateTSRelation(digitalEuro.firstTheta1, firstProof.d1))
@@ -98,6 +116,17 @@ object Transaction {
             previousProof = proof
         }
 
+
+        // Verify if the signature of the last transaction is valid
+        val usedC1 = previousProof.c1
+        val usedTheta = previousProof.theta1
+
+        val previousTransactionProof = currentTransactionDetails.previousThetaSignature
+        if (previousTransactionProof == null ||
+            !Schnorr.verifySchnorrSignature(previousTransactionProof, usedC1, bilinearGroup) ||
+            !usedTheta.toBytes().contentEquals(previousTransactionProof.signedMessage)
+        )
+            return false
         // Verify the proof of the transaction to the last proof in the chain
         return verifyProofChain(previousProof, currentProof.grothSahaiProof)
     }
