@@ -37,4 +37,30 @@ class BilinearGroup() {
     fun getZrOrder(): BigInteger {
         return pairing.zr.order
     }
+
+    fun generateRandomElementOfG(): Element {
+        val randomZr = getRandomZr()
+        return g.powZn(randomZr).immutable
+    }
+
+    fun generateRandomElementOfH(): Element {
+        val randomZr = getRandomZr()
+        return h.powZn(randomZr).immutable
+    }
+
+    fun generateRandomElementOfGT(): Element {
+        val randomZr = getRandomZr()
+        return gt.powZn(randomZr).immutable
+    }
+    fun gElementFromBytes(bytes: ByteArray): Element {
+        return pairing.g1.newElementFromBytes(bytes).immutable
+    }
+
+    fun hElementFromBytes(bytes: ByteArray): Element {
+        return pairing.g2.newElementFromBytes(bytes).immutable
+    }
+
+    fun gtElementFromBytes(bytes: ByteArray): Element {
+        return pairing.gt.newElementFromBytes(bytes).immutable
+    }
 }

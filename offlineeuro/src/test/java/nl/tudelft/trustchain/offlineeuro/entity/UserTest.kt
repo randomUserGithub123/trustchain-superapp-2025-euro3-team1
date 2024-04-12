@@ -12,13 +12,12 @@ class UserTest {
     private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
         Database.Schema.create(this)
     }
-    private val group: BilinearGroup
+    private val group: BilinearGroup = CentralAuthority.groupDescription
 
     private val user: User
     private val bank: Bank
 
     init {
-        group = CentralAuthority.groupDescription
         CentralAuthority.initializeRegisteredUserManager(context, driver)
         user = User("IAmTheRichestUser", context)
         bank = Bank("BestTestBank", context)

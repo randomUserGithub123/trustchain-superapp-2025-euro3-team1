@@ -1,6 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import kotlinx.serialization.Serializable
+import nl.tudelft.trustchain.offlineeuro.libraries.EBMap
 
 object GrothSahai {
 
@@ -10,7 +12,7 @@ object GrothSahai {
     val pairing = bilinearGroup.pairing
     val g = bilinearGroup.g
     val h = bilinearGroup.h
-
+    val gt = bilinearGroup.gt
     fun createTransactionProof (
         privateKey: Element,
         publicKey: Element,
@@ -53,30 +55,31 @@ object GrothSahai {
         val u = crs.u
         val v = crs.v
 
-        val topleft = pairing.pairing(c1, d1).immutable
-        val topright = pairing.pairing(c1, d2).immutable
-        val bottomleft = pairing.pairing(c2, d1).immutable
-        val bottomright = pairing.pairing(c2, d2).immutable
+        val commitEBMap = EBMap(listOf(c1, c2, d1, d2), bilinearGroup)
+        val piEBMap = EBMap(listOf(g, u, pi1, pi2), bilinearGroup)
+        val thetaEBMap = EBMap(listOf(theta1, theta2, h, v), bilinearGroup)
 
-        val tl2 = pairing.pairing(g, pi1)
-        val tl3 = pairing.pairing(theta1, h)
-        val tlchecker = (tl2.mul(tl3)).equals(topleft)
+        val oneElement = gt.duplicate().setToOne()
+        val targetMap = EBMap(listOf(oneElement, oneElement, oneElement, target), bilinearGroup, false)
 
-        val tr2 = pairing.pairing(g, pi2)
-        val tr3 = pairing.pairing(theta1, v)
-        val trchecker = (tr2.mul(tr3)).equals(topright)
+        for (i: Int in 0 until  2) {
+            for (j: Int in 0 until 2) {
 
-        val bl2 = pairing.pairing(u, pi1)
-        val bl3 = pairing.pairing(theta2, h)
-        val blchecker = bottomleft.equals(bl2.mul(bl3))
+                val commitElement = commitEBMap[i, j]
 
-        val br2 = pairing.pairing(u, pi2)
-        val br3 = pairing.pairing(theta2, v)
-        val brchecker = (br2.mul(br3).mul(target)).equals(bottomright)
+                val piEBMapElement = piEBMap[i, j]
+                val thetaEBMapElement = thetaEBMap[i, j]
+                val targetMapElement = targetMap[i, j]
+                val computed = piEBMapElement.mul(thetaEBMapElement).mul(targetMapElement)
 
-        return tlchecker && trchecker && blchecker && brchecker
+                if (commitElement != computed)
+                    return false
+            }
+        }
 
+        return true
     }
+
 
     fun tToRandomizationElements(t: Element): Pair<Element, RandomizationElements> {
         val bilinearGroup = CentralAuthority.groupDescription
@@ -92,6 +95,8 @@ object GrothSahai {
     }
 }
 
+
+@Serializable
 data class GrothSahaiProof(
     val c1: Element,
     val c2: Element,
@@ -114,13 +119,63 @@ data class GrothSahaiProof(
             && theta1 == other.theta1
             && theta2 == other.theta2
             && pi1 == other.pi1
-            && c2 == other.c2
             && pi2 == other.pi2
             && target == other.target
 
     }
 }
 
+//object GrothSahaiSerializer : KSerializer<GrothSahaiProofBytes> {
+//    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("GrothSahaiProof") {
+//        element<Element>("c1")
+//        element<Element>("c2")
+//        element<Element>("d1")
+//        element<Element>("d2")
+//        element<Element>("theta1")
+//        element<Element>("theta2")
+//        element<Element>("pi1")
+//        element<Element>("pi2")
+//        element<Element>("target")
+//    }
+//
+//    override fun serialize(encoder: Encoder, value: GrothSahaiProofBytes) {
+//        val composite = encoder.beginStructure(descriptor)
+//        composite.encodeStringElement(descriptor, 0, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 1, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 2, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 3, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 4, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 5, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 6, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 7, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 8, value.c1.toString(Charsets.UTF_8))
+//        composite.encodeStringElement(descriptor, 9, value.c1.toString(Charsets.UTF_8))
+//        composite.endStructure(descriptor)
+//    }
+//
+//    override fun deserialize(decoder: Decoder): GrothSahaiProofBytes {
+//        val composite = decoder.beginStructure(descriptor)
+//        lateinit var c1: ByteArray
+//        loop@ while (true) {
+//            when (val index = composite.decodeElementIndex(descriptor)) {
+//                CompositeDecoder.DECODE_DONE -> break@loop
+//                0 -> c1 = composite.decodeStringElement(descriptor, index).toByteArray(Charsets.UTF_8)
+//                else -> throw SerializationException("Unknown index: $index")
+//            }
+//        }
+//        composite.endStructure(descriptor)
+//        return GrothSahaiProofBytes(
+//            c1,
+//            c1,
+//            c1,
+//            c1,
+//            c1,
+//            c1,
+//            c1,
+//            c1,
+//            c1)
+//    }
+//}
 data class RandomizationElements (
     val group2T: Element,
     val vT: Element,
