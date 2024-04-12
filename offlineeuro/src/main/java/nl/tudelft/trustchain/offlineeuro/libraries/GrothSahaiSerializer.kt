@@ -1,7 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.libraries
 
-import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.entity.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream

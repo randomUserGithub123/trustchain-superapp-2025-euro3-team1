@@ -1,7 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.libraries
 
 import it.unisa.dia.gas.jpbc.Element
-import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 
 
 class EBMap(

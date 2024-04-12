@@ -6,7 +6,7 @@ import com.squareup.sqldelight.db.SqlDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.offlineeuro.sqldelight.RegisteredUsersQueries
-import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import org.sqlite.SQLiteException
 

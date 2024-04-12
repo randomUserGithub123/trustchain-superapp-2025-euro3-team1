@@ -1,10 +1,11 @@
 createWalletTable:
 CREATE TABLE IF NOT EXISTS wallet (
-    serialNumber BLOB PRIMARY KEY,
+    serialNumber TEXT PRIMARY KEY,
     firstTheta1 BLOB NOT NULL,
     signature BLOB NOT NULL,
     previousProofs BLOB,
     secretT BLOB NOT NULL,
+    transactionSignature BLOB,
     timesSpent INTEGER,
     timesDeposited INTEGER
 );

@@ -1,12 +1,16 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
-import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
 import java.math.BigInteger
 import java.security.MessageDigest
 
 data class BlindedChallenge(val challenge: BigInteger, val blindedChallenge: BigInteger, val alpha: BigInteger, val message: ByteArray)
 data class SchnorrSignature(val signature: BigInteger, val encryption: BigInteger, val signedMessage: ByteArray) {
+    /**
+     * Converts the [SchnorrSignature] to a [ByteArray] such that the first target element
+     * can be computed.
+     * @return The [SchnorrSignature] converted a [ByteArray]
+     */
     fun toBytes(): ByteArray {
         return signature.toByteArray() + encryption.toByteArray() + signedMessage
     }

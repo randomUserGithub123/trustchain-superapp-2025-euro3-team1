@@ -1,4 +1,4 @@
-package nl.tudelft.trustchain.offlineeuro.entity
+package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
 

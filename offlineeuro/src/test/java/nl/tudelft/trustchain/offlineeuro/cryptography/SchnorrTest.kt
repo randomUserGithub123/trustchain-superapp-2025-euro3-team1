@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
-import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
 import org.junit.Assert
 import org.junit.Test
 

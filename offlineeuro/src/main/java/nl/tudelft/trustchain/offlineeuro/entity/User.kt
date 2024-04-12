@@ -3,6 +3,8 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import java.util.UUID
 

@@ -1,8 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.libraries
 
 import it.unisa.dia.gas.jpbc.Element
-import nl.tudelft.trustchain.offlineeuro.entity.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.entity.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import org.junit.Assert
 import org.junit.Test
 import java.io.StreamCorruptedException

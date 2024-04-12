@@ -1,8 +1,12 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
 
 
 data class TransactionDetails (

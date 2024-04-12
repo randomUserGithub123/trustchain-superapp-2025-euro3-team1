@@ -1,6 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 
 data class WalletEntry(val digitalEuro: DigitalEuro, val t: Element, val transactionSignature: SchnorrSignature?)

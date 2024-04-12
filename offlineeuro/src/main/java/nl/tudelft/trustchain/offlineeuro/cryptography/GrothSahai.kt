@@ -1,7 +1,8 @@
-package nl.tudelft.trustchain.offlineeuro.entity
+package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
 import kotlinx.serialization.Serializable
+import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.libraries.EBMap
 
 object GrothSahai {

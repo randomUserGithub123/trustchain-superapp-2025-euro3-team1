@@ -1,4 +1,4 @@
-package nl.tudelft.trustchain.offlineeuro.entity
+package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
 import it.unisa.dia.gas.jpbc.Pairing
@@ -62,5 +62,9 @@ class BilinearGroup() {
 
     fun gtElementFromBytes(bytes: ByteArray): Element {
         return pairing.gt.newElementFromBytes(bytes).immutable
+    }
+
+    fun zrElementFromBytes(bytes: ByteArray): Element {
+        return pairing.zr.newElementFromBytes(bytes)
     }
 }
