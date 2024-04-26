@@ -5,18 +5,43 @@ import it.unisa.dia.gas.jpbc.Pairing
 import it.unisa.dia.gas.jpbc.PairingParametersGenerator
 import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory
 import it.unisa.dia.gas.plaf.jpbc.pairing.a.TypeACurveGenerator
+import it.unisa.dia.gas.plaf.jpbc.pairing.e.TypeECurveGenerator
+import it.unisa.dia.gas.plaf.jpbc.pairing.f.TypeFCurveGenerator
 import java.math.BigInteger
 
-class BilinearGroup() {
+enum class PairingTypes {
+    A,
+    F,
+    E,
+}
+
+class BilinearGroup(
+    rBits: Int = 160,
+    pairingType: PairingTypes = PairingTypes.A
+) {
     val pairing: Pairing
     val g: Element
     val h: Element
     val gt: Element
 
     init {
+        val pg: PairingParametersGenerator<*> = when (pairingType) {
+            PairingTypes.F -> {
+                // JPBC Type F pairing for asymmetric pairings
+                TypeFCurveGenerator(rBits)
+            }
+            PairingTypes.A -> {
+                val qBits = 512
+                // JPBC Type A pairing generator for symmetric pairings
+                TypeACurveGenerator(rBits, qBits)
+            }
+            PairingTypes.E -> {
+                val qBits = 1024
+                TypeECurveGenerator(rBits, qBits)
+            }
+        }
 
-        val parametersGenerator: PairingParametersGenerator<*> = TypeACurveGenerator(160, 512)
-        val parameters = parametersGenerator.generate()
+        val parameters = pg.generate()
 
         // Initialize the pairing
         pairing = PairingFactory.getPairing(parameters)

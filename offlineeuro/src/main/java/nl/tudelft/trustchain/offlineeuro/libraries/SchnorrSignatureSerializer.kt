@@ -13,17 +13,37 @@ private data class SchnorrSignatureBytes(
     val encryption: ByteArray,
     val message: ByteArray
 )  : Serializable {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as SchnorrSignatureBytes
+
+        if (!signature.contentEquals(other.signature)) return false
+        if (!encryption.contentEquals(other.encryption)) return false
+        return message.contentEquals(other.message)
+    }
+
+    override fun hashCode(): Int {
+        var result = signature.contentHashCode()
+        result = 31 * result + encryption.contentHashCode()
+        result = 31 * result + message.contentHashCode()
+        return result
+    }
 
 }
 
 
 object SchnorrSignatureSerializer {
-    fun serializeSchnorrSignature(signature: SchnorrSignature) : ByteArray {
+    fun serializeSchnorrSignature(signature: SchnorrSignature?) : ByteArray? {
+
+        if (signature == null) return null
         val signatureAsBytes = schnorrSignatureToBytes(signature)
         return serializeSchnorrBytes(signatureAsBytes)
     }
 
-    fun deserializeProofBytes(bytes: ByteArray): SchnorrSignature {
+    fun deserializeSchnorrSignatureBytes(bytes: ByteArray?): SchnorrSignature? {
+        if (bytes == null) return null
         val signatureBytes = deserializeSignatureBytes(bytes)
         return bytesToSchnorrSignature(signatureBytes)
     }

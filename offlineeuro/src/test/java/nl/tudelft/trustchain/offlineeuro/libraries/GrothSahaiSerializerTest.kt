@@ -40,15 +40,14 @@ class GrothSahaiSerializerTest {
     fun serializeAndDeserializeEmptyListTest() {
         val proofList = arrayListOf<GrothSahaiProof>()
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes, group)
-        Assert.assertEquals(proofList, deserializedBytes)
+        Assert.assertNull(proofListBytes)
     }
 
     @Test
     fun serializeAndDeserializeSingleProofListTest() {
         val proofList = arrayListOf(generateRandomInvalidProof())
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)
     }
 
@@ -57,7 +56,7 @@ class GrothSahaiSerializerTest {
     fun serializeAndDeserializeTwoProofsTest() {
         val proofList = arrayListOf(generateRandomInvalidProof(),  generateRandomInvalidProof())
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)
     }
 
@@ -69,7 +68,7 @@ class GrothSahaiSerializerTest {
             proofList.add(generateRandomInvalidProof())
         }
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)
     }
 

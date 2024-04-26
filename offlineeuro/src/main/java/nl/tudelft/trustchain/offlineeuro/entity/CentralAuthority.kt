@@ -39,20 +39,16 @@ object CentralAuthority {
         return registeredUserManager!!.addRegisteredUser(name, publicKey)
     }
 
-    fun getUserFromProof(grothSahaiProof: GrothSahaiProof): Element? {
+    fun getUserFromProof(grothSahaiProof: GrothSahaiProof): RegisteredUser? {
         val crsExponent = crsMap[crs.u]
-        val publicKey = grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
+        val publicKey =
+            grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
         checkManagerInitialized()
-        val registeredUser = registeredUserManager!!.getRegisteredUserByPublicKey(publicKey)
 
-        if (registeredUser == null) {
-            val users = registeredUserManager!!.getAllRegisteredUsers()
-            val count = users.count()
-        }
-        return registeredUser?.publicKey
+        return registeredUserManager!!.getRegisteredUserByPublicKey(publicKey)
     }
 
-    fun getUserFromProofs(proofs: Pair<GrothSahaiProof, GrothSahaiProof>) : Element? {
+    fun getUserFromProofs(proofs: Pair<GrothSahaiProof, GrothSahaiProof>) : RegisteredUser? {
         val firstPK = getUserFromProof(proofs.first)
         val secondPK = getUserFromProof(proofs.second)
 

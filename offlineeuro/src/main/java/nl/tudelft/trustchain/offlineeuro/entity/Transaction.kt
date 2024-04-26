@@ -7,6 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
+import kotlin.system.measureTimeMillis
 
 
 data class TransactionDetails (
@@ -28,7 +29,6 @@ object Transaction {
         publicKey: Element,
         walletEntry: WalletEntry,
         randomizationElements: RandomizationElements,
-        previousThetaSignature: SchnorrSignature?
     ): TransactionDetails {
 
         val digitalEuro = walletEntry.digitalEuro
@@ -49,7 +49,7 @@ object Transaction {
         )
 
         val theta1Signature = Schnorr.schnorrSignature(r, randomizationElements.group1TInv.toBytes(), bilinearGroup)
-        val test = Schnorr.verifySchnorrSignature(theta1Signature, transactionProof.grothSahaiProof.c1, bilinearGroup)
+        val previousThetaSignature = walletEntry.transactionSignature
         return TransactionDetails(digitalEuro, transactionProof, previousThetaSignature, theta1Signature, publicKey)
     }
 
@@ -58,21 +58,31 @@ object Transaction {
 
         // Verify if the Digital euro is signed
         val digitalEuro = transaction.digitalEuro
-        if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup))
-            return false
+        val timeInMillis = measureTimeMillis {
+            if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup))
+                return false
+        }
+        //println("Bank signature verification $timeInMillis")
+
 
         // Verify if the current transaction signature is correct
-        val transactionProof = transaction.currentTransactionProof
-        val transactionSignature = transaction.theta1Signature
-        if (!Schnorr.verifySchnorrSignature(transactionSignature, transactionProof.grothSahaiProof.c1, bilinearGroup)) {
-            return false
+            val transactionProof = transaction.currentTransactionProof
+
+        val transactionSignatureTime = measureTimeMillis {
+            val transactionSignature = transaction.theta1Signature
+            if (!Schnorr.verifySchnorrSignature(transactionSignature, transactionProof.grothSahaiProof.c1, bilinearGroup)) {
+                return false
+            }
         }
+        //println("Transaction signature verification $transactionSignatureTime")
 
-
+        val grothProofValidation = measureTimeMillis {
         // Validate if the given Transaction proof is a valid Groth-Sahai proof
-        if (!GrothSahai.verifyTransactionProof(transactionProof)) {
+        if (!GrothSahai.verifyTransactionProof(transactionProof.grothSahaiProof)) {
             return false
         }
+        }
+       //println("Groth proof verification $grothProofValidation")
 
         // Validate that d2 is constructed correctly
         val usedY = transactionProof.usedY
@@ -89,8 +99,14 @@ object Transaction {
         if (expectedTarget != transactionProof.grothSahaiProof.target)
             return false
 
+        var result = false
 
-        return validateProofChain(transaction)
+        val chainValidation = measureTimeMillis {
+            result = validateProofChain(transaction)
+        }
+
+        println("$timeInMillis, $transactionSignatureTime, $grothProofValidation, $chainValidation")
+        return result
     }
 
     fun validateProofChain(currentTransactionDetails: TransactionDetails) : Boolean {
@@ -107,7 +123,7 @@ object Transaction {
         // Special cases for the first proof
         val firstProof = previousProofs.first()
 
-        if (!validateTSRelation(digitalEuro.firstTheta1, firstProof.d1))
+        if (!validateTSRelation(digitalEuro.firstTheta1, firstProof.d1) || !GrothSahai.verifyTransactionProof(firstProof))
             return false
 
 
@@ -115,6 +131,7 @@ object Transaction {
         var previousProof = firstProof
         for (i: Int in 1 until previousProofs.size) {
             val proof = previousProofs[i]
+            GrothSahai.verifyTransactionProof(proof)
             if(!verifyProofChain(previousProof, proof))
                 return false
             previousProof = proof

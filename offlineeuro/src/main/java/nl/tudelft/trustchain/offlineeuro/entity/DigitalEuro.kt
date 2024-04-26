@@ -5,15 +5,44 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
+import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
+import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
 
-class DigitalEuro (
+data class DigitalEuro (
     val serialNumber: String,
     val firstTheta1: Element,
     val signature: SchnorrSignature,
-    val proofs: List<GrothSahaiProof> = arrayListOf(),
+    val proofs: ArrayList<GrothSahaiProof> = arrayListOf(),
 ) {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DigitalEuro) return false
+
+        return descriptorEquals(other) &&
+            this.proofs == other.proofs
+    }
+
+    fun descriptorEquals(other: DigitalEuro): Boolean {
+        return this.serialNumber == other.serialNumber &&
+            this.firstTheta1 == other.firstTheta1 &&
+            this.signature == other.signature
+
+    }
 
     fun verifySignature(publicKeySigner: Element, group: BilinearGroup): Boolean {
         return Schnorr.verifySchnorrSignature(signature, publicKeySigner, group)
+    }
+
+    fun sizeInBytes(): Int {
+        val serialNumberBytes = serialNumber.toByteArray()
+        val firstTheta1Bytes = firstTheta1.toBytes()
+        val signatureBytes = SchnorrSignatureSerializer.serializeSchnorrSignature(signature)
+        val proofBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofs)
+
+        val signatureByteSize = signatureBytes?.size ?: 0
+        val proofByteSize = proofBytes?.size ?: 0
+
+        return serialNumberBytes.size + firstTheta1Bytes.size + signatureByteSize + proofByteSize
     }
 }

@@ -1,0 +1,60 @@
+package nl.tudelft.trustchain.offlineeuro.db
+
+import android.content.Context
+import com.squareup.sqldelight.android.AndroidSqliteDriver
+import com.squareup.sqldelight.db.SqlDriver
+import nl.tudelft.offlineeuro.sqldelight.Database
+import nl.tudelft.offlineeuro.sqldelight.DepositedEurosQueries
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
+
+class DepositedEuroManager(
+    context: Context?,
+    group: BilinearGroup,
+    driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "deposited_euros.db"),
+) : OfflineEuroManager(group, driver){
+
+    private val queries: DepositedEurosQueries = database.depositedEurosQueries
+    private val digitalEuroMapper = {
+            serialNumber: String,
+            firstTheta: ByteArray,
+            signature: ByteArray,
+            previousProofs: ByteArray?,
+        ->
+            DigitalEuro(
+                serialNumber,
+                group.gElementFromBytes(firstTheta),
+                deserializeSchnorr(signature)!!,
+                deserializeGSP(previousProofs)
+            )
+    }
+
+    init {
+        queries.createDepositedEurosTable()
+        queries.clearDepositedEurosTable()
+    }
+
+    fun insertDigitalEuro(digitalEuro: DigitalEuro) {
+        val (serialNumber, firstTheta1, signature, proofs) = digitalEuro
+        queries.insertDepositedEuro(
+            serialNumber,
+            firstTheta1.toBytes(),
+            serialize(signature)!!,
+            serialize(proofs)
+        )
+    }
+
+    fun getDigitalEurosByDescriptor(digitalEuro: DigitalEuro): List<DigitalEuro> {
+        val (serialNumber, firstTheta1, signature, _) = digitalEuro
+        return queries.getDepositedEuroByDescriptor(
+            serialNumber,
+            firstTheta1.toBytes(),
+            serialize(signature)!!,
+            digitalEuroMapper
+        ).executeAsList()
+    }
+
+    fun getAllDepositedEuros(): List<DigitalEuro> {
+        return queries.getDepositedEuros(digitalEuroMapper).executeAsList()
+    }
+}

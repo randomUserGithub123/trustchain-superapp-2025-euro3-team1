@@ -1,38 +1,68 @@
 createWalletTable:
-CREATE TABLE IF NOT EXISTS wallet (
-    serialNumber TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS Wallet (
+    serialNumber TEXT NOT NULL,
     firstTheta1 BLOB NOT NULL,
     signature BLOB NOT NULL,
     previousProofs BLOB,
     secretT BLOB NOT NULL,
     transactionSignature BLOB,
-    timesSpent INTEGER,
-    timesDeposited INTEGER
+    timesSpent INTEGER NOT NULL
 );
 
-insertDigitalEuro:
-INSERT INTO wallet(serialNumber,
+insertWalletEntry:
+INSERT INTO Wallet(serialNumber,
     firstTheta1,
     signature,
     previousProofs,
     secretT,
-    timesSpent,
-    timesDeposited)
+    transactionSignature,
+    timesSpent)
 VALUES (?,
     ?,
     ?,
     ?,
     ?,
-    0,
+    ?,
     0
 );
 
-incrementTimesSpent:
-UPDATE wallet
-SET timesSpent = timesSpent + 1
-WHERE serialNumber = ?;
+getWalletEntryByDescriptor:
+SELECT *
+FROM Wallet
+WHERE serialNumber LIKE ? AND firstTheta1 = ? AND signature = ?;
 
-incrementTimesDeposited:
-UPDATE wallet
-SET timesDeposited = timesDeposited + 1
-WHERE serialNumber = ?;
+getAllWalletEntries:
+SELECT *
+FROM Wallet;
+
+getWalletEntriesToSpend:
+SELECT *
+FROM Wallet
+WHERE timesSpent = 0;
+
+getNumberOfWalletEntriesToSpend:
+SELECT *
+FROM Wallet
+WHERE timesSpent = 0
+LIMIT ?;
+
+getNumberOfWalletEntriesToDoubleSpend:
+SELECT *
+FROM Wallet
+WHERE timesSpent > 0
+ORDER BY timesSpent
+LIMIT ?;
+
+
+getWalletEntriesToDoubleSpend:
+SELECT *
+FROM Wallet
+WHERE timesSpent > 0;
+
+incrementTimesSpent:
+UPDATE Wallet
+SET timesSpent = timesSpent + 1
+WHERE serialNumber LIKE ? AND firstTheta1 = ? AND signature = ? AND previousProofs = ?;
+
+clearWalletTable:
+DELETE FROM Wallet;

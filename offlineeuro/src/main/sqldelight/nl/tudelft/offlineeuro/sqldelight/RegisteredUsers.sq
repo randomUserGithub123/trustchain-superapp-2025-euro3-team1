@@ -1,37 +1,37 @@
 createRegisteredUserTable:
-CREATE TABLE IF NOT EXISTS registered_users (
+CREATE TABLE IF NOT EXISTS RegisteredUsers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     publicKey BLOB NOT NULL
 );
 
 addUser:
-INSERT INTO registered_users(name, publicKey)
+INSERT INTO RegisteredUsers(name, publicKey)
 VALUES (?, ?);
 
 getUserById:
 SELECT *
-FROM registered_users
+FROM RegisteredUsers
 WHERE id = ?;
 
 getUserByPublicKey:
 SELECT *
-FROM registered_users
+FROM RegisteredUsers
 WHERE publicKey = ?;
 
 getUserByName:
 SELECT *
-FROM registered_users
+FROM RegisteredUsers
 WHERE name = ?;
 
 getRegisteredUserCount:
 SELECT COUNT(*)
-FROM registered_users;
+FROM RegisteredUsers;
 
 getAllRegisteredUsers:
 SELECT *
-FROM registered_users;
+FROM RegisteredUsers;
 
 
 clearAllRegisteredUsers:
-DELETE FROM registered_users;
+DELETE FROM RegisteredUsers;

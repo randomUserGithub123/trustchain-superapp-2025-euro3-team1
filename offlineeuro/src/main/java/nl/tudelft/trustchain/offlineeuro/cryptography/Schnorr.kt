@@ -14,6 +14,14 @@ data class SchnorrSignature(val signature: BigInteger, val encryption: BigIntege
     fun toBytes(): ByteArray {
         return signature.toByteArray() + encryption.toByteArray() + signedMessage
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SchnorrSignature) return false
+        return this.signature == other.signature &&
+            this.encryption == other.encryption &&
+            this.signedMessage.contentEquals(other.signedMessage)
+    }
 }
 
 /**

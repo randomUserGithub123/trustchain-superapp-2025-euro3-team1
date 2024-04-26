@@ -7,36 +7,104 @@ import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.offlineeuro.sqldelight.WalletQueries
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
+import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import nl.tudelft.trustchain.offlineeuro.entity.WalletEntry
-import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
-import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
+import org.sqlite.SQLiteException
 
 class WalletManager (
     context: Context?,
-    private val bilinearGroup: BilinearGroup,
+    private val group: BilinearGroup,
     driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "wallet.db"),
-) {
+) : OfflineEuroManager(group, driver) {
 
-    private val database: Database = Database(driver)
     private val queries: WalletQueries = database.walletQueries
-
     private val walletEntryMapper = {
             serialNumber: String,
             firstTheta: ByteArray,
             signature: ByteArray,
-            previousProofs: ByteArray,
+            previousProofs: ByteArray?,
             secretT: ByteArray,
-            transactionSignature: ByteArray
+            transactionSignature: ByteArray?,
+            timesSpent: Long
         ->
         WalletEntry(
             DigitalEuro(
                 serialNumber,
-                bilinearGroup.gElementFromBytes(firstTheta),
-                SchnorrSignatureSerializer.deserializeProofBytes(signature),
-                GrothSahaiSerializer.deserializeProofBytes(previousProofs, bilinearGroup)
+                group.gElementFromBytes(firstTheta),
+                deserializeSchnorr(signature)!!,
+                deserializeGSP(previousProofs)
             ),
-            bilinearGroup.zrElementFromBytes(secretT),
-            SchnorrSignatureSerializer.deserializeProofBytes(transactionSignature)
+            group.zrElementFromBytes(secretT),
+            deserializeSchnorr(transactionSignature),
+            timesSpent
         )
     }
+
+    /**
+     * Creates the RegisteredUser table if it not yet exists.
+     */
+    init {
+        queries.createWalletTable()
+        queries.clearWalletTable()
+    }
+
+    /**
+     * Tries to add a new [RegisteredUser] to the table.
+     *
+     * @param user the user that should be registered. Its id will be omitted.
+     * @return true iff registering the user is successful.
+     */
+    fun insertWalletEntry(walletEntry: WalletEntry): Boolean {
+
+        val digitalEuro = walletEntry.digitalEuro
+
+        try {
+            queries.insertWalletEntry(
+                digitalEuro.serialNumber,
+                digitalEuro.firstTheta1.toBytes(),
+                serialize(digitalEuro.signature)!!,
+                serialize(digitalEuro.proofs),
+                walletEntry.t.toBytes(),
+                serialize(walletEntry.transactionSignature)
+                )
+            return true
+        }
+        catch (e: SQLiteException) {
+            // TODO Perhaps throw specific custom exception to indicate which property was not unique
+            return false
+        }
+    }
+
+    fun getAllDigitalWalletEntries(): List<WalletEntry> {
+        return queries.getAllWalletEntries(walletEntryMapper).executeAsList()
+    }
+
+    fun getWalletEntriesToSpend(): List<WalletEntry> {
+        return queries.getWalletEntriesToSpend(walletEntryMapper).executeAsList()
+    }
+
+    fun getNumberOfWalletEntriesToSpend(number: Int): List<WalletEntry> {
+        return queries.getNumberOfWalletEntriesToSpend(number.toLong(), walletEntryMapper).executeAsList()
+    }
+
+    fun getNumberOfWalletEntriesToDoubleSpend(number: Int): List<WalletEntry> {
+        return queries.getNumberOfWalletEntriesToDoubleSpend(number.toLong(), walletEntryMapper).executeAsList()
+    }
+
+    fun getWalletEntriesToDoubleSpend(): List<WalletEntry> {
+        return queries.getWalletEntriesToDoubleSpend(walletEntryMapper).executeAsList()
+    }
+
+    fun incrementTimesSpent(digitalEuro: DigitalEuro) {
+        queries.incrementTimesSpent(digitalEuro.serialNumber, digitalEuro.firstTheta1.toBytes(), serialize(digitalEuro.signature)!!, serialize(digitalEuro.proofs))
+    }
+
+    fun getWalletEntryByDigitalEuro(digitalEuro: DigitalEuro): WalletEntry? {
+        return queries.getWalletEntryByDescriptor(digitalEuro.serialNumber, digitalEuro.firstTheta1.toBytes(), serialize(digitalEuro.signature)!!, walletEntryMapper).executeAsOneOrNull()
+    }
+
+    fun clearWalletEntries() {
+        queries.clearWalletTable()
+    }
+
 }

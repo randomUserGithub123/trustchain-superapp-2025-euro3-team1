@@ -6,8 +6,11 @@ import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
+import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
+import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import org.junit.Assert
 import org.junit.Test
+import kotlin.system.measureTimeMillis
 
 class UserTest {
 
@@ -17,121 +20,152 @@ class UserTest {
     }
     private val group: BilinearGroup = CentralAuthority.groupDescription
 
-    private val user: User
     private val bank: Bank
 
     init {
         CentralAuthority.initializeRegisteredUserManager(context, driver)
-        user = User("IAmTheRichestUser", context)
-        bank = Bank("BestTestBank", context)
+
+        bank = Bank("BestTestBank", context, DepositedEuroManager(context, group, driver))
     }
 
     private fun createTestUser(userName: String): User {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
+            Database.Schema.create(this)
+        }
+        val walletManager = WalletManager(context, group, driver)
+
         return User (
             userName,
             context,
+            walletManager
         )
     }
 
-    private fun withdrawEuro(user: User) {
-        user.withdrawDigitalEuro(bank)
+    private fun withdrawEuro(user: User): DigitalEuro {
+        return user.withdrawDigitalEuro(bank)
     }
 
     private fun getRandomizationElements(): Pair<Element, RandomizationElements> {
         val randomT = group.pairing.zr.newRandomElement().immutable
-        return GrothSahai.tToRandomizationElements(randomT)
+        return Pair(randomT, GrothSahai.tToRandomizationElements(randomT))
     }
     @Test
     fun singleTransactionTest() {
+        val user = createTestUser("User1")
         withdrawEuro(user)
         val userWallet = user.wallet
         val randomT = group.pairing.zr.newRandomElement().immutable
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
-        val transactionDetails = userWallet.spendEuro(randomizationElements.second)
+        val transactionDetails = userWallet.spendEuro(randomizationElements)
+
+        val timeInMillis = measureTimeMillis {
         val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
         Assert.assertTrue(isValid)
+    }
+
+    println("It took $timeInMillis ms")
     }
 
     @Test
     fun twoTransactionsTest() {
-        withdrawEuro(user)
-        val userWallet = user.wallet
+        val user1 = createTestUser("The Withdrawer")
+        val user2 = createTestUser("The Receiver")
+        val user3 = createTestUser("The depositor")
+        val timeInMillis = measureTimeMillis {
+            withdrawEuro(user1)
+            Assert.assertTrue(requestNormalSpend(user1, user2))
+            Assert.assertTrue(requestNormalSpend(user2, user3))
+            val bankResponse = user3.depositEuro(bank)
+            Assert.assertEquals(bankResponse, "Deposit was successful!")
+        }
 
-        val randomT = group.pairing.zr.newRandomElement().immutable
-        val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
-        val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
-        Assert.assertTrue(isValid)
-
-        userWallet.addToWallet(transactionDetails, randomT)
-        val nextT = group.pairing.zr.newRandomElement().immutable
-        val nextRandomizationElements = GrothSahai.tToRandomizationElements(nextT)
-        val transactionDetails2 = userWallet.spendEuro(nextRandomizationElements.second)
-        val isValid2 = Transaction.validate(transactionDetails2!!, bank.publicKey)
-        Assert.assertTrue(isValid2)
+        println("It took $timeInMillis ms")
     }
 
     @Test
     fun twentyTransactionsTest() {
-        withdrawEuro(user)
+        val user = createTestUser("User1")
+        val initialEuro = withdrawEuro(user)
+        println("Initial size = ${initialEuro.sizeInBytes()}")
         val userWallet = user.wallet
         val amountOfTransactions = 20
 
         for (i in 0 until amountOfTransactions) {
             val randomT = group.pairing.zr.newRandomElement().immutable
             val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
-            val transactionDetails = userWallet.spendEuro(randomizationElements.second)
+            val transactionDetails = userWallet.spendEuro(randomizationElements)
+            val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
+            Assert.assertTrue(isValid)
+
+            userWallet.addToWallet(transactionDetails, randomT)
+        }
+
+        // The used Euro should have 20 transaction proofs now
+        val resultingEuroProofs = userWallet.getWalletEntryToSpend()?.digitalEuro?.proofs
+        bank.requestDeposit(user)
+        Assert.assertEquals("The used Euro should have $amountOfTransactions proofs now",amountOfTransactions, resultingEuroProofs?.size)
+    }
+
+    @Test
+    fun revokeAnonymityTest() {
+        val user1 = createTestUser("User1")
+        withdrawEuro(user1)
+
+        val randomT = group.pairing.zr.newRandomElement().immutable
+        val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
+        val transactionDetails = user1.wallet.spendEuro(randomizationElements)
+        val foundPK = CentralAuthority.getUserFromProof(transactionDetails!!.currentTransactionProof.grothSahaiProof)
+
+        Assert.assertNotNull(foundPK)
+        Assert.assertEquals(user1.publicKey, foundPK!!.publicKey)
+        Assert.assertEquals(user1.name, foundPK.name)
+    }
+
+    @Test
+    fun doubleSpendingDetectionSimple() {
+        val user1 = createTestUser("User1")
+        val user2 = createTestUser("User2")
+        val user3 = createTestUser("User3")
+        withdrawEuro(user1)
+        requestNormalSpend(user1, user2)
+        requestDoubleSpend(user1, user3)
+
+        // Deposit the two Euros
+        val firstDeposit = user2.depositEuro(bank)
+        Assert.assertEquals(firstDeposit, "Deposit was successful!")
+        val secondDeposit = user3.depositEuro(bank)
+
+        Assert.assertTrue(secondDeposit.contains("Double spending"))
+        Assert.assertTrue(secondDeposit.contains("${user1.publicKey}"))
+    }
+
+    @Test
+    fun sizeAfter50Transactions() {
+        val user = createTestUser("User1")
+
+        val initialEuro = withdrawEuro(user)
+        val userWallet = user.wallet
+        val amountOfTransactions = 10
+
+
+        for (i in 0 until amountOfTransactions) {
+            val randomT = group.pairing.zr.newRandomElement().immutable
+            val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
+            val transactionDetails = userWallet.spendEuro(randomizationElements)
             val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
             Assert.assertTrue(isValid)
             userWallet.addToWallet(transactionDetails, randomT)
         }
 
-        // The used Euro should have 50 transaction proofs now
-        val resultingEuroProofs = userWallet.euros.first().digitalEuro.proofs
-        Assert.assertEquals("The used Euro should have $amountOfTransactions proofs now",amountOfTransactions, resultingEuroProofs.size)
+        // The used Euro should have 51 transaction proofs now
+        val resultingEuroProofs = userWallet.getWalletEntryToSpend()?.digitalEuro?.proofs
+        val timeInMillis = measureTimeMillis {
+            bank.requestDeposit(user)
+        }
+        println("Verifying the deposit took $timeInMillis ms")
+        Assert.assertEquals("The used Euro should have $amountOfTransactions proofs now",amountOfTransactions, resultingEuroProofs?.size)
     }
 
-    @Test
-    fun revokeAnonymityTest() {
-        withdrawEuro(user)
-        val userWallet = user.wallet
-
-        val randomT = group.pairing.zr.newRandomElement().immutable
-        val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
-        val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val foundPK = CentralAuthority.getUserFromProof(transactionDetails!!.currentTransactionProof.grothSahaiProof)
-
-        Assert.assertNotNull(foundPK)
-        Assert.assertEquals(user.publicKey, foundPK)
-    }
-
-    @Test
-    fun doubleSpendingDetectionSimple() {
-        withdrawEuro(user)
-        val userWallet = user.wallet
-
-        val randomT = group.pairing.zr.newRandomElement().immutable
-        val randomizationElements = GrothSahai.tToRandomizationElements(randomT)
-        val transactionDetails = userWallet.spendEuro(randomizationElements.second)
-        val isValid = Transaction.validate(transactionDetails!!, bank.publicKey)
-        Assert.assertTrue(isValid)
-        userWallet.addToWallet(transactionDetails, randomT)
-
-        val nextT = group.pairing.zr.newRandomElement().immutable
-        val nextRandomizationElements = GrothSahai.tToRandomizationElements(nextT)
-        val transactionDetails2 = userWallet.doubleSpendEuro(nextRandomizationElements.second)
-        val isValid2 = Transaction.validate(transactionDetails2!!, bank.publicKey)
-        Assert.assertTrue(isValid2)
-        userWallet.addToWallet(transactionDetails2, randomT)
-        // Deposit the two Euros
-        val firstDeposit = userWallet.depositEuro(bank)
-
-        Assert.assertEquals(firstDeposit, "Deposit was successful!")
-        val secondDeposit = userWallet.depositEuro(bank)
-
-        Assert.assertTrue(secondDeposit.contains("Double spending"))
-        Assert.assertTrue(secondDeposit.contains("${user.publicKey}"))
-    }
 
     @Test
     fun doubleSpendingMultipleUsers() {
@@ -147,15 +181,15 @@ class UserTest {
         withdrawEuro(user2)
         withdrawEuro(user3)
 
-        requestNormalSpend(user1, user5)
-        requestNormalSpend(user2, user3)
-        requestNormalSpend(user3, user4)
-        requestNormalSpend(user4, user1)
-        requestNormalSpend(user5, user2)
-        requestDoubleSpend(user3, user4)
-        requestNormalSpend(user5, user2)
-        requestNormalSpend(user4, user2)
-        requestNormalSpend(user3, user1)
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user1, user5))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user2, user3))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user3, user4))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user4, user1))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user5, user2))
+        Assert.assertTrue("The transaction should be valid", requestDoubleSpend(user3, user4))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user1, user2))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user4, user2))
+        Assert.assertTrue("The transaction should be valid", requestNormalSpend(user3, user1))
 
         val responses = depositAllEuros(userList)
 
@@ -167,6 +201,7 @@ class UserTest {
         val doubleSpendFilter = responses.filter { it.contains("Double spending detected.") }
         Assert.assertEquals(1, doubleSpendFilter.size)
         Assert.assertTrue(doubleSpendFilter.first().contains(user3.publicKey.toString()))
+        Assert.assertTrue(doubleSpendFilter.first().contains(user3.name))
     }
 
     private fun requestNormalSpend(userFrom: User, userTo: User): Boolean {
@@ -187,12 +222,10 @@ class UserTest {
 
     private fun depositAllEuros(userList: List<User>): ArrayList<String> {
         val bankResponses = arrayListOf<String>()
-
         for (user in userList) {
-            while (user.wallet.euros.isNotEmpty()) {
-                val euroToDeposit = user.wallet.euros.removeAt(0)
-
-                val response = bank.depositEuro(euroToDeposit.digitalEuro)
+            val eurosToDeposit = user.wallet.getAllWalletEntriesToSpend().count()
+            for (i in 0 until eurosToDeposit) {
+                val response = user.depositEuro(bank)
                 bankResponses.add(response)
             }
         }

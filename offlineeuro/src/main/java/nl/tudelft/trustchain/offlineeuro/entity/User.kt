@@ -5,7 +5,9 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
+import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
 
 enum class CommunicationState {
@@ -16,22 +18,24 @@ enum class CommunicationState {
 
 class User (
     var name: String,
-    private val context: Context?,
+    context: Context?,
+    walletManager: WalletManager = WalletManager(context, CentralAuthority.groupDescription)
 )
 {
-    val privateKey: Element
+    private val privateKey: Element
     val publicKey: Element
     val wallet: Wallet
     val group: BilinearGroup
     val crs: CRS
 
     init {
+        CentralAuthority.initializeRegisteredUserManager(context)
         group = CentralAuthority.groupDescription
         privateKey = group.getRandomZr()
         publicKey = group.g.powZn(privateKey)
         CentralAuthority.registerUser(name, publicKey)
         crs = CentralAuthority.crs
-        wallet = Wallet(privateKey, publicKey)
+        wallet = Wallet(privateKey, publicKey, walletManager)
     }
 
     // TODO Cleaner solution for this
@@ -42,12 +46,16 @@ class User (
         return false
     }
 
+    fun onTransactionRequest(randomizationElements: RandomizationElements): TransactionDetails? {
+        return wallet.spendEuro(randomizationElements)
+    }
+
     fun sendTokenToRandomPeer(community: OfflineEuroCommunity, keepToken: Boolean = false): Boolean {
         //TODO
         return false
     }
 
-    fun withdrawDigitalEuro(bank: Bank) {
+    fun withdrawDigitalEuro(bank: Bank): DigitalEuro {
         val serialNumber = UUID.randomUUID().toString()
         val firstT = group.getRandomZr()
         val tInv = firstT.mul(-1)
@@ -61,5 +69,10 @@ class User (
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
         wallet.addToWallet(digitalEuro, firstT)
+        return digitalEuro
+    }
+
+    fun depositEuro(bank: Bank): String {
+        return bank.requestDeposit(this)
     }
 }

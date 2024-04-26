@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.libraries
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import kotlin.system.measureTimeMillis
 
 
 class EBMap(
@@ -14,10 +15,13 @@ class EBMap(
     private val mapSize = 2
 
     init {
-        ebMap = if (computeMap)
-            Array(mapSize) { i -> Array(mapSize) { j -> ebMapIndexToElement(i, j) } }
-        else
-            Array(mapSize) { i -> Array(mapSize) { j -> indexToElement(i, j) } }
+        val transactionSignatureTime = measureTimeMillis {
+            ebMap = if (computeMap)
+                Array(mapSize) { i -> Array(mapSize) { j -> ebMapIndexToElement(i, j) } }
+            else
+                Array(mapSize) { i -> Array(mapSize) { j -> indexToElement(i, j) } }
+        }
+        //println("Creating map: $transactionSignatureTime")
     }
 
     private fun ebMapIndexToElement(row: Int, column: Int): Element {
