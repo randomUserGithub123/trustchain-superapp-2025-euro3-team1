@@ -1,15 +1,15 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
 import android.content.Context
-import com.squareup.sqldelight.android.AndroidSqliteDriver
-import com.squareup.sqldelight.db.SqlDriver
+import android.database.sqlite.SQLiteException
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.offlineeuro.sqldelight.WalletQueries
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import nl.tudelft.trustchain.offlineeuro.entity.WalletEntry
-import org.sqlite.SQLiteException
 
 class WalletManager (
     context: Context?,

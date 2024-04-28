@@ -1,6 +1,5 @@
 package nl.tudelft.trustchain.app
 
-import android.annotation.SuppressLint
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -15,7 +14,6 @@ class AppLoader(
     private val dataStore: DataStore<Preferences>,
     private val firstRun: Boolean = false
 ) {
-
     val preferredApps: List<DashboardItem>
         get() = apps.filter { it.isPreferred }
     var apps: Set<DashboardItem>
@@ -27,12 +25,13 @@ class AppLoader(
                 setPreferredAppList(DEFAULT_APPS)
             } else {
                 val pApps = getPreferredAppList()
-                apps = AppDefinition.values().map { app ->
-                    DashboardItem(
-                        app,
-                        isPreferred = pApps.contains(app.appName)
-                    )
-                }.toSet()
+                apps =
+                    AppDefinition.values().map { app ->
+                        DashboardItem(
+                            app,
+                            isPreferred = pApps.contains(app.appName)
+                        )
+                    }.toSet()
             }
         }
     }
@@ -50,16 +49,16 @@ class AppLoader(
     }
 
     private suspend fun getPreferredAppList(): Set<String> {
-        val preferredApps: Flow<Set<String>> = dataStore.data
-            .map { preferences ->
-                preferences[PREFERRED_APPS] ?: emptySet()
-            }
+        val preferredApps: Flow<Set<String>> =
+            dataStore.data
+                .map { preferences ->
+                    preferences[PREFERRED_APPS] ?: emptySet()
+                }
         preferredApps.first().let {
             return it
         }
     }
 
-    @SuppressLint("NewApi")
     private suspend fun setPreferredAppList(newPreferences: Set<String>) {
         dataStore.edit { settings ->
             settings[PREFERRED_APPS] = newPreferences
@@ -76,7 +75,8 @@ class AppLoader(
             AppDefinition.MUSIC_DAO.appName,
             AppDefinition.EUROTOKEN.appName,
             AppDefinition.FREEDOM_OF_COMPUTING.appName,
-            AppDefinition.OFFLINEEURO.appName
-        )
+            AppDefinition.OFFLINEEURO.appName,
+            AppDefinition.FREEDOM_OF_COMPUTING.appName
+            )
     }
 }

@@ -1,7 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
-import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
+import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
@@ -16,7 +16,7 @@ object CentralAuthority {
     private var registeredUserManager: RegisteredUserManager? = null
     val crs = CRSPair.first
 
-    fun initializeRegisteredUserManager(context: Context? = null, driver: JdbcSqliteDriver? = null) {
+    fun initializeRegisteredUserManager(context: Context? = null, driver: AndroidSqliteDriver? = null) {
 
         // Check if the manager is already initialized
         if (registeredUserManager != null)

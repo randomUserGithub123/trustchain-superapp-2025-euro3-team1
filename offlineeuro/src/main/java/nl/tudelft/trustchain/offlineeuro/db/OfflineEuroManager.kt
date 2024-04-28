@@ -1,6 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
-import com.squareup.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlDriver
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof

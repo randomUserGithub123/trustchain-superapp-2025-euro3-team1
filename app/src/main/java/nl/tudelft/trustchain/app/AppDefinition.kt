@@ -4,8 +4,9 @@ import android.app.Activity
 import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import nl.tudelft.trustchain.musicdao.MusicActivity
-import nl.tudelft.trustchain.FOC.MainActivityFOC
+import nl.tudelft.trustchain.foc.MainActivityFOC
 import nl.tudelft.trustchain.common.R
+import nl.tudelft.trustchain.currencyii.CurrencyIIMainActivity
 import nl.tudelft.trustchain.debug.DebugActivity
 import nl.tudelft.trustchain.eurotoken.EuroTokenMainActivity
 import nl.tudelft.trustchain.offlineeuro.OfflineEuroMainActivity
@@ -19,6 +20,12 @@ enum class AppDefinition(
     val activity: Class<out Activity>,
     val disableImageTint: Boolean = false,
 ) {
+    CURRENCY_II(
+        R.drawable.ic_baseline_how_to_vote_24,
+        "On-Chain Democracy",
+        R.color.democracy_blue,
+        CurrencyIIMainActivity::class.java,
+    ),
     DEBUG(
         R.drawable.ic_bug_report_black_24dp,
         "Debug",

@@ -1,0 +1,31 @@
+name: Execute checks
+
+on:
+  pull_request:
+  push:
+    branches: master
+
+jobs:
+  test:
+    name: Run Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: ./.github/actions/checkout_submodules
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Run check
+        run: ./gradlew check --no-daemon
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
