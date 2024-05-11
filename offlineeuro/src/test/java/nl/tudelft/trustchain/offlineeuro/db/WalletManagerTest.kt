@@ -1,6 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
-import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.attestation.wallet.cryptography.bonehexact.generateRandomBigInteger
 import nl.tudelft.offlineeuro.sqldelight.Database

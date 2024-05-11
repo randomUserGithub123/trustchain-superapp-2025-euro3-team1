@@ -1,5 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.community
 
+import nl.tudelft.trustchain.offlineeuro.community.payload.FindBankPayload
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 import org.junit.Assert
 import org.junit.Test
 

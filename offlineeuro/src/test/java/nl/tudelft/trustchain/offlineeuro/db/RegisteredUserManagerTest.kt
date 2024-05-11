@@ -1,6 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
-import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import org.junit.Assert

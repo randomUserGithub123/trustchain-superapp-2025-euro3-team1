@@ -1,31 +1,23 @@
 package nl.tudelft.trustchain.offlineeuro.community
 
-import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
-import nl.tudelft.ipv8.Community
 import nl.tudelft.ipv8.Overlay
 import nl.tudelft.ipv8.Peer
+import nl.tudelft.ipv8.attestation.trustchain.TrustChainCommunity
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainCrawler
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainSettings
 import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
-import nl.tudelft.trustchain.common.eurotoken.TransactionRepository
-import nl.tudelft.trustchain.offlineeuro.entity.Bank
-import nl.tudelft.trustchain.offlineeuro.entity.User
-
-enum class Role {
-    Bank,
-    User;
-
-    companion object {
-        fun fromInt(value: Int): Role {
-            return values().find { it.ordinal == value }!!
-        }
-    }
-}
+import nl.tudelft.ipv8.messaging.Packet
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
+import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.RequestPayload
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 object MessageID {
-    const val FIND_BANK = 9
+    const val GET_GROUP_DESCRIPTION_CRS = 9
+    const val GET_GROUP_DESCRIPTION_CRS_REPLY = 10
     const val BANK_DETAILS_REPLY = 10
     const val USER_REGISTRATION = 11
     const val USER_REGISTRATION_REPLY = 12
@@ -37,29 +29,30 @@ object MessageID {
     const val DEPOSIT = 18
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
-class OfflineEuroCommunity(
-    context: Context,
+class OfflineEuroCommunity (
     settings: TrustChainSettings,
     database: TrustChainStore,
     crawler: TrustChainCrawler = TrustChainCrawler()
-) : Community() {
+) : TrustChainCommunity(settings, database, crawler)  {
     override val serviceId = "ffffd716494b474ea9f614a16a4da0aed6899aec"
 
-    private lateinit var transactionRepository: TransactionRepository
+    val messageList = arrayListOf<ICommunityMessage>()
 
     var role: Role = Role.User
     val name: String = "BestBank"
-    val bank: Bank
-    val user: User
-    val context: Context
+    lateinit var crs: CRS
+    var bilinearGroup = BilinearGroup()
+//    val bank: Bank
+//    val user: User
+    //val context: Context
     init {
 
         // TODO FIX NAMES OF BANK AND USER
-        this.context = context
-        bank = Bank(name, context)
-        user = User(name, context)
-//        messageHandlers[MessageID.FIND_BANK] = ::onFindBankPacket
+        //this.context = context
+//        bank = Bank(name, context)
+//        user = User(name, context)
+    messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS] = ::onGetGroupDescriptionAndCRSPacket
+    messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY] = ::onGetGroupDescriptionAndCRSPacket
 //        messageHandlers[MessageID.BANK_DETAILS_REPLY] = ::onBankDetailsReplyPacket
 //        messageHandlers[MessageID.USER_REGISTRATION] = ::onUserRegistrationPacket
 //        messageHandlers[MessageID.USER_REGISTRATION_REPLY] = ::onUserRegistrationReplyPacket
@@ -71,16 +64,52 @@ class OfflineEuroCommunity(
 //        messageHandlers[MessageID.DEPOSIT] = ::onDepositPacket
     }
 
-    fun findBank() {
-        val findBankPacket = serializePacket(
-            MessageID.FIND_BANK,
-            FindBankPayload(name, Role.User)
+    fun getGroupDescriptionAndCRS() {
+
+        val packet = serializePacket(
+            MessageID.GET_GROUP_DESCRIPTION_CRS,
+            RequestPayload(myPeer.publicKey.keyToBin())
         )
 
-        val peerCount = getPeers().size
         for (peer: Peer in getPeers()) {
-            send(peer, findBankPacket)
+            send(peer, packet)
         }
+    }
+
+
+    private fun onGetGroupDescriptionAndCRSPacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(RequestPayload)
+        onGetGroupDescriptionAndCRS(requestingPeer)
+    }
+
+
+    fun onGetGroupDescriptionAndCRS(requestingPeer: Peer) {
+
+        // TODO SPLIT TO TTP AND BANK
+        if (role != Role.Bank) {
+            return
+        }
+        val groupBytes = bilinearGroup.toGroupElementBytes()
+        val crsBytes = crs.toCRSBytes()
+
+        val groupAndCrsPacket = serializePacket(
+            MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY,
+            BilinearGroupCRSPayload(groupBytes, crsBytes)
+        )
+
+        send(requestingPeer, groupAndCrsPacket)
+    }
+
+    private fun onGetGroupDescriptionAndCRSReplyPacket(packet: Packet) {
+        val (_, payload) = packet.getAuthPayload(BilinearGroupCRSPayload)
+        onGetGroupDescriptionAndCRSReply(payload)
+    }
+
+    fun onGetGroupDescriptionAndCRSReply(payload: BilinearGroupCRSPayload) {
+        val groupElements = payload.bilinearGroupElements
+        val crs = payload.crs
+        val message = BilinearGroupCRSMessage(groupElements, crs)
+        messageList.add(message)
     }
 
 //    private fun onFindBankPacket(packet: Packet) {
@@ -275,14 +304,14 @@ class OfflineEuroCommunity(
             !it.publicKey.keyToBin().contentEquals(publicKeyBank)
         }
     }
+
     class Factory(
-        private val context: Context,
         private val settings: TrustChainSettings,
         private val database: TrustChainStore,
         private val crawler: TrustChainCrawler = TrustChainCrawler()
     ) : Overlay.Factory<OfflineEuroCommunity>(OfflineEuroCommunity::class.java) {
         override fun create(): OfflineEuroCommunity {
-            return OfflineEuroCommunity(context, settings, database, crawler)
+            return OfflineEuroCommunity(settings, database, crawler)
         }
     }
 }

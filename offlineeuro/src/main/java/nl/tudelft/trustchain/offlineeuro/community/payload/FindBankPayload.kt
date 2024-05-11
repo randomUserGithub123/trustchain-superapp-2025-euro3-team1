@@ -1,4 +1,4 @@
-package nl.tudelft.trustchain.offlineeuro.community
+package nl.tudelft.trustchain.offlineeuro.community.payload
 
 import nl.tudelft.ipv8.messaging.Deserializable
 import nl.tudelft.ipv8.messaging.Serializable
@@ -6,6 +6,7 @@ import nl.tudelft.ipv8.messaging.deserializeLong
 import nl.tudelft.ipv8.messaging.deserializeVarLen
 import nl.tudelft.ipv8.messaging.serializeLong
 import nl.tudelft.ipv8.messaging.serializeVarLen
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 class FindBankPayload (
     val name: String,

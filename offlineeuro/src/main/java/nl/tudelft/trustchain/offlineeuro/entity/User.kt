@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
@@ -19,14 +20,15 @@ enum class CommunicationState {
 class User (
     var name: String,
     context: Context?,
-    walletManager: WalletManager = WalletManager(context, CentralAuthority.groupDescription)
+    walletManager: WalletManager = WalletManager(context, CentralAuthority.groupDescription),
+    private val communicationProtocol: ICommunicationProtocol
 )
 {
     private val privateKey: Element
     val publicKey: Element
     val wallet: Wallet
     val group: BilinearGroup
-    val crs: CRS
+    var crs: CRS
 
     init {
         CentralAuthority.initializeRegisteredUserManager(context)
@@ -62,7 +64,10 @@ class User (
         val initialTheta = group.g.powZn(tInv).immutable
 
         val bytesToSign = serialNumber.toByteArray() + initialTheta.toBytes()
-        val bankRandomness = bank.getBlindSignatureRandomness(publicKey)
+
+        val bankRandomness = communicationProtocol.getBlindSignatureRandomness("Test")
+
+        val bankRandomness2 = bank.getBlindSignatureRandomness(publicKey)
 
         val blindedChallenge = Schnorr.createBlindedChallenge(bankRandomness, bytesToSign, bank.publicKey, group)
         val blindSignature = bank.createBlindSignature(blindedChallenge.blindedChallenge, publicKey)

@@ -1,4 +1,4 @@
-package nl.tudelft.trustchain.offlineeuro.community
+package nl.tudelft.trustchain.offlineeuro.community.payload
 
 class BankDetailsPayload ()
 //): Serializable {

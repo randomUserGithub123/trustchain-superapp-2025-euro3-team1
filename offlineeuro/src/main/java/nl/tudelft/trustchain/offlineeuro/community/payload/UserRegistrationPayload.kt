@@ -1,4 +1,4 @@
-//package nl.tudelft.trustchain.offlineeuro.community
+package nl.tudelft.trustchain.offlineeuro.community.payload//package nl.tudelft.trustchain.offlineeuro.community
 //
 //import nl.tudelft.ipv8.messaging.Deserializable
 //import nl.tudelft.ipv8.messaging.Serializable

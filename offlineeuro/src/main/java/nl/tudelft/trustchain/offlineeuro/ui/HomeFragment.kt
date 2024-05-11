@@ -8,7 +8,7 @@ import android.widget.Toast
 import androidx.navigation.fragment.findNavController
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
-import nl.tudelft.trustchain.offlineeuro.community.Role
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
 

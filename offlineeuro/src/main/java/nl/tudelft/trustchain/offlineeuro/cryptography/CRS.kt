@@ -13,7 +13,35 @@ data class CRS(
     val v: Element,
     val hPrime: Element,
     val vPrime: Element,
+) {
+    fun toCRSBytes(): CRSBytes {
+        return CRSBytes(
+            g.toBytes(),
+            u.toBytes(),
+            gPrime.toBytes(),
+            uPrime.toBytes(),
+            h.toBytes(),
+            v.toBytes(),
+            hPrime.toBytes(),
+            vPrime.toBytes()
+        )
+    }
+}
+
+data class CRSBytes (
+    val g: ByteArray,
+    val u: ByteArray,
+    val gPrime: ByteArray,
+    val uPrime: ByteArray,
+
+    // Commitment key pairs for the second group G2
+    val h: ByteArray,
+    val v: ByteArray,
+    val hPrime: ByteArray,
+    val vPrime: ByteArray,
 )
+
+
 
 object CRSGenerator {
 

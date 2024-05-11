@@ -1,0 +1,33 @@
+createAddressBookTable:
+CREATE TABLE IF NOT EXISTS AddressBook (
+        name TEXT PRIMARY KEY NOT NULL,
+        type INTEGER NOT NULL,
+        publicKey BLOB NOT NULL,
+        peerPublicKey BLOB
+);
+
+insertAddress:
+INSERT INTO AddressBook(
+    name,
+    type,
+    publicKey,
+    peerPublicKey
+    )
+VALUES (
+    ?,
+    ?,
+    ?,
+    ?
+);
+
+getAddressByName:
+SELECT *
+FROM AddressBook
+WHERE name LIKE ?;
+
+getAllAddresses:
+SELECT *
+FROM AddressBook;
+
+clearAddressBookTable:
+DELETE FROM AddressBook;
