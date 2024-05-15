@@ -6,15 +6,15 @@ import org.junit.Test
 internal class BilinearGroupTest {
     @Test
     fun generateTwoGroupsFromFileShouldBeEqual() {
-        val groupA = BilinearGroup(160, PairingTypes.FromFile)
-        val groupB = BilinearGroup(160, PairingTypes.FromFile)
+        val groupA = BilinearGroup(PairingTypes.FromFile)
+        val groupB = BilinearGroup(PairingTypes.FromFile)
         Assert.assertEquals("The two generated groups should be equal", groupA.pairing, groupB.pairing)
     }
 
     @Test
     fun updateSecondGroupTest() {
-        val groupA = BilinearGroup(160, PairingTypes.FromFile)
-        val groupB = BilinearGroup(160, PairingTypes.FromFile)
+        val groupA = BilinearGroup(PairingTypes.FromFile)
+        val groupB = BilinearGroup(PairingTypes.FromFile)
 
         val randomElementToTest = groupA.getRandomZr()
 

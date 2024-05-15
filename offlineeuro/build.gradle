@@ -73,11 +73,10 @@ dependencies {
 
     // Logging
     api 'io.github.microutils:kotlin-logging:1.7.7'
-    implementation project(':eurotoken')
-    implementation project(':eurotoken')
 
     // Testing
     testImplementation "junit:junit:$junit_version"
+    testImplementation project(':eurotoken')
     androidTestImplementation "androidx.test.ext:junit:$android_junit_version"
 
     // Transitive dependencies
@@ -97,7 +96,7 @@ dependencies {
     testImplementation "app.cash.sqldelight:sqlite-driver:$sqldelight_version"
 
     // Add mocking options for tests
-    testImplementation "io.mockk:mockk:1.10.4"
+    testImplementation "io.mockk:mockk:1.13.9"
     testImplementation "org.mockito:mockito-core:4.0.0"
     testImplementation "org.mockito:mockito-inline:4.0.0"
     testImplementation "org.mockito.kotlin:mockito-kotlin:4.0.0"

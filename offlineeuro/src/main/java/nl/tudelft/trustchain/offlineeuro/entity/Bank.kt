@@ -2,12 +2,10 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
-import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import java.math.BigInteger
 import kotlin.math.min
-import kotlin.system.measureTimeMillis
 
 class Bank (
     val name: String = "BestBank",
@@ -39,24 +37,6 @@ class Bank (
         withdrawUserRandomness.remove(userPublicKey)
         // <Subtract balance here>
         return Schnorr.signBlindedChallenge(k, challenge, privateKey)
-    }
-
-    fun requestDeposit(user: User): String {
-
-        var depositResult = ""
-        val depositTime = measureTimeMillis {
-
-        val t = group.getRandomZr()
-        val randomizationElements = GrothSahai.tToRandomizationElements(t)
-        val transactionDetails = user.onTransactionRequest(randomizationElements)
-        Transaction.validate(transactionDetails!!, publicKey)
-        transactionDetails.digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
-         depositResult = depositEuro(transactionDetails.digitalEuro)
-        }
-
-        print("Time to verify deposit: $depositTime")
-
-        return depositResult
     }
 
     private fun depositEuro(euro: DigitalEuro): String {

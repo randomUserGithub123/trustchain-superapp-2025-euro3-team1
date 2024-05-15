@@ -84,14 +84,11 @@ object GrothSahai {
     }
 
 
-    fun tToRandomizationElements(t: Element): RandomizationElements {
-        val bilinearGroup = CentralAuthority.groupDescription
-        val crs = CentralAuthority.crs
-
-        val group2T = bilinearGroup.h.powZn(t).immutable
+    fun tToRandomizationElements(t: Element, group: BilinearGroup, crs: CRS): RandomizationElements {
+        val group2T = group.h.powZn(t).immutable
         val vT = crs.v.powZn(t).immutable
         val tInv = t.mul(-1)
-        val group1TInv = bilinearGroup.g.powZn(tInv).immutable
+        val group1TInv = group.g.powZn(tInv).immutable
         val uTInv = crs.u.powZn(tInv).immutable
 
         return RandomizationElements(group2T, vT, group1TInv, uTInv)
@@ -131,7 +128,38 @@ data class RandomizationElements (
     val vT: Element,
     val group1TInv: Element,
     val uTInv: Element
-)
+) {
+    fun toRandomizationElementsBytes(): RandomizationElementsBytes {
+        return RandomizationElementsBytes(
+            group2T.toBytes(),
+            vT.toBytes(),
+            group1TInv.toBytes(),
+            uTInv.toBytes()
+        )
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RandomizationElements) return false
+        return this.group2T == other.group2T && this.vT == other.vT && this.group1TInv == other.group1TInv && this.uTInv == other.uTInv
+    }
+}
+
+data class RandomizationElementsBytes (
+    val group2T: ByteArray,
+    val vT: ByteArray,
+    val group1TInv: ByteArray,
+    val uTInv: ByteArray
+) {
+    fun toRandomizationElements(group: BilinearGroup): RandomizationElements{
+        return RandomizationElements(
+            group.hElementFromBytes(group2T),
+            group.hElementFromBytes(vT),
+            group.gElementFromBytes(group1TInv),
+            group.gElementFromBytes(uTInv)
+        )
+    }
+}
 
 data class TransactionProof (
     val grothSahaiProof: GrothSahaiProof,

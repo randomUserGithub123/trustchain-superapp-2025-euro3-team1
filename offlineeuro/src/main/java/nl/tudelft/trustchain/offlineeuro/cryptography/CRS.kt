@@ -26,9 +26,25 @@ data class CRS(
             vPrime.toBytes()
         )
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is CRS) return false
+
+        return (
+                this.g == other.g &&
+                this.u == other.u &&
+                this.gPrime == other.gPrime &&
+                this.uPrime == other.uPrime &&
+                this.h == other.h &&
+                this.v == other.v &&
+                this.hPrime == other.hPrime &&
+                this.vPrime == other.vPrime
+            )
+    }
 }
 
-data class CRSBytes (
+data class CRSBytes(
     val g: ByteArray,
     val u: ByteArray,
     val gPrime: ByteArray,
@@ -39,8 +55,48 @@ data class CRSBytes (
     val v: ByteArray,
     val hPrime: ByteArray,
     val vPrime: ByteArray,
-)
+) {
+    fun toCRS(group: BilinearGroup): CRS {
+        return CRS(
+            group.gElementFromBytes(g),
+            group.gElementFromBytes(u),
+            group.gElementFromBytes(gPrime),
+            group.gElementFromBytes(uPrime),
+            group.hElementFromBytes(h),
+            group.hElementFromBytes(v),
+            group.hElementFromBytes(hPrime),
+            group.hElementFromBytes(vPrime),
+        )
+    }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as CRSBytes
+
+        if (!g.contentEquals(other.g)) return false
+        if (!u.contentEquals(other.u)) return false
+        if (!gPrime.contentEquals(other.gPrime)) return false
+        if (!uPrime.contentEquals(other.uPrime)) return false
+        if (!h.contentEquals(other.h)) return false
+        if (!v.contentEquals(other.v)) return false
+        if (!hPrime.contentEquals(other.hPrime)) return false
+        return vPrime.contentEquals(other.vPrime)
+    }
+
+    override fun hashCode(): Int {
+        var result = g.contentHashCode()
+        result = 31 * result + u.contentHashCode()
+        result = 31 * result + gPrime.contentHashCode()
+        result = 31 * result + uPrime.contentHashCode()
+        result = 31 * result + h.contentHashCode()
+        result = 31 * result + v.contentHashCode()
+        result = 31 * result + hPrime.contentHashCode()
+        result = 31 * result + vPrime.contentHashCode()
+        return result
+    }
+}
 
 
 object CRSGenerator {
@@ -78,15 +134,15 @@ object CRSGenerator {
         val crs = CRS(g, u, gPrime, uPrime, h, v, hPrime, vPrime)
 
         val crsMap = mapOf(
-                g to gGenerator,
-                u to uGenerator,
-                gPrime to gPrimeGenerator,
-                uPrime to uPrimeGenerator,
-                h to hGenerator,
-                v to vGenerator,
-                hPrime to hGenerator,
-                vPrime to vPrimeGenerator
-            )
+            g to gGenerator,
+            u to uGenerator,
+            gPrime to gPrimeGenerator,
+            uPrime to uPrimeGenerator,
+            h to hGenerator,
+            v to vGenerator,
+            hPrime to hGenerator,
+            vPrime to vPrimeGenerator
+        )
 
         return Pair(crs, crsMap)
     }

@@ -8,25 +8,36 @@ import nl.tudelft.ipv8.attestation.trustchain.TrustChainSettings
 import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPayload
-import nl.tudelft.trustchain.offlineeuro.community.payload.RequestPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
+import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import java.math.BigInteger
 
 object MessageID {
     const val GET_GROUP_DESCRIPTION_CRS = 9
     const val GET_GROUP_DESCRIPTION_CRS_REPLY = 10
-    const val BANK_DETAILS_REPLY = 10
-    const val USER_REGISTRATION = 11
-    const val USER_REGISTRATION_REPLY = 12
-    const val TOKEN_SIGN_REQUEST = 13
-    const val TOKEN_SIGN_REPLY = 14
-    const val SEND_TOKENS = 15
-    const val CHALLENGE = 16
-    const val CHALLENGE_REPLY = 17
-    const val DEPOSIT = 18
+    const val REGISTER_AT_TTP = 11
+
+    const val GET_BLIND_SIGNATURE_RANDOMNESS = 12
+    const val GET_BLIND_SIGNATURE_RANDOMNESS_REPLY = 13
+    const val GET_BLIND_SIGNATURE = 14
+    const val GET_BLIND_SIGNATURE_REPLY = 15
+
+    const val GET_TRANSACTION_RANDOMIZATION_ELEMENTS = 16
+    const val GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY = 17
+
+    const val TRANSACTION = 18
 }
 
 class OfflineEuroCommunity (
@@ -42,33 +53,32 @@ class OfflineEuroCommunity (
     val name: String = "BestBank"
     lateinit var crs: CRS
     var bilinearGroup = BilinearGroup()
-//    val bank: Bank
-//    val user: User
-    //val context: Context
+
     init {
 
-        // TODO FIX NAMES OF BANK AND USER
-        //this.context = context
-//        bank = Bank(name, context)
-//        user = User(name, context)
-    messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS] = ::onGetGroupDescriptionAndCRSPacket
-    messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY] = ::onGetGroupDescriptionAndCRSPacket
-//        messageHandlers[MessageID.BANK_DETAILS_REPLY] = ::onBankDetailsReplyPacket
-//        messageHandlers[MessageID.USER_REGISTRATION] = ::onUserRegistrationPacket
-//        messageHandlers[MessageID.USER_REGISTRATION_REPLY] = ::onUserRegistrationReplyPacket
-//        messageHandlers[MessageID.TOKEN_SIGN_REQUEST] = ::onTokenSignRequestPacket
-//        messageHandlers[MessageID.TOKEN_SIGN_REPLY] = ::onTokenSignReplyPacket
-//        messageHandlers[MessageID.SEND_TOKENS] = ::onTokensReceivedPacket
-//        messageHandlers[MessageID.CHALLENGE] = ::onChallengePacket
-//        messageHandlers[MessageID.CHALLENGE_REPLY] = ::onChallengeResponsePacket
-//        messageHandlers[MessageID.DEPOSIT] = ::onDepositPacket
+        messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS] = ::onGetGroupDescriptionAndCRSPacket
+        messageHandlers[MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY] = ::onGetGroupDescriptionAndCRSReplyPacket
+
+        messageHandlers[MessageID.REGISTER_AT_TTP] = ::onGetRegisterAtTTPPacket
+
+        messageHandlers[MessageID.GET_BLIND_SIGNATURE_RANDOMNESS] =:: onGetBlindSignatureRandomnessPacket
+        messageHandlers[MessageID.GET_BLIND_SIGNATURE_RANDOMNESS_REPLY] =:: onGetBlindSignatureRandomnessReplyPacket
+
+        messageHandlers[MessageID.GET_BLIND_SIGNATURE] =:: onGetBlindSignaturePacket
+        messageHandlers[MessageID.GET_BLIND_SIGNATURE_REPLY] =:: onGetBlindSignatureReplyPacket
+
+        messageHandlers[MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS] =:: onGetTransactionRandomizationElementsPacket
+        messageHandlers[MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY] =:: onGetTransactionRandomizationElementsReplyPacket
+
+        messageHandlers[MessageID.TRANSACTION] =:: onTransactionPacket
+
     }
 
     fun getGroupDescriptionAndCRS() {
 
         val packet = serializePacket(
             MessageID.GET_GROUP_DESCRIPTION_CRS,
-            RequestPayload(myPeer.publicKey.keyToBin())
+            ByteArrayPayload(myPeer.publicKey.keyToBin())
         )
 
         for (peer: Peer in getPeers()) {
@@ -78,7 +88,7 @@ class OfflineEuroCommunity (
 
 
     private fun onGetGroupDescriptionAndCRSPacket(packet: Packet) {
-        val (requestingPeer, payload) = packet.getAuthPayload(RequestPayload)
+        val (requestingPeer, payload) = packet.getAuthPayload(ByteArrayPayload)
         onGetGroupDescriptionAndCRS(requestingPeer)
     }
 
@@ -112,10 +122,158 @@ class OfflineEuroCommunity (
         messageList.add(message)
     }
 
-//    private fun onFindBankPacket(packet: Packet) {
-//        val (requestingPeer, payload) = packet.getAuthPayload(FindBankPayload)
-//        onFindBank(requestingPeer)
-//    }
+    fun registerAtTTP(name:String, myPublicKeyBytes: ByteArray,publicKeyTTP: ByteArray) {
+        val ttpPeer = getPeerByPublicKeyBytes(publicKeyTTP) ?: throw Exception("TTP not found")
+
+        val registerPacket = serializePacket(
+            MessageID.REGISTER_AT_TTP,
+            TTPRegistrationPayload(
+                name,
+                myPublicKeyBytes
+            )
+        )
+
+        send(ttpPeer, registerPacket)
+    }
+
+    fun onGetRegisterAtTTPPacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(TTPRegistrationPayload)
+        onGetRegisterAtTTP(peer, payload)
+    }
+
+    fun onGetRegisterAtTTP(peer: Peer, payload: TTPRegistrationPayload) {
+        val senderPKBytes = peer.publicKey.keyToBin()
+        val userName = payload.userName
+        val userPKBytes = payload.publicKey
+
+        val message = TTPRegistrationMessage(
+            userName,
+            userPKBytes,
+            senderPKBytes
+        )
+
+        messageList.add(message)
+    }
+
+    fun getBlindSignatureRandomness(userPublicKeyBytes: ByteArray ,publicKeyBank: ByteArray) {
+        val bankPeer = getPeerByPublicKeyBytes(publicKeyBank)
+
+        bankPeer ?: throw Exception("Bank not found")
+
+        val packet = serializePacket(
+            MessageID.GET_BLIND_SIGNATURE_RANDOMNESS,
+            ByteArrayPayload(
+                userPublicKeyBytes
+            )
+        )
+
+        send(bankPeer, packet)
+    }
+
+    fun onGetBlindSignatureRandomnessPacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(ByteArrayPayload)
+        onGetBlindSignatureRandomness(requestingPeer, payload)
+    }
+
+    fun onGetBlindSignatureRandomness(requestingPeer: Peer, payload: ByteArrayPayload) {
+        val publicKey = payload.bytes
+        val message = BlindSignatureRandomnessRequestMessage(
+            publicKey,
+            requestingPeer
+        )
+        messageList.add(message)
+    }
+
+    fun sendBlindSignatureRandomnessReply(randomnessBytes: ByteArray, peer: Peer) {
+        val packet = serializePacket(MessageID.GET_BLIND_SIGNATURE_RANDOMNESS_REPLY, ByteArrayPayload(randomnessBytes))
+        send(peer, packet)
+    }
+
+    fun onGetBlindSignatureRandomnessReplyPacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(ByteArrayPayload)
+        //TODO
+    }
+
+    fun onGetBlindSignatureRandomnessReply(payload: ByteArrayPayload) {
+        val message = BlindSignatureRandomnessReplyMessage(payload.bytes)
+        messageList.add(message)
+    }
+
+    fun getBlindSignature(challenge: BigInteger, publicKeyBytes: ByteArray, bankPublicKeyBytes: ByteArray) {
+
+        val bankPeer = getRandomPeer(bankPublicKeyBytes)
+
+        val packet = serializePacket(
+            MessageID.GET_BLIND_SIGNATURE,
+            BlindSignatureRequestPayload(
+                challenge, publicKeyBytes
+            )
+        )
+
+        send(bankPeer!!, packet)
+    }
+
+
+    fun onGetBlindSignaturePacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(BlindSignatureRequestPayload)
+        onGetBlindSignature(requestingPeer, payload)
+    }
+
+    fun onGetBlindSignature(requestingPeer: Peer, payload: BlindSignatureRequestPayload) {
+        val message = BlindSignatureRequestMessage(
+            payload.challenge,
+            payload.publicKeyBytes,
+            requestingPeer
+        )
+        messageList.add(message)
+    }
+
+    fun sendBlindSignature(signature: BigInteger, peer: Peer) {
+        val packet = serializePacket(MessageID.GET_BLIND_SIGNATURE_REPLY, ByteArrayPayload(signature.toByteArray()))
+        send(peer, packet)
+    }
+
+    fun onGetBlindSignatureReplyPacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(ByteArrayPayload)
+        onGetBlindSignatureReply(requestingPeer, payload)
+    }
+
+    fun onGetBlindSignatureReply(requestingPeer: Peer, payload: ByteArrayPayload) {
+        val message = BlindSignatureReplyMessage(
+            BigInteger(payload.bytes)
+        )
+        messageList.add(message)
+    }
+
+    fun getTransactionRandomizationElements(publicKeyReceiver: ByteArray) {
+        val peer = getPeerByPublicKeyBytes(publicKeyReceiver)
+
+        peer ?: throw Exception("User not found")
+
+        val packet = serializePacket(
+            MessageID.GET_BLIND_SIGNATURE_RANDOMNESS,
+            ByteArrayPayload(
+                ByteArray(0)
+            )
+        )
+
+        send(peer, packet)
+    }
+
+    fun onGetTransactionRandomizationElementsPacket(packet: Packet) {
+        //TODO
+    }
+
+    fun onGetTransactionRandomizationElementsReplyPacket(packet: Packet) {
+        //TODO
+    }
+
+    fun sendTransactionDetails(publicKeyReceiver: ByteArray, transactionDetails: TransactionDetails) {
+        //TODO
+    }
+    fun onTransactionPacket(packet: Packet) {
+        //TODO
+    }
 
 //    private fun onFindBank(requestingPeer: Peer) {
 //        // Do nothing if you are not a bank

@@ -15,13 +15,31 @@ enum class PairingTypes {
     FromFile
 }
 
-class BilinearGroupElementsBytes(
+data class BilinearGroupElementsBytes(
     val g: ByteArray,
     val h: ByteArray,
     val gt: ByteArray
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
 
-)
-class BilinearGroupElements(
+        other as BilinearGroupElementsBytes
+
+        if (!g.contentEquals(other.g)) return false
+        if (!h.contentEquals(other.h)) return false
+        return gt.contentEquals(other.gt)
+    }
+
+    override fun hashCode(): Int {
+        var result = g.contentHashCode()
+        result = 31 * result + h.contentHashCode()
+        result = 31 * result + gt.contentHashCode()
+        return result
+    }
+}
+
+data class BilinearGroupElements(
     val g: Element,
     val h: Element,
     val gt: Element
@@ -29,8 +47,8 @@ class BilinearGroupElements(
 )
 
 class BilinearGroup(
+    pairingType: PairingTypes = PairingTypes.A,
     rBits: Int = 160,
-    pairingType: PairingTypes = PairingTypes.A
 ) {
     val pairing: Pairing
     var g: Element
@@ -70,9 +88,9 @@ class BilinearGroup(
     }
 
     fun updateGroupElements(groupElementsBytes: BilinearGroupElementsBytes) {
-        this.g = pairing.g1.newElementFromBytes(groupElementsBytes.g)
-        this.h = pairing.g2.newElementFromBytes(groupElementsBytes.h)
-        this.gt = pairing.gt.newElementFromBytes(groupElementsBytes.gt)
+        this.g = pairing.g1.newElementFromBytes(groupElementsBytes.g).immutable
+        this.h = pairing.g2.newElementFromBytes(groupElementsBytes.h).immutable
+        this.gt = pairing.gt.newElementFromBytes(groupElementsBytes.gt).immutable
     }
 
 
@@ -102,6 +120,7 @@ class BilinearGroup(
         val randomZr = getRandomZr()
         return gt.powZn(randomZr).immutable
     }
+
     fun gElementFromBytes(bytes: ByteArray): Element {
         return pairing.g1.newElementFromBytes(bytes).immutable
     }
@@ -115,7 +134,7 @@ class BilinearGroup(
     }
 
     fun zrElementFromBytes(bytes: ByteArray): Element {
-        return pairing.zr.newElementFromBytes(bytes)
+        return pairing.zr.newElementFromBytes(bytes).immutable
     }
 
     fun toGroupElementBytes(): BilinearGroupElementsBytes {
