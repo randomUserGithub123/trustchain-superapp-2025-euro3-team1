@@ -35,15 +35,15 @@ private data class SchnorrSignatureBytes(
 
 
 object SchnorrSignatureSerializer {
-    fun serializeSchnorrSignature(signature: SchnorrSignature?) : ByteArray? {
+    fun serializeSchnorrSignature(signature: SchnorrSignature?) : ByteArray {
 
-        if (signature == null) return null
+        if (signature == null) return ByteArray(0)
         val signatureAsBytes = schnorrSignatureToBytes(signature)
         return serializeSchnorrBytes(signatureAsBytes)
     }
 
     fun deserializeSchnorrSignatureBytes(bytes: ByteArray?): SchnorrSignature? {
-        if (bytes == null) return null
+        if (bytes == null || bytes.contentEquals(ByteArray(0))) return null
         val signatureBytes = deserializeSignatureBytes(bytes)
         return bytesToSchnorrSignature(signatureBytes)
     }

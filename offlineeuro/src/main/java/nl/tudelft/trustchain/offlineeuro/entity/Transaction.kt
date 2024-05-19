@@ -1,13 +1,34 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProofBytes
+import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
 import kotlin.system.measureTimeMillis
+
+data class TransactionDetailsBytes (
+    val digitalEuroBytes: DigitalEuroBytes,
+    val currentTransactionProofBytes: TransactionProofBytes,
+    val previousThetaSignatureBytes: ByteArray,
+    val theta1SignatureBytes: ByteArray,
+    val spenderPublicKeyBytes: ByteArray,
+) {
+   fun toTransactionDetails(group: BilinearGroup): TransactionDetails {
+        return TransactionDetails(
+            digitalEuroBytes.toDigitalEuro(group),
+            currentTransactionProofBytes.toTransactionProof(group),
+            SchnorrSignatureSerializer.deserializeSchnorrSignatureBytes(previousThetaSignatureBytes),
+            SchnorrSignatureSerializer.deserializeSchnorrSignatureBytes(theta1SignatureBytes)!!,
+            group.gElementFromBytes(spenderPublicKeyBytes)
+        )
+    }
+}
 
 
 data class TransactionDetails (
@@ -16,7 +37,17 @@ data class TransactionDetails (
     val previousThetaSignature: SchnorrSignature?,
     val theta1Signature: SchnorrSignature,
     val spenderPublicKey: Element,
-)
+) {
+    fun toTransactionDetailsBytes(): TransactionDetailsBytes {
+        return TransactionDetailsBytes(
+            digitalEuro.toDigitalEuroBytes(),
+            currentTransactionProof.toTransactionProofBytes(),
+            SchnorrSignatureSerializer.serializeSchnorrSignature(previousThetaSignature),
+            SchnorrSignatureSerializer.serializeSchnorrSignature(theta1Signature),
+            spenderPublicKey.toBytes()
+        )
+    }
+}
 
 object Transaction {
 

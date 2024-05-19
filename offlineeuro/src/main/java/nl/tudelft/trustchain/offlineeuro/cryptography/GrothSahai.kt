@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.cryptography
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.libraries.EBMap
+import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 
 object GrothSahai {
 
@@ -159,10 +160,38 @@ data class RandomizationElementsBytes (
             group.gElementFromBytes(uTInv)
         )
     }
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RandomizationElementsBytes) return false
+        return this.group2T.contentEquals(other.group2T) && this.vT.contentEquals(other.vT)
+            && this.group1TInv.contentEquals(other.group1TInv) && this.uTInv.contentEquals(other.uTInv)
+    }
+}
+
+data class TransactionProofBytes(
+    val grothSahaiProofBytes: ByteArray,
+    val usedYBytes: ByteArray,
+    val usedVSBytes: ByteArray,
+) {
+    fun toTransactionProof(group: BilinearGroup): TransactionProof {
+        return TransactionProof(
+            GrothSahaiSerializer.deserializeProofBytes(grothSahaiProofBytes, group),
+            group.hElementFromBytes(usedYBytes),
+            group.hElementFromBytes(usedVSBytes)
+        )
+    }
 }
 
 data class TransactionProof (
     val grothSahaiProof: GrothSahaiProof,
     val usedY: Element,
     val usedVS: Element,
-)
+) {
+    fun toTransactionProofBytes(): TransactionProofBytes {
+        return TransactionProofBytes(
+            GrothSahaiSerializer.serializeGrothSahaiProof(grothSahaiProof),
+            usedY.toBytes(),
+            usedVS.toBytes()
+        )
+    }
+}

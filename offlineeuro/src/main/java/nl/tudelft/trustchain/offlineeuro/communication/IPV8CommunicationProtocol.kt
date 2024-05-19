@@ -2,32 +2,51 @@ package nl.tudelft.trustchain.offlineeuro.communication
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
-import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.CommunityMessageType
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
-import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
+import nl.tudelft.trustchain.offlineeuro.entity.User
 import java.math.BigInteger
 
 class IPV8CommunicationProtocol(
     val addressBookManager: AddressBookManager,
-    val community: OfflineEuroCommunity
-) : ICommunicationProtocol {
+    val community: OfflineEuroCommunity,
+    val user: User? = null,
+    val bank: Bank? = null
+
+    ) : ICommunicationProtocol {
+
+    val messageList = MessageList(this::handleRequestMessage)
+
+    init {
+        community.messageList = messageList
+    }
 
     private val SLEEP_DURATION: Long = 100
     private val MAX_WAIT_DURATION_MS = 5000
+
     override fun getGroupDescriptionAndCRS(): Pair<BilinearGroup, CRS> {
         community.getGroupDescriptionAndCRS()
         val message =
-            waitForMessage(CommunityMessageType.GroupDescriptionCRS) as BilinearGroupCRSMessage
+            waitForMessage(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
 
         val group = BilinearGroup(pairingType = PairingTypes.FromFile)
         group.updateGroupElements(message.groupDescription)
@@ -68,7 +87,7 @@ class IPV8CommunicationProtocol(
     override fun requestTransactionRandomness(userNameReceiver: String, group: BilinearGroup): RandomizationElements {
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
         community.getTransactionRandomizationElements(peerAddress.peerPublicKey!!)
-        val message = waitForMessage(CommunityMessageType.TransactionRandomnessMessage) as TransactionRandomizationElementsMessage
+        val message = waitForMessage(CommunityMessageType.TransactionRandomnessReplyMessage) as TransactionRandomizationElementsReplyMessage
         return message.randomizationElementsBytes.toRandomizationElements(group)
     }
 
@@ -103,5 +122,82 @@ class IPV8CommunicationProtocol(
         community.messageList.remove(message)
 
         return message
+    }
+
+    private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
+        val groupBytes = CentralAuthority.groupDescription.toGroupElementBytes()
+        val crsBytes = CentralAuthority.crs.toCRSBytes()
+        val peer = message.requestingPeer
+        community.sendGroupDescriptionAndCRS(groupBytes, crsBytes, peer)
+    }
+
+    private fun handleBlindSignatureRandomnessRequest(message: BlindSignatureRandomnessRequestMessage) {
+        if (bank == null) {
+            throw Exception("Bank is not initialized")
+        }
+        // TODO FIX GROUP HERE
+        val publicKey = CentralAuthority.groupDescription.gElementFromBytes(message.publicKeyBytes)
+        val randomness = bank.getBlindSignatureRandomness(publicKey)
+        val requestingPeer = message.peer
+        community.sendBlindSignatureRandomnessReply(randomness.toBytes(), requestingPeer)
+    }
+
+    private fun handleBlindSignatureRequestMessage(message: BlindSignatureRequestMessage) {
+        if (bank == null) {
+            throw Exception("Bank is not initialized")
+        }
+        // TODO FIX GROUP HERE
+        val publicKey = CentralAuthority.groupDescription.gElementFromBytes(message.publicKeyBytes)
+        val challenge = message.challenge
+        val signature = bank.createBlindSignature(challenge, publicKey)
+        val requestingPeer = message.peer
+        community.sendBlindSignature(signature, requestingPeer)
+    }
+
+    private fun handleTransactionRandomizationElementsRequest(message: TransactionRandomizationElementsRequestMessage) {
+        if (user == null) {
+            throw Exception("User is not initialized")
+        }
+
+        val group = user.group
+        val publicKey = group.gElementFromBytes(message.publicKey)
+        val requestingPeer = message.requestingPeer
+
+        val randomizationElements = user.generateRandomizationElements(publicKey)
+        val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
+        community.sendTransactionRandomizationElements(randomizationElementBytes, requestingPeer)
+
+    }
+
+    private fun handleTransactionMessage(message: TransactionMessage) {
+        if (user == null) {
+            throw Exception("User is not initialized")
+        }
+
+        val bankPublicKey = addressBookManager.getAddressByName("Bank").publicKey
+
+        val group = user.group
+        val publicKey = group.gElementFromBytes(message.publicKeyBytes)
+        val transactionDetailsBytes = message.transactionDetailsBytes
+        val transactionDetails = transactionDetailsBytes.toTransactionDetails(group)
+        val transactionResult = user.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
+        val requestingPeer = message.requestingPeer
+        community.sendTransactionResult(transactionResult, requestingPeer)
+
+    }
+
+
+    private fun handleRequestMessage(message: ICommunityMessage) {
+
+        when (message) {
+            is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
+            is BlindSignatureRandomnessRequestMessage -> handleBlindSignatureRandomnessRequest(message)
+            is BlindSignatureRequestMessage -> handleBlindSignatureRequestMessage(message)
+            is TransactionRandomizationElementsRequestMessage -> handleTransactionRandomizationElementsRequest(message)
+            is TransactionMessage -> handleTransactionMessage(message)
+
+            else -> throw Exception("Unsupported message type")
+        }
+        return
     }
 }

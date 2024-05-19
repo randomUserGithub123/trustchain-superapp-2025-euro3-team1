@@ -47,7 +47,7 @@ class GrothSahaiSerializerTest {
     fun serializeAndDeserializeSingleProofListTest() {
         val proofList = arrayListOf(generateRandomInvalidProof())
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes!!, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofListBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)
     }
 
@@ -56,7 +56,7 @@ class GrothSahaiSerializerTest {
     fun serializeAndDeserializeTwoProofsTest() {
         val proofList = arrayListOf(generateRandomInvalidProof(),  generateRandomInvalidProof())
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes!!, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofListBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)
     }
 
@@ -68,13 +68,13 @@ class GrothSahaiSerializerTest {
             proofList.add(generateRandomInvalidProof())
         }
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(proofListBytes!!, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofListBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)
     }
 
     @Test(expected = StreamCorruptedException::class)
     fun deserializeInvalidTest() {
         val invalidBytes = "TheseAreInvalidBytesToDeserialize".toByteArray()
-        val deserializedBytes = GrothSahaiSerializer.deserializeProofBytes(invalidBytes, group)
+        val deserializedBytes = GrothSahaiSerializer.deserializeProofListBytes(invalidBytes, group)
     }
 }

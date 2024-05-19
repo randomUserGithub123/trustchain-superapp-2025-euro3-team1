@@ -27,7 +27,7 @@ open class OfflineEuroManager(
 
 
     protected fun deserializeGSP(byteArray: ByteArray?) : ArrayList<GrothSahaiProof> {
-        return gSS.deserializeProofBytes(byteArray, bilinearGroup)
+        return gSS.deserializeProofListBytes(byteArray, bilinearGroup)
     }
 
     protected fun deserializeSchnorr(byteArray: ByteArray?): SchnorrSignature? {

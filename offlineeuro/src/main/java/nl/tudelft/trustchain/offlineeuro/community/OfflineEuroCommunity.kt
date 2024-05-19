@@ -7,19 +7,27 @@ import nl.tudelft.ipv8.attestation.trustchain.TrustChainCrawler
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainSettings
 import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
 import nl.tudelft.ipv8.messaging.Packet
-import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizationElementsPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.math.BigInteger
@@ -47,7 +55,7 @@ class OfflineEuroCommunity (
 ) : TrustChainCommunity(settings, database, crawler)  {
     override val serviceId = "ffffd716494b474ea9f614a16a4da0aed6899aec"
 
-    val messageList = arrayListOf<ICommunityMessage>()
+    lateinit var messageList: MessageList<ICommunityMessage>
 
     var role: Role = Role.User
     val name: String = "BestBank"
@@ -67,7 +75,7 @@ class OfflineEuroCommunity (
         messageHandlers[MessageID.GET_BLIND_SIGNATURE] =:: onGetBlindSignaturePacket
         messageHandlers[MessageID.GET_BLIND_SIGNATURE_REPLY] =:: onGetBlindSignatureReplyPacket
 
-        messageHandlers[MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS] =:: onGetTransactionRandomizationElementsPacket
+        messageHandlers[MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS] =:: onGetTransactionRandomizationElementsRequestPacket
         messageHandlers[MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY] =:: onGetTransactionRandomizationElementsReplyPacket
 
         messageHandlers[MessageID.TRANSACTION] =:: onTransactionPacket
@@ -99,8 +107,15 @@ class OfflineEuroCommunity (
         if (role != Role.Bank) {
             return
         }
-        val groupBytes = bilinearGroup.toGroupElementBytes()
-        val crsBytes = crs.toCRSBytes()
+
+        val message = BilinearGroupCRSRequestMessage(requestingPeer)
+        messageList.add(message)
+    }
+
+    fun sendGroupDescriptionAndCRS (
+        groupBytes: BilinearGroupElementsBytes,
+        crsBytes: CRSBytes,
+        requestingPeer: Peer) {
 
         val groupAndCrsPacket = serializePacket(
             MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY,
@@ -118,7 +133,7 @@ class OfflineEuroCommunity (
     fun onGetGroupDescriptionAndCRSReply(payload: BilinearGroupCRSPayload) {
         val groupElements = payload.bilinearGroupElements
         val crs = payload.crs
-        val message = BilinearGroupCRSMessage(groupElements, crs)
+        val message = BilinearGroupCRSReplyMessage(groupElements, crs)
         messageList.add(message)
     }
 
@@ -191,7 +206,7 @@ class OfflineEuroCommunity (
 
     fun onGetBlindSignatureRandomnessReplyPacket(packet: Packet) {
         val (peer, payload) = packet.getAuthPayload(ByteArrayPayload)
-        //TODO
+        onGetBlindSignatureRandomnessReply(payload)
     }
 
     fun onGetBlindSignatureRandomnessReply(payload: ByteArrayPayload) {
@@ -260,12 +275,32 @@ class OfflineEuroCommunity (
         send(peer, packet)
     }
 
-    fun onGetTransactionRandomizationElementsPacket(packet: Packet) {
-        //TODO
+    fun onGetTransactionRandomizationElementsRequestPacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(ByteArrayPayload)
+        onGetTransactionRandomizationElementsRequest(requestingPeer, payload)
+    }
+
+    fun onGetTransactionRandomizationElementsRequest(requestingPeer: Peer, payload: ByteArrayPayload) {
+        val message = TransactionRandomizationElementsRequestMessage(payload.bytes, requestingPeer)
+        messageList.add(message)
+    }
+
+    fun sendTransactionRandomizationElements(randomizationElementsBytes: RandomizationElementsBytes, requestingPeer: Peer) {
+        val packet = serializePacket(
+            MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY,
+            TransactionRandomizationElementsPayload(randomizationElementsBytes)
+        )
+        send(requestingPeer, packet)
     }
 
     fun onGetTransactionRandomizationElementsReplyPacket(packet: Packet) {
-        //TODO
+        val (_, payload) = packet.getAuthPayload(TransactionRandomizationElementsPayload)
+
+    }
+
+    fun onGetTransactionRandomizationElements(payload: TransactionRandomizationElementsPayload) {
+        val message = TransactionRandomizationElementsReplyMessage(payload.transactionRandomizationElementsBytes)
+        messageList.add(message)
     }
 
     fun sendTransactionDetails(publicKeyReceiver: ByteArray, transactionDetails: TransactionDetails) {
@@ -275,181 +310,9 @@ class OfflineEuroCommunity (
         //TODO
     }
 
-//    private fun onFindBank(requestingPeer: Peer) {
-//        // Do nothing if you are not a bank
-//        if (role == Role.User)
-//            return
-//
-//        val (eb, nb) = bank.getPublicRSAValues()
-//        val bankDetails = BankDetails(
-//            name,
-//            bank.z,
-//            eb,
-//            nb,
-//            myPeer.publicKey.keyToBin()
-//        )
-//        // Create the response
-//        val responsePacket = serializePacket(
-//            MessageID.BANK_DETAILS_REPLY,
-//            BankDetailsPayload(bankDetails)
-//        )
-//
-//        // Send the reply
-//        send(requestingPeer, responsePacket)
-//    }
-//
-//    private fun onBankDetailsReplyPacket(packet: Packet) {
-//        val (_, payload) = packet.getAuthPayload(BankDetailsPayload)
-//        onBankDetailsReply(payload)
-//
-//    }
-//
-//    private fun onBankDetailsReply(payload: BankDetailsPayload) {
-//        val bankDetails = payload.bankDetails
-//        user.handleBankDetailsReply(bankDetails)
-//    }
-//
-//    fun sendUserRegistrationMessage(userRegistrationMessage: UserRegistrationMessage,
-//                                    publicKeyBank: ByteArray): Boolean {
-//        val bankPeer = getPeerByPublicKeyBytes(publicKeyBank) ?: return false
-//
-//        val packet = serializePacket(
-//            MessageID.USER_REGISTRATION,
-//            UserRegistrationPayload(userRegistrationMessage)
-//        )
-//
-//        send(bankPeer, packet)
-//        return true
-//    }
-//    private fun onUserRegistrationPacket(packet: Packet) {
-//        val (userPeer, payload) = packet.getAuthPayload(UserRegistrationPayload)
-//        onUserRegistration(userPeer, payload)
-//    }
-//
-//    private fun onUserRegistration(peer: Peer, payload: UserRegistrationPayload) {
-//        val response = bank.handleUserRegistration(payload.userRegistrationMessage)
-//        val responseMessagePacket = serializePacket(
-//            MessageID.USER_REGISTRATION_REPLY,
-//            UserRegistrationResponsePayload(response)
-//        )
-//
-//        send(peer, responseMessagePacket)
-//    }
-//
-//    fun sendUnsignedTokens(tokensToSign: List<UnsignedTokenSignRequestEntry>,
-//                           publicKeyBank: ByteArray) {
-//        val bankPeer = getPeerByPublicKeyBytes(publicKeyBank) ?: return
-//
-//        val signRequestPacket = serializePacket(
-//            MessageID.TOKEN_SIGN_REQUEST,
-//            UnsignedTokenPayload(user.name, tokensToSign)
-//        )
-//
-//        send(bankPeer, signRequestPacket)
-//    }
-//
-//    fun sendTokensToRandomPeer(tokens: List<Token>, bank: BankRegistration): Boolean {
-//        val randomPeer: Peer = getRandomPeer(bank.bankDetails.publicKeyBytes) ?: return false
-//
-//        val tokenPacket = serializePacket(
-//            MessageID.SEND_TOKENS,
-//            SendTokensPayload(bank.bankDetails.name, tokens)
-//        )
-//
-//        send(randomPeer, tokenPacket)
-//        return true
-//    }
-//
-//    fun sendReceiptsToBank(receipts: List<Receipt>, userName: String, bankPublicKeyBytes: ByteArray): Boolean {
-//        val bankPeer = getPeerByPublicKeyBytes(bankPublicKeyBytes) ?: return false
-//
-//        val packet = serializePacket(MessageID.DEPOSIT, DepositPayload(userName, receipts))
-//
-//        send(bankPeer, packet)
-//        return true
-//    }
-//
-//    private fun onUserRegistrationReplyPacket(packet: Packet) {
-//        val (_, payload) = packet.getAuthPayload(UserRegistrationResponsePayload)
-//        onUserRegistrationReply(payload)
-//    }
-//
-//    private fun onUserRegistrationReply(payload: UserRegistrationResponsePayload) {
-//        user.handleRegistrationResponse(payload.userRegistrationResponseMessage)
-//    }
-//
-//    @RequiresApi(Build.VERSION_CODES.O)
-//    private fun onTokenSignRequestPacket(packet: Packet) {
-//        val (peer, payload) = packet.getAuthPayload(UnsignedTokenPayload)
-//        onTokenSignRequest(peer, payload)
-//    }
-//
-//    @RequiresApi(Build.VERSION_CODES.O)
-//    private fun onTokenSignRequest(peer: Peer, payload: UnsignedTokenPayload) {
-//        val userName = payload.userName
-//        val tokensToSign = payload.tokensToSign
-//        val responseList = bank.handleSignUnsignedTokenRequest(userName, tokensToSign)
-//
-//        val responsePacket = serializePacket(
-//            MessageID.TOKEN_SIGN_REPLY,
-//            UnsignedTokenResponsePayload(bank.name, responseList)
-//        )
-//
-//        send(peer, responsePacket)
-//    }
-//
-//    private fun onTokenSignReplyPacket(packet: Packet) {
-//        val (_, payload) = packet.getAuthPayload(UnsignedTokenResponsePayload)
-//        onTokenSignReply(payload)
-//    }
-//
-//    private fun onTokenSignReply(payload: UnsignedTokenResponsePayload) {
-//        user.handleUnsignedTokenSignResponse(payload.bankName, payload.signedTokens)
-//    }
-//
-//    private fun onTokensReceivedPacket(packet: Packet) {
-//        val (peer, payload) = packet.getAuthPayload(SendTokensPayload)
-//        onTokensReceived(peer, payload)
-//    }
-//
-//    private fun onTokensReceived(peer: Peer, payload: SendTokensPayload) {
-//        val challenges = user.onTokensReceived(payload.tokens, payload.bankName)
-//        sendChallenges(challenges, payload.bankName, peer)
-//    }
-//
-//    private fun sendChallenges(challenges: List<Challenge>, bankName: String, peer: Peer) {
-//        val packet = serializePacket(MessageID.CHALLENGE, ChallengePayload(bankName, challenges))
-//        send(peer, packet)
-//    }
-//
-//    private fun onChallengePacket(packet: Packet) {
-//        val (peer, payload) = packet.getAuthPayload(ChallengePayload)
-//        val response = user.onChallenges(payload.challenges, payload.bankName)
-//        sendChallengeResponses(peer, payload.bankName, response)
-//    }
-//
-//    private fun sendChallengeResponses(peer: Peer, bankName: String, challengeResponses: List<ChallengeResponse>) {
-//        val packet = serializePacket(MessageID.CHALLENGE_REPLY, ChallengeResponsePayload(bankName, challengeResponses))
-//        send(peer, packet)
-//    }
-//
-//    private fun onChallengeResponsePacket(packet: Packet) {
-//        val (_, payload) = packet.getAuthPayload(ChallengeResponsePayload)
-//        onChallengeResponse(payload)
-//    }
-//
-//    private fun onChallengeResponse(payload: ChallengeResponsePayload) {
-//        user.onChallengesResponseReceived(payload.challenges, payload.bankName)
-//    }
-//
-//    private fun onDepositPacket(packet: Packet) {
-//        val (_, payload) = packet.getAuthPayload(DepositPayload)
-//        onDeposit(payload)
-//    }
-//
-//    private fun onDeposit(payload: DepositPayload) {
-//        bank.handleOnDeposit(payload.receipts, payload.userName)
-//    }
+    fun sendTransactionResult(transactionResult: String, requestingPeer: Peer) {
+        //TODO
+    }
 
     private fun getPeerByPublicKeyBytes(publicKey: ByteArray): Peer? {
         return getPeers().find {

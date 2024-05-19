@@ -1,13 +1,19 @@
 package nl.tudelft.trustchain.offlineeuro.communication
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
-import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
-import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
-import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
@@ -15,7 +21,11 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
+import nl.tudelft.trustchain.offlineeuro.entity.Bank
+import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
+import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
+import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import org.junit.Assert
 import org.junit.Before
@@ -55,21 +65,32 @@ class IPV8CommunicationProtocolTest {
     private val transactionResult = "Successful Transaction!"
 
     private val initialBilinearGroup = BilinearGroup(PairingTypes.FromFile)
-    private val addressBookManager = AddressBookManager(context, ttpBilinearGroup, driver)
-    private val userMockMessageList = arrayListOf<ICommunityMessage>()
+    private val addressBookManager = AddressBookManager(context, initialBilinearGroup, driver)
 
-    private val iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+    // Used Mocks
+    private val bank = Mockito.mock(Bank::class.java)
+    private val userRandomness: HashMap<Element, Element> = hashMapOf()
+
+    private val user = Mockito.mock(User::class.java)
+    private val receivingPeer = Mockito.mock(Peer::class.java)
+
+    private val iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community, user, bank)
 
     @Before
     fun setup() {
-        `when` (community.messageList).thenReturn(userMockMessageList)
+        `when` (community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
 
         `when`(community.getGroupDescriptionAndCRS()).then {
-            val message = BilinearGroupCRSMessage(ttpBilinearGroup.toGroupElementBytes(), ttpCRS.first.toCRSBytes())
+            val message = BilinearGroupCRSReplyMessage(ttpBilinearGroup.toGroupElementBytes(), ttpCRS.first.toCRSBytes())
             community.messageList.add(message)
         }
 
+        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any())).then {  }
+
         `when`(community.registerAtTTP(any(), any(), any())).then { }
+
+        `when`(community.sendBlindSignatureRandomnessReply(any(), any())).then { }
+        `when`(community.sendBlindSignature(any(), any())).then { }
 
         `when`(community.getBlindSignatureRandomness(any(), any())).then {
             val message = BlindSignatureRandomnessReplyMessage(blindSignatureRandomness.toBytes())
@@ -82,7 +103,7 @@ class IPV8CommunicationProtocolTest {
         }
 
         `when`(community.getTransactionRandomizationElements(any())).then {
-            val message = TransactionRandomizationElementsMessage(randomizationElements.toRandomizationElementsBytes())
+            val message = TransactionRandomizationElementsReplyMessage(randomizationElements.toRandomizationElementsBytes())
             community.messageList.add(message)
         }
 
@@ -106,6 +127,18 @@ class IPV8CommunicationProtocolTest {
     }
 
     @Test
+    fun sendBilinearGroupAndCRSTest() {
+        val message = BilinearGroupCRSRequestMessage(receivingPeer)
+
+        val expectedGroupElements = CentralAuthority.groupDescription.toGroupElementBytes()
+        val expectedCRSBytes = CentralAuthority.crs.toCRSBytes()
+
+        community.messageList.add(message)
+        verify(community, times(1))
+            .sendGroupDescriptionAndCRS(expectedGroupElements, expectedCRSBytes, receivingPeer)
+    }
+
+    @Test
     fun registrationTest() {
         val publicKey = ttpBilinearGroup.generateRandomElementOfG()
         val userName = "UserTryingToRegister"
@@ -124,6 +157,19 @@ class IPV8CommunicationProtocolTest {
     }
 
     @Test
+    fun sendBlindSignatureRandomnessTest() {
+        val givenRandomness = CentralAuthority.groupDescription.generateRandomElementOfG()
+        val publicKey = CentralAuthority.groupDescription.generateRandomElementOfG()
+        `when`(bank.getBlindSignatureRandomness(any())).thenReturn(givenRandomness)
+
+        val requestMessage = BlindSignatureRandomnessRequestMessage(publicKey.toBytes(), receivingPeer)
+        community.messageList.add(requestMessage)
+
+        verify(bank, times(1)).getBlindSignatureRandomness(publicKey)
+        verify(community, times(1)).sendBlindSignatureRandomnessReply(givenRandomness.toBytes(), receivingPeer)
+    }
+
+    @Test
     fun requestBlindSignatureTest() {
         addressBookManager.insertAddress(bankAddress)
         val publicKey = ttpBilinearGroup.generateRandomElementOfG()
@@ -131,6 +177,20 @@ class IPV8CommunicationProtocolTest {
         val signature = iPV8CommunicationProtocol.requestBlindSignature(publicKey, bankAddress.name, challenge)
         verify(community, times(1)).getBlindSignature(challenge, publicKey.toBytes(), bankAddress.peerPublicKey!!)
         Assert.assertEquals("The returned signature should be correct", blindSignature, signature)
+    }
+
+    @Test
+    fun sendBlindSignatureTest() {
+        val challenge = BigInteger("321321521421097502142")
+        val publicKey = CentralAuthority.groupDescription.generateRandomElementOfG()
+        val signature = BigInteger("2457921903721896428193682163921")
+        `when`(bank.createBlindSignature(challenge, publicKey)).thenReturn(signature)
+
+        val blindSignatureRequestMessage = BlindSignatureRequestMessage(challenge, publicKey.toBytes(), receivingPeer)
+        community.messageList.add(blindSignatureRequestMessage)
+
+        verify(bank, times(1)).createBlindSignature(challenge, publicKey)
+        verify(community, times(1)).sendBlindSignature(signature, receivingPeer)
     }
 
     @Test
@@ -142,12 +202,50 @@ class IPV8CommunicationProtocolTest {
     }
 
     @Test
+    fun sendTransactionRandomnessTest() {
+        val randomT = ttpBilinearGroup.getRandomZr()
+        val randomizationElements = GrothSahai.tToRandomizationElements(randomT, ttpBilinearGroup, ttpCRS.first)
+        val publicKey = ttpBilinearGroup.generateRandomElementOfG()
+        `when`(user.group).thenReturn(ttpBilinearGroup)
+        `when`(user.generateRandomizationElements(any())).thenReturn(randomizationElements)
+        `when`(community.sendTransactionRandomizationElements(any(), any())).then {  }
+
+
+        val requestMessage = TransactionRandomizationElementsRequestMessage(publicKey.toBytes(), receivingPeer)
+        community.messageList.add(requestMessage)
+
+        verify(user, times(1)).generateRandomizationElements(publicKey)
+        verify(community, times(1)).sendTransactionRandomizationElements(randomizationElements.toRandomizationElementsBytes(), receivingPeer)
+    }
+
+    @Test
     fun sendTransactionDetailsTest() {
         addressBookManager.insertAddress(receiverAddress)
         val transactionDetails = Mockito.mock(TransactionDetails::class.java)
         val result = iPV8CommunicationProtocol.sendTransactionDetails(receiverAddress.name, transactionDetails)
         verify(community, times(1)).sendTransactionDetails(receiverAddress.peerPublicKey!!, transactionDetails)
         Assert.assertEquals("The returned result should be correct", transactionResult, result)
+    }
+
+    @Test
+    fun onTransactionDetailsReceived() {
+        addressBookManager.insertAddress(bankAddress)
+        val transactionDetails = Mockito.mock(TransactionDetails::class.java)
+        val transactionDetailsBytes = Mockito.mock(TransactionDetailsBytes::class.java)
+        val publicKeySender = ttpBilinearGroup.generateRandomElementOfG()
+        val result = "Transaction Mocking"
+
+        `when`(transactionDetailsBytes.toTransactionDetails(ttpBilinearGroup)).thenReturn(transactionDetails)
+        `when`(user.group).thenReturn(ttpBilinearGroup)
+        `when`(user.onReceivedTransaction(transactionDetails, bankPK, publicKeySender)).thenReturn(result)
+        `when`(community.sendTransactionResult(result, receivingPeer)).then {  }
+
+        val message = TransactionMessage(publicKeySender.toBytes(), transactionDetailsBytes, receivingPeer)
+        community.messageList.add(message)
+
+        verify(user, times(1)).onReceivedTransaction(transactionDetails, bankPK, publicKeySender)
+        verify(community, times(1)).sendTransactionResult(result, receivingPeer)
+
     }
 
 }

@@ -1,15 +1,20 @@
 package nl.tudelft.trustchain.offlineeuro.community.message
 
 enum class CommunityMessageType {
+    GroupDescriptionCRSRequestMessage,
+    GroupDescriptionCRSReplyMessage,
 
-    GroupDescriptionCRS,
     TTPRegistrationMessage,
+
     BlindSignatureRandomnessRequestMessage,
     BlindSignatureRandomnessReplyMessage,
+
     BlindSignatureRequestMessage,
     BlindSignatureReplyMessage,
-    TransactionRequestMessage,
-    TransactionRandomnessMessage,
+
+    TransactionRandomnessRequestMessage,
+    TransactionRandomnessReplyMessage,
+
     TransactionMessage,
     TransactionResultMessage
 }

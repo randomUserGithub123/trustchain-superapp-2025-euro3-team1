@@ -8,6 +8,21 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
 
+data class DigitalEuroBytes(
+    val serialNumberBytes: ByteArray,
+    val firstTheta1Bytes: ByteArray,
+    val signatureBytes: ByteArray,
+    val proofsBytes: ByteArray,
+) {
+    fun toDigitalEuro(group: BilinearGroup): DigitalEuro {
+        return DigitalEuro(
+            serialNumberBytes.toString(Charsets.UTF_8),
+            group.gElementFromBytes(firstTheta1Bytes),
+            SchnorrSignatureSerializer.deserializeSchnorrSignatureBytes(signatureBytes)!!,
+            GrothSahaiSerializer.deserializeProofListBytes(proofsBytes, group)
+        )
+    }
+}
 data class DigitalEuro (
     val serialNumber: String,
     val firstTheta1: Element,
@@ -44,5 +59,15 @@ data class DigitalEuro (
         val proofByteSize = proofBytes?.size ?: 0
 
         return serialNumberBytes.size + firstTheta1Bytes.size + signatureByteSize + proofByteSize
+    }
+
+    fun toDigitalEuroBytes(): DigitalEuroBytes {
+        val proofBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofs)
+        return DigitalEuroBytes(
+            serialNumber.toByteArray(),
+            firstTheta1.toBytes(),
+            SchnorrSignatureSerializer.serializeSchnorrSignature(signature)!!,
+            proofBytes?: ByteArray(0)
+        )
     }
 }

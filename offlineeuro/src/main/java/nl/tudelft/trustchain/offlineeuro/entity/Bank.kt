@@ -16,7 +16,7 @@ class Bank (
     val publicKey: Element
     val group = CentralAuthority.groupDescription
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
-    private val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
+    val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
     init {
         privateKey = group.getRandomZr()
         publicKey = group.g.powZn(privateKey)
