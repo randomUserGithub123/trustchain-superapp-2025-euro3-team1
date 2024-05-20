@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.communication
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
@@ -20,18 +21,16 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
+import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
-import nl.tudelft.trustchain.offlineeuro.entity.User
 import java.math.BigInteger
 
 class IPV8CommunicationProtocol(
     val addressBookManager: AddressBookManager,
     val community: OfflineEuroCommunity,
-    val user: User? = null,
-    val bank: Bank? = null
-
     ) : ICommunicationProtocol {
 
     val messageList = MessageList(this::handleRequestMessage)
@@ -42,6 +41,7 @@ class IPV8CommunicationProtocol(
 
     private val SLEEP_DURATION: Long = 100
     private val MAX_WAIT_DURATION_MS = 5000
+    override lateinit var participant: Participant
 
     override fun getGroupDescriptionAndCRS(): Pair<BilinearGroup, CRS> {
         community.getGroupDescriptionAndCRS()
@@ -95,8 +95,9 @@ class IPV8CommunicationProtocol(
         userNameReceiver: String,
         transactionDetails: TransactionDetails
     ) : String {
+        val test = addressBookManager.getAllAddresses()
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
-        community.sendTransactionDetails(peerAddress.peerPublicKey!!, transactionDetails)
+        community.sendTransactionDetails(peerAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
         val message = waitForMessage(CommunityMessageType.TransactionResultMessage) as TransactionResultMessage
         return message.result
     }
@@ -123,6 +124,11 @@ class IPV8CommunicationProtocol(
 
         return message
     }
+    private fun handleAddressMessage(message: AddressMessage) {
+        val publicKey = participant.group.gElementFromBytes(message.publicKeyBytes)
+        val address = Address(message.name, message.role, publicKey, message.peerPublicKey)
+        addressBookManager.insertAddress(address)
+    }
 
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
         val groupBytes = CentralAuthority.groupDescription.toGroupElementBytes()
@@ -132,10 +138,10 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleBlindSignatureRandomnessRequest(message: BlindSignatureRandomnessRequestMessage) {
-        if (bank == null) {
-            throw Exception("Bank is not initialized")
+        if (participant !is Bank) {
+            throw Exception("Participant is not a bank")
         }
-        // TODO FIX GROUP HERE
+        val bank = (participant as Bank)
         val publicKey = CentralAuthority.groupDescription.gElementFromBytes(message.publicKeyBytes)
         val randomness = bank.getBlindSignatureRandomness(publicKey)
         val requestingPeer = message.peer
@@ -143,10 +149,11 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleBlindSignatureRequestMessage(message: BlindSignatureRequestMessage) {
-        if (bank == null) {
-            throw Exception("Bank is not initialized")
+        if (participant !is Bank) {
+            throw Exception("Participant is not a bank")
         }
-        // TODO FIX GROUP HERE
+        val bank = (participant as Bank)
+
         val publicKey = CentralAuthority.groupDescription.gElementFromBytes(message.publicKeyBytes)
         val challenge = message.challenge
         val signature = bank.createBlindSignature(challenge, publicKey)
@@ -155,32 +162,24 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleTransactionRandomizationElementsRequest(message: TransactionRandomizationElementsRequestMessage) {
-        if (user == null) {
-            throw Exception("User is not initialized")
-        }
-
-        val group = user.group
+        val group = participant.group
         val publicKey = group.gElementFromBytes(message.publicKey)
         val requestingPeer = message.requestingPeer
 
-        val randomizationElements = user.generateRandomizationElements(publicKey)
+        val randomizationElements = participant.generateRandomizationElements(publicKey)
         val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
         community.sendTransactionRandomizationElements(randomizationElementBytes, requestingPeer)
 
     }
 
     private fun handleTransactionMessage(message: TransactionMessage) {
-        if (user == null) {
-            throw Exception("User is not initialized")
-        }
-
         val bankPublicKey = addressBookManager.getAddressByName("Bank").publicKey
 
-        val group = user.group
+        val group = participant.group
         val publicKey = group.gElementFromBytes(message.publicKeyBytes)
         val transactionDetailsBytes = message.transactionDetailsBytes
         val transactionDetails = transactionDetailsBytes.toTransactionDetails(group)
-        val transactionResult = user.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
+        val transactionResult = participant.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
         val requestingPeer = message.requestingPeer
         community.sendTransactionResult(transactionResult, requestingPeer)
 
@@ -190,6 +189,7 @@ class IPV8CommunicationProtocol(
     private fun handleRequestMessage(message: ICommunityMessage) {
 
         when (message) {
+            is AddressMessage -> handleAddressMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
             is BlindSignatureRandomnessRequestMessage -> handleBlindSignatureRandomnessRequest(message)
             is BlindSignatureRequestMessage -> handleBlindSignatureRequestMessage(message)

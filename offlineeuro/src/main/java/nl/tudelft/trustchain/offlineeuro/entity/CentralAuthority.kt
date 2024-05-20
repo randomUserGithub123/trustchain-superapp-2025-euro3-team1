@@ -6,11 +6,12 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 
 object CentralAuthority {
 
-    val groupDescription: BilinearGroup = BilinearGroup()
+    val groupDescription: BilinearGroup = BilinearGroup(PairingTypes.FromFile)
     private val CRSPair = CRSGenerator.generateCRSMap(groupDescription)
     private val crsMap = CRSPair.second
     private var registeredUserManager: RegisteredUserManager? = null

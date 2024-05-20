@@ -3,54 +3,40 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
-import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
-import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
-import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
 
 class User (
-    var name: String,
+    name: String,
     context: Context?,
     private var walletManager: WalletManager? = null,
-    private val communicationProtocol: ICommunicationProtocol
-)
+    communicationProtocol: ICommunicationProtocol
+) : Participant(communicationProtocol, name)
 {
-    private val privateKey: Element
-    val publicKey: Element
     val wallet: Wallet
-    val group: BilinearGroup
-    val randomizationElementMap: HashMap<Element, Element> = hashMapOf()
-    private val crs: CRS
-
 
     init {
-        val groupAndCRS = communicationProtocol.getGroupDescriptionAndCRS()
-        group = groupAndCRS.first
-        crs = groupAndCRS.second
-
-        privateKey = group.getRandomZr()
-        publicKey = group.g.powZn(privateKey)
-
+        setUp()
+        communicationProtocol.participant = this
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
         }
 
         wallet = Wallet(privateKey, publicKey, walletManager!!)
-        // TODO NAME OF TTP
-        communicationProtocol.register(name, publicKey, "TTP")
+
     }
 
-    fun generateRandomizationElements(receiverPublicKey: Element): RandomizationElements {
-        val randomT = group.getRandomZr()
-        randomizationElementMap[receiverPublicKey] = randomT
-        return GrothSahai.tToRandomizationElements(randomT, group, crs)
-    }
+
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails = wallet.spendEuro(randomizationElements)
+        return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
+    }
+
+    fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
+        val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
+        val transactionDetails = wallet.doubleSpendEuro(randomizationElements)
         return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
     }
 
@@ -73,10 +59,11 @@ class User (
         return digitalEuro
     }
 
-    fun onReceivedTransaction(transactionDetails: TransactionDetails,
+    override fun onReceivedTransaction(transactionDetails: TransactionDetails,
                               publicKeyBank: Element,
                               publicKeySender: Element): String {
-        val usedRandomness = randomizationElementMap[publicKeySender] ?: return "Randomness Not found!"
+
+        val usedRandomness = lookUpRandomness(publicKeySender)?: return "Randomness Not found!"
 
         val isValid = Transaction.validate(transactionDetails, publicKeyBank)
 

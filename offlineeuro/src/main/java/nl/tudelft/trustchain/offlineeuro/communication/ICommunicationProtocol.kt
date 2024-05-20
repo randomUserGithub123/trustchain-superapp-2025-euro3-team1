@@ -4,10 +4,13 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
+import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import java.math.BigInteger
 
 interface ICommunicationProtocol {
+
+    var participant: Participant
 
     fun getGroupDescriptionAndCRS(): Pair<BilinearGroup, CRS>
     fun register(userName: String, publicKey: Element, nameTTP: String)

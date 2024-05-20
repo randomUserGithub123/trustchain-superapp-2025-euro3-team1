@@ -2,24 +2,25 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import java.math.BigInteger
 import kotlin.math.min
 
 class Bank (
-    val name: String = "BestBank",
+    name: String,
+    communicationProtocol: ICommunicationProtocol,
     private val context: Context?,
     private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, CentralAuthority.groupDescription)
-){
-    private val privateKey: Element
-    val publicKey: Element
-    val group = CentralAuthority.groupDescription
+): Participant(communicationProtocol, name) {
+
+
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
     init {
-        privateKey = group.getRandomZr()
-        publicKey = group.g.powZn(privateKey)
+        communicationProtocol.participant = this
+        setUp()
     }
 
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {
@@ -33,12 +34,23 @@ class Bank (
     }
 
     fun createBlindSignature(challenge: BigInteger, userPublicKey: Element): BigInteger {
-        val k = withdrawUserRandomness[userPublicKey] ?: return BigInteger.ZERO
+        val k = lookUp(userPublicKey) ?: return BigInteger.ZERO
         withdrawUserRandomness.remove(userPublicKey)
         // <Subtract balance here>
         return Schnorr.signBlindedChallenge(k, challenge, privateKey)
     }
 
+    private fun lookUp(userPublicKey: Element): Element? {
+
+        for(element in withdrawUserRandomness.entries) {
+            val key = element.key
+
+            if (key == userPublicKey)
+                return element.value
+        }
+
+        return null
+    }
     private fun depositEuro(euro: DigitalEuro): String {
 
         val duplicateEuros = depositedEuroManager.getDigitalEurosByDescriptor(euro)
@@ -87,5 +99,18 @@ class Bank (
 
     fun getDepositedTokens(): List<DigitalEuro> {
         return depositedEuros
+    }
+
+    override fun onReceivedTransaction(
+        transactionDetails: TransactionDetails,
+        publicKeyBank: Element,
+        publicKeySender: Element
+    ): String {
+        val isValid = Transaction.validate(transactionDetails, publicKeyBank)
+        if (isValid) {
+            return depositEuro(transactionDetails.digitalEuro)
+        }
+
+        return "Invalid Transaction"
     }
 }

@@ -28,7 +28,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
-import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
+import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.math.BigInteger
 
@@ -102,12 +102,6 @@ class OfflineEuroCommunity (
 
 
     fun onGetGroupDescriptionAndCRS(requestingPeer: Peer) {
-
-        // TODO SPLIT TO TTP AND BANK
-        if (role != Role.Bank) {
-            return
-        }
-
         val message = BilinearGroupCRSRequestMessage(requestingPeer)
         messageList.add(message)
     }
@@ -303,7 +297,7 @@ class OfflineEuroCommunity (
         messageList.add(message)
     }
 
-    fun sendTransactionDetails(publicKeyReceiver: ByteArray, transactionDetails: TransactionDetails) {
+    fun sendTransactionDetails(publicKeyReceiver: ByteArray, transactionDetails: TransactionDetailsBytes) {
         //TODO
     }
     fun onTransactionPacket(packet: Packet) {

@@ -67,14 +67,12 @@ class IPV8CommunicationProtocolTest {
     private val initialBilinearGroup = BilinearGroup(PairingTypes.FromFile)
     private val addressBookManager = AddressBookManager(context, initialBilinearGroup, driver)
 
-    // Used Mocks
-    private val bank = Mockito.mock(Bank::class.java)
+
     private val userRandomness: HashMap<Element, Element> = hashMapOf()
 
-    private val user = Mockito.mock(User::class.java)
     private val receivingPeer = Mockito.mock(Peer::class.java)
 
-    private val iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community, user, bank)
+    private val iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
     @Before
     fun setup() {
@@ -158,6 +156,9 @@ class IPV8CommunicationProtocolTest {
 
     @Test
     fun sendBlindSignatureRandomnessTest() {
+        val bank = Mockito.mock(Bank::class.java)
+        iPV8CommunicationProtocol.participant = bank
+
         val givenRandomness = CentralAuthority.groupDescription.generateRandomElementOfG()
         val publicKey = CentralAuthority.groupDescription.generateRandomElementOfG()
         `when`(bank.getBlindSignatureRandomness(any())).thenReturn(givenRandomness)
@@ -171,6 +172,8 @@ class IPV8CommunicationProtocolTest {
 
     @Test
     fun requestBlindSignatureTest() {
+        val bank = Mockito.mock(Bank::class.java)
+        iPV8CommunicationProtocol.participant = bank
         addressBookManager.insertAddress(bankAddress)
         val publicKey = ttpBilinearGroup.generateRandomElementOfG()
         val challenge = BigInteger("12352132521521321521312")
@@ -181,6 +184,9 @@ class IPV8CommunicationProtocolTest {
 
     @Test
     fun sendBlindSignatureTest() {
+        val bank = Mockito.mock(Bank::class.java)
+        iPV8CommunicationProtocol.participant = bank
+
         val challenge = BigInteger("321321521421097502142")
         val publicKey = CentralAuthority.groupDescription.generateRandomElementOfG()
         val signature = BigInteger("2457921903721896428193682163921")
@@ -203,6 +209,9 @@ class IPV8CommunicationProtocolTest {
 
     @Test
     fun sendTransactionRandomnessTest() {
+        val user = Mockito.mock(User::class.java)
+        iPV8CommunicationProtocol.participant = user
+
         val randomT = ttpBilinearGroup.getRandomZr()
         val randomizationElements = GrothSahai.tToRandomizationElements(randomT, ttpBilinearGroup, ttpCRS.first)
         val publicKey = ttpBilinearGroup.generateRandomElementOfG()
@@ -223,12 +232,15 @@ class IPV8CommunicationProtocolTest {
         addressBookManager.insertAddress(receiverAddress)
         val transactionDetails = Mockito.mock(TransactionDetails::class.java)
         val result = iPV8CommunicationProtocol.sendTransactionDetails(receiverAddress.name, transactionDetails)
-        verify(community, times(1)).sendTransactionDetails(receiverAddress.peerPublicKey!!, transactionDetails)
+        verify(community, times(1)).sendTransactionDetails(receiverAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
         Assert.assertEquals("The returned result should be correct", transactionResult, result)
     }
 
     @Test
     fun onTransactionDetailsReceived() {
+        val user = Mockito.mock(User::class.java)
+        iPV8CommunicationProtocol.participant = user
+
         addressBookManager.insertAddress(bankAddress)
         val transactionDetails = Mockito.mock(TransactionDetails::class.java)
         val transactionDetailsBytes = Mockito.mock(TransactionDetailsBytes::class.java)

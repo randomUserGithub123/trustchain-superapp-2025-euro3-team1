@@ -140,4 +140,12 @@ class BilinearGroup(
     fun toGroupElementBytes(): BilinearGroupElementsBytes {
         return BilinearGroupElementsBytes(g.toBytes(), h.toBytes(), gt.toBytes())
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || other !is BilinearGroup) return false
+
+        return this.g == other.g && this.h == other.h && this.gt == other.gt && this.pairing == other.pairing
+    }
+
 }

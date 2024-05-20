@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.community.message
 class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommunityMessage) -> Unit): ArrayList<ICommunityMessage>() {
 
     private val requestMessageTypes = setOf(
+        AddressMessage::class.java,
         BilinearGroupCRSRequestMessage::class.java,
         BlindSignatureRandomnessRequestMessage::class.java,
         BlindSignatureRequestMessage::class.java,
