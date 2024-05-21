@@ -12,7 +12,6 @@ open class OfflineEuroManager(
     private val bilinearGroup: BilinearGroup,
     driver: SqlDriver,
 ) {
-
     private val gSS = GrothSahaiSerializer
     private val sSS = SchnorrSignatureSerializer
     protected val database: Database = Database(driver)
@@ -25,8 +24,7 @@ open class OfflineEuroManager(
         return sSS.serializeSchnorrSignature(schnorrSignature)
     }
 
-
-    protected fun deserializeGSP(byteArray: ByteArray?) : ArrayList<GrothSahaiProof> {
+    protected fun deserializeGSP(byteArray: ByteArray?): ArrayList<GrothSahaiProof> {
         return gSS.deserializeProofListBytes(byteArray, bilinearGroup)
     }
 

@@ -43,7 +43,6 @@ data class BilinearGroupElements(
     val g: Element,
     val h: Element,
     val gt: Element
-
 )
 
 class BilinearGroup(
@@ -57,7 +56,8 @@ class BilinearGroup(
 
     init {
 
-            pairing = when (pairingType) {
+        pairing =
+            when (pairingType) {
                 PairingTypes.F -> {
                     // JPBC Type F pairing for asymmetric pairings
                     val params = TypeFCurveGenerator(rBits).generate()
@@ -78,7 +78,7 @@ class BilinearGroup(
                 }
 
                 PairingTypes.FromFile -> {
-                    PairingFactory.getPairing("lib/params/a_181_603.properties");
+                    PairingFactory.getPairing("lib/params/a_181_603.properties")
                 }
             }
 
@@ -93,12 +93,14 @@ class BilinearGroup(
         this.gt = pairing.gt.newElementFromBytes(groupElementsBytes.gt).immutable
     }
 
-
     fun getRandomZr(): Element {
         return pairing.zr.newRandomElement().immutable
     }
 
-    fun pair(elementG: Element,  elementH: Element): Element {
+    fun pair(
+        elementG: Element,
+        elementH: Element
+    ): Element {
         return pairing.pairing(elementG, elementH).immutable
     }
 
@@ -147,5 +149,4 @@ class BilinearGroup(
 
         return this.g == other.g && this.h == other.h && this.gt == other.gt && this.pairing == other.pairing
     }
-
 }

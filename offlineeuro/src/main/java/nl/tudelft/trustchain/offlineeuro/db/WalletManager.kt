@@ -11,12 +11,11 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 import nl.tudelft.trustchain.offlineeuro.entity.WalletEntry
 
-class WalletManager (
+class WalletManager(
     context: Context?,
     private val group: BilinearGroup,
     driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "wallet.db"),
 ) : OfflineEuroManager(group, driver) {
-
     private val queries: WalletQueries = database.walletQueries
     private val walletEntryMapper = {
             serialNumber: String,
@@ -55,7 +54,6 @@ class WalletManager (
      * @return true iff registering the user is successful.
      */
     fun insertWalletEntry(walletEntry: WalletEntry): Boolean {
-
         val digitalEuro = walletEntry.digitalEuro
 
         try {
@@ -66,10 +64,9 @@ class WalletManager (
                 serialize(digitalEuro.proofs),
                 walletEntry.t.toBytes(),
                 serialize(walletEntry.transactionSignature)
-                )
+            )
             return true
-        }
-        catch (e: SQLiteException) {
+        } catch (e: SQLiteException) {
             // TODO Perhaps throw specific custom exception to indicate which property was not unique
             return false
         }
@@ -96,15 +93,24 @@ class WalletManager (
     }
 
     fun incrementTimesSpent(digitalEuro: DigitalEuro) {
-        queries.incrementTimesSpent(digitalEuro.serialNumber, digitalEuro.firstTheta1.toBytes(), serialize(digitalEuro.signature)!!, serialize(digitalEuro.proofs))
+        queries.incrementTimesSpent(
+            digitalEuro.serialNumber,
+            digitalEuro.firstTheta1.toBytes(),
+            serialize(digitalEuro.signature)!!,
+            serialize(digitalEuro.proofs)
+        )
     }
 
     fun getWalletEntryByDigitalEuro(digitalEuro: DigitalEuro): WalletEntry? {
-        return queries.getWalletEntryByDescriptor(digitalEuro.serialNumber, digitalEuro.firstTheta1.toBytes(), serialize(digitalEuro.signature)!!, walletEntryMapper).executeAsOneOrNull()
+        return queries.getWalletEntryByDescriptor(
+            digitalEuro.serialNumber,
+            digitalEuro.firstTheta1.toBytes(),
+            serialize(digitalEuro.signature)!!,
+            walletEntryMapper
+        ).executeAsOneOrNull()
     }
 
     fun clearWalletEntries() {
         queries.clearWalletTable()
     }
-
 }

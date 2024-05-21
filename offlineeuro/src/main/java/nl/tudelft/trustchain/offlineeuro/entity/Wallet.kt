@@ -10,8 +10,7 @@ data class WalletEntry(
     val t: Element,
     val transactionSignature: SchnorrSignature?,
     val timesSpent: Long = 0
-)
-{
+) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -29,8 +28,10 @@ class Wallet(
     val publicKey: Element,
     private val walletManager: WalletManager
 ) {
-
-    fun addToWallet(transactionDetails: TransactionDetails, t: Element){
+    fun addToWallet(
+        transactionDetails: TransactionDetails,
+        t: Element
+    ) {
         val digitalEuro = transactionDetails.digitalEuro
         digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
 
@@ -39,7 +40,10 @@ class Wallet(
         walletManager.insertWalletEntry(walletEntry)
     }
 
-    fun addToWallet(digitalEuro: DigitalEuro, t: Element) {
+    fun addToWallet(
+        digitalEuro: DigitalEuro,
+        t: Element
+    ) {
         walletManager.insertWalletEntry(WalletEntry(digitalEuro, t, null))
     }
 

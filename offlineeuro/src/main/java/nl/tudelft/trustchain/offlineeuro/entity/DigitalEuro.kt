@@ -23,13 +23,13 @@ data class DigitalEuroBytes(
         )
     }
 }
-data class DigitalEuro (
+
+data class DigitalEuro(
     val serialNumber: String,
     val firstTheta1: Element,
     val signature: SchnorrSignature,
     val proofs: ArrayList<GrothSahaiProof> = arrayListOf(),
 ) {
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DigitalEuro) return false
@@ -42,10 +42,12 @@ data class DigitalEuro (
         return this.serialNumber == other.serialNumber &&
             this.firstTheta1 == other.firstTheta1 &&
             this.signature == other.signature
-
     }
 
-    fun verifySignature(publicKeySigner: Element, group: BilinearGroup): Boolean {
+    fun verifySignature(
+        publicKeySigner: Element,
+        group: BilinearGroup
+    ): Boolean {
         return Schnorr.verifySchnorrSignature(signature, publicKeySigner, group)
     }
 
@@ -67,7 +69,7 @@ data class DigitalEuro (
             serialNumber.toByteArray(),
             firstTheta1.toBytes(),
             SchnorrSignatureSerializer.serializeSchnorrSignature(signature)!!,
-            proofBytes?: ByteArray(0)
+            proofBytes ?: ByteArray(0)
         )
     }
 }

@@ -2,8 +2,8 @@ package nl.tudelft.trustchain.offlineeuro.community.message
 
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 
-class TransactionRandomizationElementsReplyMessage (
+class TransactionRandomizationElementsReplyMessage(
     val randomizationElementsBytes: RandomizationElementsBytes,
-): ICommunityMessage {
+) : ICommunityMessage {
     override val messageType = CommunityMessageType.TransactionRandomnessReplyMessage
 }

@@ -24,7 +24,6 @@ class ByteArrayPayload(
             val (publicKeyBytes, publicKeySize) = deserializeVarLen(buffer, localOffset)
             localOffset += publicKeySize
 
-
             return Pair(
                 ByteArrayPayload(publicKeyBytes),
                 localOffset - offset

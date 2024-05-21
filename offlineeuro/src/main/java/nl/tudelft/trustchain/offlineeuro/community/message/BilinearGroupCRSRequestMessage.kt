@@ -2,8 +2,8 @@ package nl.tudelft.trustchain.offlineeuro.community.message
 
 import nl.tudelft.ipv8.Peer
 
-class BilinearGroupCRSRequestMessage (
+class BilinearGroupCRSRequestMessage(
     val requestingPeer: Peer
-): ICommunityMessage {
+) : ICommunityMessage {
     override val messageType = CommunityMessageType.GroupDescriptionCRSRequestMessage
 }

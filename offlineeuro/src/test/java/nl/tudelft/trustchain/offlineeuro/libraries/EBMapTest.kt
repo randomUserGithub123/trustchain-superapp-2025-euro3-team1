@@ -6,8 +6,8 @@ import org.junit.Assert
 import org.junit.Test
 
 class EBMapTest {
-
     private val group = BilinearGroup()
+
     @Test
     fun noComputeMapTest() {
         val elementList = arrayListOf<Element>()
@@ -43,12 +43,13 @@ class EBMapTest {
             elementList.add(element)
         }
 
-        val expectedPairings = arrayListOf<Element>(
-            group.pair(elementList[0], elementList[2]),
-            group.pair(elementList[0], elementList[3]),
-            group.pair(elementList[1], elementList[2]),
-            group.pair(elementList[1], elementList[3]),
-        )
+        val expectedPairings =
+            arrayListOf<Element>(
+                group.pair(elementList[0], elementList[2]),
+                group.pair(elementList[0], elementList[3]),
+                group.pair(elementList[1], elementList[2]),
+                group.pair(elementList[1], elementList[3]),
+            )
 
         val ebMap = EBMap(elementList, group)
         Assert.assertEquals(expectedPairings[0], ebMap[0, 0])

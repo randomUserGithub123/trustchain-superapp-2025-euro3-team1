@@ -16,14 +16,15 @@ import java.math.BigInteger
 import java.util.UUID
 
 class WalletManagerTest {
-
-    private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
-        Database.Schema.create(this)
-    }
+    private val driver =
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
+            Database.Schema.create(this)
+        }
 
     private val upperBound = BigInteger("9999999999")
     private val group = BilinearGroup()
     private val walletManager = WalletManager(null, group, driver)
+
     @Before
     fun before() {
         walletManager.clearWalletEntries()
@@ -36,25 +37,27 @@ class WalletManagerTest {
             UUID.randomUUID().toString().toByteArray()
         )
     }
-    private fun getRandomWalletEntry(proofCount: Int): WalletEntry {
-        val randomDigitalEuro = DigitalEuro(
-            UUID.randomUUID().toString(),
-            group.generateRandomElementOfG(),
-            generateRandomSignature(),
-            arrayListOf()
-        )
 
-        if (proofCount == 0)
+    private fun getRandomWalletEntry(proofCount: Int): WalletEntry {
+        val randomDigitalEuro =
+            DigitalEuro(
+                UUID.randomUUID().toString(),
+                group.generateRandomElementOfG(),
+                generateRandomSignature(),
+                arrayListOf()
+            )
+
+        if (proofCount == 0) {
             return WalletEntry(randomDigitalEuro, group.getRandomZr(), null)
+        }
 
         val signature = generateRandomSignature()
-        for (i in 0 until  proofCount) {
+        for (i in 0 until proofCount) {
             val proofToAdd = generateRandomInvalidProof()
             randomDigitalEuro.proofs.add(proofToAdd)
         }
         return WalletEntry(randomDigitalEuro, group.getRandomZr(), signature)
     }
-
 
     @Test
     fun addAndRetrieveNewEuroTest() {
@@ -74,7 +77,6 @@ class WalletManagerTest {
 
         val allSpentEntries = walletManager.getWalletEntriesToDoubleSpend()
         Assert.assertTrue("There should be no WalletEntry to double spend", allSpentEntries.isEmpty())
-
     }
 
     @Test
@@ -105,8 +107,16 @@ class WalletManagerTest {
         // Only the times spend should differ by one
         Assert.assertEquals("The Euro should be unchanged", walletEntry.digitalEuro, retrievedSpentWalletEntry?.digitalEuro)
         Assert.assertEquals("The used t should be unchanged", walletEntry.t, retrievedSpentWalletEntry?.t)
-        Assert.assertEquals("The signature should be unchanged", walletEntry.transactionSignature, retrievedSpentWalletEntry?.transactionSignature)
-        Assert.assertEquals("The times spent should be incremented with 1", walletEntry.timesSpent + 1, retrievedSpentWalletEntry?.timesSpent)
+        Assert.assertEquals(
+            "The signature should be unchanged",
+            walletEntry.transactionSignature,
+            retrievedSpentWalletEntry?.transactionSignature
+        )
+        Assert.assertEquals(
+            "The times spent should be incremented with 1",
+            walletEntry.timesSpent + 1,
+            retrievedSpentWalletEntry?.timesSpent
+        )
 
         val allEntriesAfterSpend = walletManager.getAllDigitalWalletEntries()
         Assert.assertEquals("There should still be one WalletEntry", 1, allEntriesAfterSpend.count())
@@ -116,7 +126,11 @@ class WalletManagerTest {
 
         val allSpentEntriesAfterSpend = walletManager.getWalletEntriesToDoubleSpend()
         Assert.assertEquals("There should be a single spent WalletEntry", 1, allSpentEntriesAfterSpend.count())
-        Assert.assertEquals("The spent wallet entry should be the same as the retrieved one", retrievedSpentWalletEntry, allSpentEntriesAfterSpend.first())
+        Assert.assertEquals(
+            "The spent wallet entry should be the same as the retrieved one",
+            retrievedSpentWalletEntry,
+            allSpentEntriesAfterSpend.first()
+        )
     }
 
     @Test
@@ -156,7 +170,6 @@ class WalletManagerTest {
         val spentEuros = spendIndices.map { createdWalletEntries[it].digitalEuro }
         val spentEntryEuros = spendEntries.map { it.digitalEuro }
         Assert.assertTrue("The spent token list should be correct", spentEuros.containsAll(spentEntryEuros))
-
     }
 
     private fun randomGElement(): Element {
@@ -170,6 +183,7 @@ class WalletManagerTest {
     private fun randomGTElement(): Element {
         return group.generateRandomElementOfGT()
     }
+
     private fun generateRandomInvalidProof(): GrothSahaiProof {
         return GrothSahaiProof(
             randomGElement(),
@@ -183,5 +197,4 @@ class WalletManagerTest {
             randomGTElement()
         )
     }
-
 }

@@ -14,10 +14,7 @@ import nl.tudelft.trustchain.common.ui.BaseFragment
 import nl.tudelft.trustchain.offlineeuro.R
 
 open class OfflineEuroBaseFragment(contentLayoutId: Int = 0) : BaseFragment(contentLayoutId) {
-
     protected val logger = KotlinLogging.logger {}
-
-
 
     private val contactStore by lazy {
         ContactStore.getInstance(requireContext())
@@ -27,10 +24,11 @@ open class OfflineEuroBaseFragment(contentLayoutId: Int = 0) : BaseFragment(cont
         GatewayStore.getInstance(requireContext())
     }
 
-    private val onReceiveListener = object : BlockListener {
-        override fun onBlockReceived(block: TrustChainBlock) {
+    private val onReceiveListener =
+        object : BlockListener {
+            override fun onBlockReceived(block: TrustChainBlock) {
+            }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,7 +36,6 @@ open class OfflineEuroBaseFragment(contentLayoutId: Int = 0) : BaseFragment(cont
         lifecycleScope.launchWhenResumed {
         }
     }
-
 
     override fun onResume() {
         super.onResume()
@@ -48,10 +45,12 @@ open class OfflineEuroBaseFragment(contentLayoutId: Int = 0) : BaseFragment(cont
         super.onPause()
     }
 
-    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+    override fun onCreateOptionsMenu(
+        menu: Menu,
+        inflater: MenuInflater
+    ) {
         inflater.inflate(R.menu.offlineeuro_options, menu)
     }
-
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {

@@ -7,13 +7,12 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
 
-class User (
+class User(
     name: String,
     context: Context?,
     private var walletManager: WalletManager? = null,
     communicationProtocol: ICommunicationProtocol
-) : Participant(communicationProtocol, name)
-{
+) : Participant(communicationProtocol, name) {
     val wallet: Wallet
 
     init {
@@ -24,9 +23,7 @@ class User (
         }
 
         wallet = Wallet(privateKey, publicKey, walletManager!!)
-
     }
-
 
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
@@ -59,11 +56,12 @@ class User (
         return digitalEuro
     }
 
-    override fun onReceivedTransaction(transactionDetails: TransactionDetails,
-                              publicKeyBank: Element,
-                              publicKeySender: Element): String {
-
-        val usedRandomness = lookUpRandomness(publicKeySender)?: return "Randomness Not found!"
+    override fun onReceivedTransaction(
+        transactionDetails: TransactionDetails,
+        publicKeyBank: Element,
+        publicKeySender: Element
+    ): String {
+        val usedRandomness = lookUpRandomness(publicKeySender) ?: return "Randomness Not found!"
 
         val isValid = Transaction.validate(transactionDetails, publicKeyBank)
 
@@ -74,5 +72,4 @@ class User (
 
         return "Invalid Transaction!"
     }
-
 }

@@ -4,7 +4,6 @@ import org.junit.Assert
 import org.junit.Test
 
 class ByteArrayPayloadTest {
-
     @Test
     fun serializeAndDeserializeTest() {
         val byteArray = "NotAPublicKeyButJustSomeBytesAgain".toByteArray()

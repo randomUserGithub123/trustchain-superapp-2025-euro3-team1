@@ -7,7 +7,6 @@ data class CRS(
     val u: Element,
     val gPrime: Element,
     val uPrime: Element,
-
     // Commitment key pairs for the second group G2
     val h: Element,
     val v: Element,
@@ -32,7 +31,7 @@ data class CRS(
         if (other !is CRS) return false
 
         return (
-                this.g == other.g &&
+            this.g == other.g &&
                 this.u == other.u &&
                 this.gPrime == other.gPrime &&
                 this.uPrime == other.uPrime &&
@@ -40,7 +39,7 @@ data class CRS(
                 this.v == other.v &&
                 this.hPrime == other.hPrime &&
                 this.vPrime == other.vPrime
-            )
+        )
     }
 }
 
@@ -49,7 +48,6 @@ data class CRSBytes(
     val u: ByteArray,
     val gPrime: ByteArray,
     val uPrime: ByteArray,
-
     // Commitment key pairs for the second group G2
     val h: ByteArray,
     val v: ByteArray,
@@ -98,11 +96,8 @@ data class CRSBytes(
     }
 }
 
-
 object CRSGenerator {
-
     fun generateCRSMap(bilinearGroup: BilinearGroup): Pair<CRS, Map<Element, Element>> {
-
         val group1 = bilinearGroup.g
         val group2 = bilinearGroup.h
 
@@ -133,16 +128,17 @@ object CRSGenerator {
 
         val crs = CRS(g, u, gPrime, uPrime, h, v, hPrime, vPrime)
 
-        val crsMap = mapOf(
-            g to gGenerator,
-            u to uGenerator,
-            gPrime to gPrimeGenerator,
-            uPrime to uPrimeGenerator,
-            h to hGenerator,
-            v to vGenerator,
-            hPrime to hGenerator,
-            vPrime to vPrimeGenerator
-        )
+        val crsMap =
+            mapOf(
+                g to gGenerator,
+                u to uGenerator,
+                gPrime to gPrimeGenerator,
+                uPrime to uPrimeGenerator,
+                h to hGenerator,
+                v to vGenerator,
+                hPrime to hGenerator,
+                vPrime to vPrimeGenerator
+            )
 
         return Pair(crs, crsMap)
     }

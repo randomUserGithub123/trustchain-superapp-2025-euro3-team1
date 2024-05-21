@@ -11,14 +11,15 @@ import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         view.findViewById<Button>(R.id.JoinAsBankButton).setOnClickListener {
             getIpv8().getOverlay<OfflineEuroCommunity>()!!.role = Role.Bank
             findNavController().navigate(R.id.nav_home_bankhome)
-
         }
 
         view.findViewById<Button>(R.id.JoinAsUserButton).setOnClickListener {
@@ -27,7 +28,11 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
         try {
             val euroTokenCommunity = getIpv8().getOverlay<OfflineEuroCommunity>()
             if (euroTokenCommunity == null) {
@@ -38,7 +43,7 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
                 Toast.makeText(requireContext(), "Found community", Toast.LENGTH_LONG)
                     .show()
             }
-        } catch (e : Exception) {
+        } catch (e: Exception) {
             logger.error { e }
             Toast.makeText(
                 requireContext(),
@@ -50,4 +55,3 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         return
     }
 }
-

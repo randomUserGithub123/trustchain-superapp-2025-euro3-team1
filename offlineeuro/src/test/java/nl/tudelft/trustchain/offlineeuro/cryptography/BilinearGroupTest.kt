@@ -29,5 +29,4 @@ internal class BilinearGroupTest {
         Assert.assertEquals(groupA.h.powZn(randomElementToTest), groupB.h.powZn(randomElementToTest))
         Assert.assertEquals(groupA.gt.powZn(randomElementToTest), groupB.gt.powZn(randomElementToTest))
     }
-
 }

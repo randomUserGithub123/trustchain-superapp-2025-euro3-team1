@@ -7,10 +7,10 @@ import nl.tudelft.ipv8.messaging.serializeVarLen
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 
-class BilinearGroupCRSPayload (
+class BilinearGroupCRSPayload(
     val bilinearGroupElements: BilinearGroupElementsBytes,
     val crs: CRSBytes
-): Serializable {
+) : Serializable {
     override fun serialize(): ByteArray {
         var payload = ByteArray(0)
         payload += serializeVarLen(bilinearGroupElements.g)
@@ -46,7 +46,6 @@ class BilinearGroupCRSPayload (
             val (groupGt, groupGtSize) = deserializeVarLen(buffer, localOffset)
             localOffset += groupGtSize
 
-
             val (crsG, crsGSize) = deserializeVarLen(buffer, localOffset)
             localOffset += crsGSize
 
@@ -72,16 +71,17 @@ class BilinearGroupCRSPayload (
             localOffset += crsVPrimeSize
 
             val groupElementsBytes = BilinearGroupElementsBytes(groupG, groupH, groupGt)
-            val crsBytes = CRSBytes(
-                crsG,
-                crsU,
-                crsGPrime,
-                crsUPrime,
-                crsH,
-                crsV,
-                crsHPrime,
-                crsVPrime
-            )
+            val crsBytes =
+                CRSBytes(
+                    crsG,
+                    crsU,
+                    crsGPrime,
+                    crsUPrime,
+                    crsH,
+                    crsV,
+                    crsHPrime,
+                    crsVPrime
+                )
 
             return Pair(
                 BilinearGroupCRSPayload(groupElementsBytes, crsBytes),

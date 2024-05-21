@@ -8,7 +8,6 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.Serializable
 
-
 private data class GrothSahaiProofBytes(
     val c1: ByteArray,
     val c2: ByteArray,
@@ -19,8 +18,7 @@ private data class GrothSahaiProofBytes(
     val pi1: ByteArray,
     val pi2: ByteArray,
     val target: ByteArray
-
-)  : Serializable {
+) : Serializable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -52,11 +50,11 @@ private data class GrothSahaiProofBytes(
     }
 }
 
-
 object GrothSahaiSerializer {
-    fun serializeGrothSahaiProofs(proofs: List<GrothSahaiProof>?) : ByteArray? {
-        if (proofs.isNullOrEmpty())
+    fun serializeGrothSahaiProofs(proofs: List<GrothSahaiProof>?): ByteArray? {
+        if (proofs.isNullOrEmpty()) {
             return null
+        }
 
         val proofsAsBytes = proofs.map { x -> grothSahaiProofToBytes(x) }
         return serializeProofBytesList(proofsAsBytes)
@@ -66,13 +64,18 @@ object GrothSahaiSerializer {
         return serializeProofBytes(grothSahaiProofToBytes(proof))
     }
 
-    fun deserializeProofBytes(bytes: ByteArray, group: BilinearGroup): GrothSahaiProof {
+    fun deserializeProofBytes(
+        bytes: ByteArray,
+        group: BilinearGroup
+    ): GrothSahaiProof {
         val proofBytes = deserializeProofBytes(bytes)
         return bytesToGrothSahai(proofBytes, group)
     }
 
-
-    fun deserializeProofListBytes(bytes: ByteArray?, group: BilinearGroup): ArrayList<GrothSahaiProof> {
+    fun deserializeProofListBytes(
+        bytes: ByteArray?,
+        group: BilinearGroup
+    ): ArrayList<GrothSahaiProof> {
         if (bytes == null) return arrayListOf()
         if (bytes.isEmpty()) return arrayListOf()
 
@@ -88,7 +91,6 @@ object GrothSahaiSerializer {
         return byteArrayOutputStream.toByteArray()
     }
 
-
     private fun serializeProofBytesList(proofList: List<GrothSahaiProofBytes>): ByteArray {
         val byteArrayOutputStream = ByteArrayOutputStream()
         val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
@@ -97,10 +99,10 @@ object GrothSahaiSerializer {
         return byteArrayOutputStream.toByteArray()
     }
 
-    private fun deserializeProofBytesList(bytes: ByteArray):  List<GrothSahaiProofBytes> {
+    private fun deserializeProofBytesList(bytes: ByteArray): List<GrothSahaiProofBytes> {
         val byteArrayInputStream = ByteArrayInputStream(bytes)
         val objectInputStream = ObjectInputStream(byteArrayInputStream)
-        val proofList = objectInputStream.readObject() as  List<GrothSahaiProofBytes>
+        val proofList = objectInputStream.readObject() as List<GrothSahaiProofBytes>
         objectInputStream.close()
         return proofList
     }
@@ -113,7 +115,7 @@ object GrothSahaiSerializer {
         return proof
     }
 
-    private fun grothSahaiProofToBytes(grothSahaiProof: GrothSahaiProof) : GrothSahaiProofBytes {
+    private fun grothSahaiProofToBytes(grothSahaiProof: GrothSahaiProof): GrothSahaiProofBytes {
         val (c1, c2, d1, d2, theta1, theta2, pi1, pi2, target) = grothSahaiProof
         return GrothSahaiProofBytes(
             c1.toBytes(),
@@ -128,7 +130,10 @@ object GrothSahaiSerializer {
         )
     }
 
-    private fun bytesToGrothSahai(grothSahaiProofBytes: GrothSahaiProofBytes, group: BilinearGroup) : GrothSahaiProof {
+    private fun bytesToGrothSahai(
+        grothSahaiProofBytes: GrothSahaiProofBytes,
+        group: BilinearGroup
+    ): GrothSahaiProof {
         val (c1, c2, d1, d2, theta1, theta2, pi1, pi2, target) = grothSahaiProofBytes
         return GrothSahaiProof(
             group.gElementFromBytes(c1),

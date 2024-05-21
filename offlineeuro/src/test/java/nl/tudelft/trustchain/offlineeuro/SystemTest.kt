@@ -12,7 +12,6 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
-import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
@@ -46,8 +45,6 @@ import org.mockito.kotlin.verify
 import java.math.BigInteger
 
 class SystemTest {
-
-
     // Setup the TTP
     private val ca = CentralAuthority
     private val ttpPK = ca.groupDescription.generateRandomElementOfG()
@@ -112,12 +109,14 @@ class SystemTest {
         spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
     }
 
-    private fun withdrawDigitalEuro(user: User, bankName: String): DigitalEuro {
+    private fun withdrawDigitalEuro(
+        user: User,
+        bankName: String
+    ): DigitalEuro {
         // Prepare mock elements
         val byteArrayCaptor = argumentCaptor<ByteArray>()
         val challengeCaptor = argumentCaptor<BigInteger>()
         val userPeer = Mockito.mock(Peer::class.java)
-
 
         val userCommunity = userList[user]!!
         val publicKeyBytes = user.publicKey.toBytes()
@@ -145,8 +144,6 @@ class SystemTest {
                 val signatureMessage = BlindSignatureReplyMessage(signature)
                 addMessageToList(user, signatureMessage)
             }
-
-
         }
 
         val withdrawnEuro = user.withdrawDigitalEuro(bankName)
@@ -160,27 +157,35 @@ class SystemTest {
         verify(bankCommunity, times(1)).sendBlindSignature(any(), eq(userPeer))
 
         // The euro must be valid
-        Assert.assertTrue("The signature should be valid for the user", Schnorr.verifySchnorrSignature(withdrawnEuro.signature, bank.publicKey, user.group))
+        Assert.assertTrue(
+            "The signature should be valid for the user",
+            Schnorr.verifySchnorrSignature(withdrawnEuro.signature, bank.publicKey, user.group)
+        )
         Assert.assertEquals("There should be no proofs", arrayListOf<GrothSahaiProof>(), withdrawnEuro.proofs)
 
         return withdrawnEuro
-
     }
 
-    private fun spendEuro(sender: User, receiver: Participant, expectedResult: String = "Successful transaction", doubleSpend: Boolean = false) {
+    private fun spendEuro(
+        sender: User,
+        receiver: Participant,
+        expectedResult: String = "Successful transaction",
+        doubleSpend: Boolean = false
+    ) {
         val senderCommunity = userList[sender]!!
-        val receiverCommunity = if (receiver.name == bank.name) {
-            bankCommunity
-        } else {
-            userList[receiver]!!
-        }
+        val receiverCommunity =
+            if (receiver.name == bank.name) {
+                bankCommunity
+            } else {
+                userList[receiver]!!
+            }
         val spenderPeer = Mockito.mock(Peer::class.java)
         val randomizationElementsCaptor = argumentCaptor<RandomizationElementsBytes>()
         val transactionDetailsCaptor = argumentCaptor<TransactionDetailsBytes>()
         val transactionResultCaptor = argumentCaptor<String>()
 
         `when`(senderCommunity.getTransactionRandomizationElements(receiver.name.toByteArray())).then {
-            val requestMessage = TransactionRandomizationElementsRequestMessage(sender.publicKey.toBytes(),spenderPeer)
+            val requestMessage = TransactionRandomizationElementsRequestMessage(sender.publicKey.toBytes(), spenderPeer)
             receiverCommunity.messageList.add(requestMessage)
             verify(receiverCommunity).sendTransactionRandomizationElements(randomizationElementsCaptor.capture(), eq(spenderPeer))
             val randomizationElementsBytes = randomizationElementsCaptor.lastValue
@@ -199,13 +204,12 @@ class SystemTest {
             }
         }
 
-
-        val transactionResult = if (doubleSpend) {
-            sender.doubleSpendDigitalEuroTo(receiver.name)
-        }
-         else {
-            sender.sendDigitalEuroTo(receiver.name)
-        }
+        val transactionResult =
+            if (doubleSpend) {
+                sender.doubleSpendDigitalEuroTo(receiver.name)
+            } else {
+                sender.sendDigitalEuroTo(receiver.name)
+            }
         Assert.assertEquals(expectedResult, transactionResult)
     }
 
@@ -255,22 +259,23 @@ class SystemTest {
         val bankName = registrationNameCaptor.lastValue
         val bankPublicKey = publicKeyCaptor.lastValue
         ca.registerUser(bankName, ca.groupDescription.gElementFromBytes(bankPublicKey))
-
     }
 
     private fun createAddressManager(group: BilinearGroup): AddressBookManager {
         val addressBookManager = AddressBookManager(null, group, createDriver())
         addressBookManager.insertAddress(ttpAddress)
-        return  addressBookManager
+        return addressBookManager
     }
 
-    private fun addMessageToList(user: User, message: ICommunityMessage) {
+    private fun addMessageToList(
+        user: User,
+        message: ICommunityMessage
+    ) {
         val community = userList[user]
         community!!.messageList.add(message)
     }
 
     private fun prepareCommunityMock(): OfflineEuroCommunity {
-
         val community = Mockito.mock(OfflineEuroCommunity::class.java)
 
         `when`(community.getGroupDescriptionAndCRS()).then {
@@ -287,9 +292,3 @@ class SystemTest {
         }
     }
 }
-
-class MockPair(
-    val messageList: MessageList<ICommunityMessage>,
-    val community: OfflineEuroCommunity,
-
-)

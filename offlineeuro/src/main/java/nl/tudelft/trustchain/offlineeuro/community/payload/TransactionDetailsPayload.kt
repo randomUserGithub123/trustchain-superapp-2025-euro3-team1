@@ -65,19 +65,21 @@ class TransactionDetailsPayload(
             val (usedVSBytes, usedVSSize) = deserializeVarLen(buffer, localOffset)
             localOffset += usedVSSize
 
-            val (previousThetaSignatureBytes, previousThetaSignatureSize) = deserializeVarLen(
-                buffer,
-                localOffset
-            )
+            val (previousThetaSignatureBytes, previousThetaSignatureSize) =
+                deserializeVarLen(
+                    buffer,
+                    localOffset
+                )
             localOffset += previousThetaSignatureSize
 
             val (theta1SignatureBytes, theta1SignatureSize) = deserializeVarLen(buffer, localOffset)
             localOffset += theta1SignatureSize
 
-            val (spenderPublicKeyBytes, spenderPublicKeySize) = deserializeVarLen(
-                buffer,
-                localOffset
-            )
+            val (spenderPublicKeyBytes, spenderPublicKeySize) =
+                deserializeVarLen(
+                    buffer,
+                    localOffset
+                )
             localOffset += spenderPublicKeySize
 
             val digitalEuroBytes =
@@ -85,13 +87,14 @@ class TransactionDetailsPayload(
             val transactionProofBytes =
                 TransactionProofBytes(grothSahaiProofBytes, usedYBytes, usedVSBytes)
 
-            val transactionDetailsBytes = TransactionDetailsBytes(
-                digitalEuroBytes,
-                transactionProofBytes,
-                previousThetaSignatureBytes,
-                theta1SignatureBytes,
-                spenderPublicKeyBytes
-            )
+            val transactionDetailsBytes =
+                TransactionDetailsBytes(
+                    digitalEuroBytes,
+                    transactionProofBytes,
+                    previousThetaSignatureBytes,
+                    theta1SignatureBytes,
+                    spenderPublicKeyBytes
+                )
 
             return Pair(
                 TransactionDetailsPayload(transactionDetailsBytes),

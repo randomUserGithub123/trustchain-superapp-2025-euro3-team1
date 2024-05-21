@@ -7,7 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 
-abstract class Participant (
+abstract class Participant(
     val communicationProtocol: ICommunicationProtocol,
     val name: String
 ) {
@@ -46,17 +46,20 @@ abstract class Participant (
     }
 
     fun lookUpRandomness(publicKey: Element): Element? {
-        for(element in randomizationElementMap.entries) {
+        for (element in randomizationElementMap.entries) {
             val key = element.key
 
-            if (key == publicKey)
+            if (key == publicKey) {
                 return element.value
+            }
         }
 
         return null
     }
-    abstract fun onReceivedTransaction(transactionDetails: TransactionDetails,
-                                       publicKeyBank: Element,
-                                       publicKeySender: Element) : String
 
+    abstract fun onReceivedTransaction(
+        transactionDetails: TransactionDetails,
+        publicKeyBank: Element,
+        publicKeySender: Element
+    ): String
 }

@@ -8,7 +8,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 
 class TransactionRandomizationElementsPayload(
     val transactionRandomizationElementsBytes: RandomizationElementsBytes
-): Serializable {
+) : Serializable {
     override fun serialize(): ByteArray {
         var payload = ByteArray(0)
         payload += serializeVarLen(transactionRandomizationElementsBytes.group2T)
@@ -37,17 +37,17 @@ class TransactionRandomizationElementsPayload(
             val (uTInvBytes, uTInvSize) = deserializeVarLen(buffer, localOffset)
             localOffset += uTInvSize
 
-            val randomizationElements = RandomizationElementsBytes(
-                group2TBytes,
-                vTBytes,
-                group1TInvBytes,
-                uTInvBytes
-            )
+            val randomizationElements =
+                RandomizationElementsBytes(
+                    group2TBytes,
+                    vTBytes,
+                    group1TInvBytes,
+                    uTInvBytes
+                )
             return Pair(
                 TransactionRandomizationElementsPayload(randomizationElements),
                 localOffset - offset
             )
         }
     }
-
 }

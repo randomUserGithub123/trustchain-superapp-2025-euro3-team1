@@ -6,14 +6,16 @@ import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
-class RegisteredUserManagerTest {
 
-    private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
-        Database.Schema.create(this)
-    }
+class RegisteredUserManagerTest {
+    private val driver =
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
+            Database.Schema.create(this)
+        }
 
     private val group = CentralAuthority.groupDescription
     private val registeredUserManager = RegisteredUserManager(null, group, driver)
+
     @Before
     fun before() {
         CentralAuthority.initializeRegisteredUserManager(null, driver)

@@ -1,15 +1,16 @@
 package nl.tudelft.trustchain.offlineeuro.community.message
 
-class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommunityMessage) -> Unit): ArrayList<ICommunityMessage>() {
+class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommunityMessage) -> Unit) : ArrayList<ICommunityMessage>() {
+    private val requestMessageTypes =
+        setOf(
+            AddressMessage::class.java,
+            BilinearGroupCRSRequestMessage::class.java,
+            BlindSignatureRandomnessRequestMessage::class.java,
+            BlindSignatureRequestMessage::class.java,
+            TransactionRandomizationElementsRequestMessage::class.java,
+            TransactionMessage::class.java
+        )
 
-    private val requestMessageTypes = setOf(
-        AddressMessage::class.java,
-        BilinearGroupCRSRequestMessage::class.java,
-        BlindSignatureRandomnessRequestMessage::class.java,
-        BlindSignatureRequestMessage::class.java,
-        TransactionRandomizationElementsRequestMessage::class.java,
-        TransactionMessage::class.java
-    )
     override fun add(element: ICommunityMessage): Boolean {
         return if (isRequestMessageType(element)) {
             onRequestMessageAdded(element)
@@ -20,6 +21,6 @@ class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommun
     }
 
     private fun isRequestMessageType(element: ICommunityMessage): Boolean {
-        return requestMessageTypes.any { it.isInstance(element)}
+        return requestMessageTypes.any { it.isInstance(element) }
     }
 }

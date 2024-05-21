@@ -13,8 +13,7 @@ class AddressBookManager(
     context: Context?,
     group: BilinearGroup,
     driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "address_book.db"),
-) : OfflineEuroManager(group, driver){
-
+) : OfflineEuroManager(group, driver) {
     private val queries: AddressBookQueries = database.addressBookQueries
     private val addressMapper = {
             name: String,
@@ -22,12 +21,12 @@ class AddressBookManager(
             publicKey: ByteArray,
             peerPublicKey: ByteArray?,
         ->
-            Address(
-                name,
-                Role.fromLong(type),
-                group.pairing.g1.newElementFromBytes(publicKey).immutable,
-                peerPublicKey
-            )
+        Address(
+            name,
+            Role.fromLong(type),
+            group.pairing.g1.newElementFromBytes(publicKey).immutable,
+            peerPublicKey
+        )
     }
 
     init {

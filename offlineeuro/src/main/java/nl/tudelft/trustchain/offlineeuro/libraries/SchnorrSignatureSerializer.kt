@@ -12,7 +12,7 @@ private data class SchnorrSignatureBytes(
     val signature: ByteArray,
     val encryption: ByteArray,
     val message: ByteArray
-)  : Serializable {
+) : Serializable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -30,13 +30,10 @@ private data class SchnorrSignatureBytes(
         result = 31 * result + message.contentHashCode()
         return result
     }
-
 }
 
-
 object SchnorrSignatureSerializer {
-    fun serializeSchnorrSignature(signature: SchnorrSignature?) : ByteArray {
-
+    fun serializeSchnorrSignature(signature: SchnorrSignature?): ByteArray {
         if (signature == null) return ByteArray(0)
         val signatureAsBytes = schnorrSignatureToBytes(signature)
         return serializeSchnorrBytes(signatureAsBytes)
@@ -56,15 +53,15 @@ object SchnorrSignatureSerializer {
         return byteArrayOutputStream.toByteArray()
     }
 
-    private fun deserializeSignatureBytes(bytes: ByteArray):  SchnorrSignatureBytes {
+    private fun deserializeSignatureBytes(bytes: ByteArray): SchnorrSignatureBytes {
         val byteArrayInputStream = ByteArrayInputStream(bytes)
         val objectInputStream = ObjectInputStream(byteArrayInputStream)
-        val signatureBytes = objectInputStream.readObject() as  SchnorrSignatureBytes
+        val signatureBytes = objectInputStream.readObject() as SchnorrSignatureBytes
         objectInputStream.close()
         return signatureBytes
     }
 
-    private fun schnorrSignatureToBytes(schnorrSignature: SchnorrSignature) : SchnorrSignatureBytes {
+    private fun schnorrSignatureToBytes(schnorrSignature: SchnorrSignature): SchnorrSignatureBytes {
         val (signature, encryption, message) = schnorrSignature
         return SchnorrSignatureBytes(
             signature.toByteArray(),
@@ -73,7 +70,7 @@ object SchnorrSignatureSerializer {
         )
     }
 
-    private fun bytesToSchnorrSignature(signatureBytes: SchnorrSignatureBytes) : SchnorrSignature {
+    private fun bytesToSchnorrSignature(signatureBytes: SchnorrSignatureBytes): SchnorrSignature {
         val (signature, encryption, message) = signatureBytes
         return SchnorrSignature(
             BigInteger(signature),

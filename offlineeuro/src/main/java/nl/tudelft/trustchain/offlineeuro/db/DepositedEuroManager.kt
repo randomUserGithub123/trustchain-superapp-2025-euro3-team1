@@ -12,8 +12,7 @@ class DepositedEuroManager(
     context: Context?,
     group: BilinearGroup,
     driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "deposited_euros.db"),
-) : OfflineEuroManager(group, driver){
-
+) : OfflineEuroManager(group, driver) {
     private val queries: DepositedEurosQueries = database.depositedEurosQueries
     private val digitalEuroMapper = {
             serialNumber: String,
@@ -21,12 +20,12 @@ class DepositedEuroManager(
             signature: ByteArray,
             previousProofs: ByteArray?,
         ->
-            DigitalEuro(
-                serialNumber,
-                group.gElementFromBytes(firstTheta),
-                deserializeSchnorr(signature)!!,
-                deserializeGSP(previousProofs)
-            )
+        DigitalEuro(
+            serialNumber,
+            group.gElementFromBytes(firstTheta),
+            deserializeSchnorr(signature)!!,
+            deserializeGSP(previousProofs)
+        )
     }
 
     init {

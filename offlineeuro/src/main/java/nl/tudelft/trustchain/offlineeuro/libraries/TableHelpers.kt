@@ -7,7 +7,6 @@ import android.widget.TextView
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 
 object TableHelpers {
-
     fun removeAllButFirstRow(table: TableLayout) {
         val rowCount = table.childCount
         val rowsToBeRemoved = rowCount - 1
@@ -18,14 +17,20 @@ object TableHelpers {
         }
     }
 
-    fun addRegisteredUsersToTable(table: TableLayout, users: List<RegisteredUser>) {
+    fun addRegisteredUsersToTable(
+        table: TableLayout,
+        users: List<RegisteredUser>
+    ) {
         val context = table.context
         for (user in users) {
             table.addView(registeredUserToTableRow(user, context))
         }
     }
 
-    private fun registeredUserToTableRow(user: RegisteredUser, context: Context): TableRow {
+    private fun registeredUserToTableRow(
+        user: RegisteredUser,
+        context: Context
+    ): TableRow {
         val tableRow = TableRow(context)
 
         val idField = TextView(context)

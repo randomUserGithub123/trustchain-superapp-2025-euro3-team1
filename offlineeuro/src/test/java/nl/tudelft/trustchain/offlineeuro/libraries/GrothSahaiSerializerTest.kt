@@ -8,7 +8,6 @@ import org.junit.Test
 import java.io.StreamCorruptedException
 
 class GrothSahaiSerializerTest {
-
     private val group = BilinearGroup()
 
     private fun randomGElement(): Element {
@@ -22,6 +21,7 @@ class GrothSahaiSerializerTest {
     private fun randomGTElement(): Element {
         return group.generateRandomElementOfGT()
     }
+
     private fun generateRandomInvalidProof(): GrothSahaiProof {
         return GrothSahaiProof(
             randomGElement(),
@@ -33,7 +33,7 @@ class GrothSahaiSerializerTest {
             randomHElement(),
             randomHElement(),
             randomGTElement()
-            )
+        )
     }
 
     @Test
@@ -51,10 +51,9 @@ class GrothSahaiSerializerTest {
         Assert.assertEquals(proofList, deserializedBytes)
     }
 
-
     @Test
     fun serializeAndDeserializeTwoProofsTest() {
-        val proofList = arrayListOf(generateRandomInvalidProof(),  generateRandomInvalidProof())
+        val proofList = arrayListOf(generateRandomInvalidProof(), generateRandomInvalidProof())
         val proofListBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofList)
         val deserializedBytes = GrothSahaiSerializer.deserializeProofListBytes(proofListBytes!!, group)
         Assert.assertEquals(proofList, deserializedBytes)

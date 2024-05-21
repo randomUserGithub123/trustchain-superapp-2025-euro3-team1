@@ -37,15 +37,15 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import java.math.BigInteger
 
-
 class IPV8CommunicationProtocolTest {
-
     private val context = null
-    private val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
-        Database.Schema.create(this)
-    }
+    private val driver =
+        JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY).apply {
+            Database.Schema.create(this)
+        }
 
     private val community: OfflineEuroCommunity = Mockito.mock(OfflineEuroCommunity::class.java)
+
     // Setup the TTP
     private val ttpBilinearGroup = BilinearGroup(PairingTypes.FromFile)
     private val ttpCRS = CRSGenerator.generateCRSMap(ttpBilinearGroup)
@@ -67,7 +67,6 @@ class IPV8CommunicationProtocolTest {
     private val initialBilinearGroup = BilinearGroup(PairingTypes.FromFile)
     private val addressBookManager = AddressBookManager(context, initialBilinearGroup, driver)
 
-
     private val userRandomness: HashMap<Element, Element> = hashMapOf()
 
     private val receivingPeer = Mockito.mock(Peer::class.java)
@@ -76,14 +75,14 @@ class IPV8CommunicationProtocolTest {
 
     @Before
     fun setup() {
-        `when` (community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
+        `when`(community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
 
         `when`(community.getGroupDescriptionAndCRS()).then {
             val message = BilinearGroupCRSReplyMessage(ttpBilinearGroup.toGroupElementBytes(), ttpCRS.first.toCRSBytes())
             community.messageList.add(message)
         }
 
-        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any())).then {  }
+        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any())).then { }
 
         `when`(community.registerAtTTP(any(), any(), any())).then { }
 
@@ -111,7 +110,6 @@ class IPV8CommunicationProtocolTest {
         }
 
         addressBookManager.insertAddress(ttpAddress)
-
     }
 
     @Test
@@ -217,14 +215,16 @@ class IPV8CommunicationProtocolTest {
         val publicKey = ttpBilinearGroup.generateRandomElementOfG()
         `when`(user.group).thenReturn(ttpBilinearGroup)
         `when`(user.generateRandomizationElements(any())).thenReturn(randomizationElements)
-        `when`(community.sendTransactionRandomizationElements(any(), any())).then {  }
-
+        `when`(community.sendTransactionRandomizationElements(any(), any())).then { }
 
         val requestMessage = TransactionRandomizationElementsRequestMessage(publicKey.toBytes(), receivingPeer)
         community.messageList.add(requestMessage)
 
         verify(user, times(1)).generateRandomizationElements(publicKey)
-        verify(community, times(1)).sendTransactionRandomizationElements(randomizationElements.toRandomizationElementsBytes(), receivingPeer)
+        verify(
+            community,
+            times(1)
+        ).sendTransactionRandomizationElements(randomizationElements.toRandomizationElementsBytes(), receivingPeer)
     }
 
     @Test
@@ -250,14 +250,12 @@ class IPV8CommunicationProtocolTest {
         `when`(transactionDetailsBytes.toTransactionDetails(ttpBilinearGroup)).thenReturn(transactionDetails)
         `when`(user.group).thenReturn(ttpBilinearGroup)
         `when`(user.onReceivedTransaction(transactionDetails, bankPK, publicKeySender)).thenReturn(result)
-        `when`(community.sendTransactionResult(result, receivingPeer)).then {  }
+        `when`(community.sendTransactionResult(result, receivingPeer)).then { }
 
         val message = TransactionMessage(publicKeySender.toBytes(), transactionDetailsBytes, receivingPeer)
         community.messageList.add(message)
 
         verify(user, times(1)).onReceivedTransaction(transactionDetails, bankPK, publicKeySender)
         verify(community, times(1)).sendTransactionResult(result, receivingPeer)
-
     }
-
 }

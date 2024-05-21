@@ -6,7 +6,6 @@ import nl.tudelft.trustchain.offlineeuro.libraries.EBMap
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 
 object GrothSahai {
-
     val bilinearGroup = CentralAuthority.groupDescription
     val crs = CentralAuthority.crs
 
@@ -14,7 +13,8 @@ object GrothSahai {
     val g = bilinearGroup.g
     val h = bilinearGroup.h
     val gt = bilinearGroup.gt
-    fun createTransactionProof (
+
+    fun createTransactionProof(
         privateKey: Element,
         publicKey: Element,
         target: Element,
@@ -22,13 +22,10 @@ object GrothSahai {
         randomizationElements: RandomizationElements
     ): Pair<TransactionProof, Element> {
         val signatureElement = target.immutable
-        val X = publicKey
         val y = signatureElement.div(privateKey).immutable
-        val Y = h.powZn(y).immutable
-        val T = pairing.pairing(X,Y).immutable
+        val computedY = h.powZn(y).immutable
+        val newTarget = pairing.pairing(publicKey, computedY).immutable
 
-        val test = X.lengthInBytes
-        val test2 = Y.lengthInBytes
         val u = crs.u
         val v = crs.v
 
@@ -37,19 +34,19 @@ object GrothSahai {
         val s = previousT.mul(-1).invert()
 
         val c1 = g.powZn(r).immutable
-        val c2 = u.powZn(r).mul(X).immutable
+        val c2 = u.powZn(r).mul(publicKey).immutable
         val d1 = h.powZn(s).immutable
-        val d2 = v.powZn(s).mul(Y).immutable
+        val d2 = v.powZn(s).mul(computedY).immutable
 
         val pi1 = d1.powZn(r).mul(randomizationElements.group2T)
         val pi2 = d2.powZn(r).mul(randomizationElements.vT)
 
         val theta1 = randomizationElements.group1TInv
-        val theta2 = X.powZn(s).mul(randomizationElements.uTInv).immutable
+        val theta2 = publicKey.powZn(s).mul(randomizationElements.uTInv).immutable
 
-        val grothSahaiProof = GrothSahaiProof(c1, c2, d1, d2, theta1, theta2, pi1, pi2, T)
+        val grothSahaiProof = GrothSahaiProof(c1, c2, d1, d2, theta1, theta2, pi1, pi2, newTarget)
 
-        return Pair(TransactionProof(grothSahaiProof, Y, v.powZn(s).immutable), r)
+        return Pair(TransactionProof(grothSahaiProof, computedY, v.powZn(s).immutable), r)
     }
 
     fun verifyTransactionProof(grothSahaiProof: GrothSahaiProof): Boolean {
@@ -65,27 +62,29 @@ object GrothSahai {
         val oneElement = gt.duplicate().setToOne()
         val targetMap = EBMap(listOf(oneElement, oneElement, oneElement, target), bilinearGroup, false)
 
-            for (i: Int in 0 until 2) {
-                for (j: Int in 0 until 2) {
+        for (i: Int in 0 until 2) {
+            for (j: Int in 0 until 2) {
+                val commitElement = commitEBMap[i, j]
 
-                    val commitElement = commitEBMap[i, j]
+                val piEBMapElement = piEBMap[i, j]
+                val thetaEBMapElement = thetaEBMap[i, j]
+                val targetMapElement = targetMap[i, j]
+                val computed = piEBMapElement.mul(thetaEBMapElement).mul(targetMapElement)
 
-                    val piEBMapElement = piEBMap[i, j]
-                    val thetaEBMapElement = thetaEBMap[i, j]
-                    val targetMapElement = targetMap[i, j]
-                    val computed = piEBMapElement.mul(thetaEBMapElement).mul(targetMapElement)
-
-                    if (commitElement != computed)
-                        return false
+                if (commitElement != computed) {
+                    return false
                 }
-
             }
+        }
 
         return true
     }
 
-
-    fun tToRandomizationElements(t: Element, group: BilinearGroup, crs: CRS): RandomizationElements {
+    fun tToRandomizationElements(
+        t: Element,
+        group: BilinearGroup,
+        crs: CRS
+    ): RandomizationElements {
         val group2T = group.h.powZn(t).immutable
         val vT = crs.v.powZn(t).immutable
         val tInv = t.mul(-1)
@@ -111,20 +110,19 @@ data class GrothSahaiProof(
         if (this === other) return true
         if (other !is GrothSahaiProof) return false
 
-        return c1 == other.c1
-            && c2 == other.c2
-            && d1 == other.d1
-            && d2 == other.d2
-            && theta1 == other.theta1
-            && theta2 == other.theta2
-            && pi1 == other.pi1
-            && pi2 == other.pi2
-            && target == other.target
-
+        return c1 == other.c1 &&
+            c2 == other.c2 &&
+            d1 == other.d1 &&
+            d2 == other.d2 &&
+            theta1 == other.theta1 &&
+            theta2 == other.theta2 &&
+            pi1 == other.pi1 &&
+            pi2 == other.pi2 &&
+            target == other.target
     }
 }
 
-data class RandomizationElements (
+data class RandomizationElements(
     val group2T: Element,
     val vT: Element,
     val group1TInv: Element,
@@ -146,13 +144,13 @@ data class RandomizationElements (
     }
 }
 
-data class RandomizationElementsBytes (
+data class RandomizationElementsBytes(
     val group2T: ByteArray,
     val vT: ByteArray,
     val group1TInv: ByteArray,
     val uTInv: ByteArray
 ) {
-    fun toRandomizationElements(group: BilinearGroup): RandomizationElements{
+    fun toRandomizationElements(group: BilinearGroup): RandomizationElements {
         return RandomizationElements(
             group.hElementFromBytes(group2T),
             group.hElementFromBytes(vT),
@@ -160,11 +158,12 @@ data class RandomizationElementsBytes (
             group.gElementFromBytes(uTInv)
         )
     }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is RandomizationElementsBytes) return false
-        return this.group2T.contentEquals(other.group2T) && this.vT.contentEquals(other.vT)
-            && this.group1TInv.contentEquals(other.group1TInv) && this.uTInv.contentEquals(other.uTInv)
+        return this.group2T.contentEquals(other.group2T) && this.vT.contentEquals(other.vT) &&
+            this.group1TInv.contentEquals(other.group1TInv) && this.uTInv.contentEquals(other.uTInv)
     }
 }
 
@@ -182,7 +181,7 @@ data class TransactionProofBytes(
     }
 }
 
-data class TransactionProof (
+data class TransactionProof(
     val grothSahaiProof: GrothSahaiProof,
     val usedY: Element,
     val usedVS: Element,

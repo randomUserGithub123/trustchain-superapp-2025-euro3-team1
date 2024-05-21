@@ -5,6 +5,7 @@ import java.math.BigInteger
 import java.security.MessageDigest
 
 data class BlindedChallenge(val challenge: BigInteger, val blindedChallenge: BigInteger, val alpha: BigInteger, val message: ByteArray)
+
 data class SchnorrSignature(val signature: BigInteger, val encryption: BigInteger, val signedMessage: ByteArray) {
     /**
      * Converts the [SchnorrSignature] to a [ByteArray] such that the first target element
@@ -30,7 +31,6 @@ data class SchnorrSignature(val signature: BigInteger, val encryption: BigIntege
  * Current supported signature schemes are regular Schnorr signatures and blinded Schnorr signatures
  */
 object Schnorr {
-
     /**
      * Creates a Schnorr signature of the [message]. It takes a [BilinearGroup] as input to determine
      * which group to use and to determine the order of that group. The group that is used is [BilinearGroup.g].
@@ -40,7 +40,11 @@ object Schnorr {
      * @param group The [BilinearGroup] used to create the signatures.
      * @return The [SchnorrSignature] on [message] signed with [privateKey].
      */
-    fun schnorrSignature(privateKey: Element, message: ByteArray, group: BilinearGroup): SchnorrSignature {
+    fun schnorrSignature(
+        privateKey: Element,
+        message: ByteArray,
+        group: BilinearGroup
+    ): SchnorrSignature {
         val g = group.g
         val order = group.getZrOrder()
 
@@ -65,7 +69,12 @@ object Schnorr {
      * @return A random [BlindedChallenge] based on [r] and [message]. [BlindedChallenge.blindedChallenge]
      * should be send to the signing party.
      */
-    fun createBlindedChallenge(r: Element, message: ByteArray, signerPublicKey: Element, group: BilinearGroup): BlindedChallenge {
+    fun createBlindedChallenge(
+        r: Element,
+        message: ByteArray,
+        signerPublicKey: Element,
+        group: BilinearGroup
+    ): BlindedChallenge {
         val g = group.g
 
         // alpha and beta to blind
@@ -73,9 +82,10 @@ object Schnorr {
         val beta = group.getRandomZr()
 
         // Compute r' = r * g^(-alpha) * y^(-beta)
-        val rPrime = r
-            .mul(g.powZn(alpha.mul(-1)))
-            .mul(signerPublicKey.powZn(beta.mul(-1)))
+        val rPrime =
+            r
+                .mul(g.powZn(alpha.mul(-1)))
+                .mul(signerPublicKey.powZn(beta.mul(-1)))
 
         val challenge = hash(rPrime, message, group.getZrOrder())
         val blindedChallenge = challenge + beta.toBigInteger()
@@ -92,7 +102,11 @@ object Schnorr {
      *
      * @return The signature on [challenge], signed with [privateKey].
      */
-    fun signBlindedChallenge(k: Element, challenge: BigInteger, privateKey: Element): BigInteger {
+    fun signBlindedChallenge(
+        k: Element,
+        challenge: BigInteger,
+        privateKey: Element
+    ): BigInteger {
         // Calculate the signature value
         return k.toBigInteger() + challenge * privateKey.mul(-1).toBigInteger()
     }
@@ -104,12 +118,14 @@ object Schnorr {
      * @param blindSignature The signature received from the other party.
      * @return The blinded [SchnorrSignature] on [BlindedChallenge.message]
      */
-    fun unblindSignature(blindedChallenge: BlindedChallenge, blindSignature: BigInteger): SchnorrSignature {
+    fun unblindSignature(
+        blindedChallenge: BlindedChallenge,
+        blindSignature: BigInteger
+    ): SchnorrSignature {
         val (challenge, _, alpha, message) = blindedChallenge
         val signature = blindSignature - alpha
         return SchnorrSignature(signature, challenge, message)
     }
-
 
     /**
      * Verifies if the given [SchnorrSignature] is a valid signature of the authority of [publicKey].
@@ -122,7 +138,11 @@ object Schnorr {
      * @return True, if and only if, [SchnorrSignature.signature] is a valid
      * signature on [SchnorrSignature.signedMessage] signed by [publicKey].
      */
-    fun verifySchnorrSignature(schnorrSignature: SchnorrSignature, publicKey: Element, group: BilinearGroup) : Boolean {
+    fun verifySchnorrSignature(
+        schnorrSignature: SchnorrSignature,
+        publicKey: Element,
+        group: BilinearGroup
+    ): Boolean {
         val (signature, encryption, signedMessage) = schnorrSignature
         val g = group.g
         val order = group.getZrOrder()
@@ -140,7 +160,11 @@ object Schnorr {
      * @param modulo The modulo to be used.
      * @return The hash-value as a [BigInteger]
      */
-    private fun hash(randomness: Element, message: ByteArray, modulo: BigInteger): BigInteger {
+    private fun hash(
+        randomness: Element,
+        message: ByteArray,
+        modulo: BigInteger
+    ): BigInteger {
         val data = randomness.toBytes() + message
         return calculateHash(data).mod(modulo)
     }

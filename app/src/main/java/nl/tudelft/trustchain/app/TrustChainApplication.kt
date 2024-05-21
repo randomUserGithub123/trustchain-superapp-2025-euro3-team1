@@ -282,6 +282,7 @@ class TrustChainApplication : Application() {
             listOf(randomWalk)
         )
     }
+
     private fun createPeerChatCommunity(): OverlayConfiguration<PeerChatCommunity> {
         val randomWalk = RandomWalk.Factory()
         val store = PeerChatStore.getInstance(this)

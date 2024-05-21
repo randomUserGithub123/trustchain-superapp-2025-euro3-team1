@@ -4,7 +4,6 @@ import org.junit.Assert
 import org.junit.Test
 
 class SchnorrTest {
-
     @Test
     fun signAndVerifyTest() {
         val group = BilinearGroup()

@@ -11,12 +11,10 @@ import org.junit.Test
 import java.math.BigInteger
 
 class TransactionDetailsPayloadTest {
-
     private val group = CentralAuthority.groupDescription
 
     @Test
     fun serializeAndDeserializeInitialEuro() {
-
         val transactionDetails = generateTransactionDetails(0)
         val transactionDetailsBytes = transactionDetails.toTransactionDetailsBytes()
         val serializedBytes = TransactionDetailsPayload(transactionDetailsBytes).serialize()
@@ -27,7 +25,6 @@ class TransactionDetailsPayloadTest {
 
     @Test
     fun serializeAndDeserializeEuroOneProof() {
-
         val transactionDetails = generateTransactionDetails(1)
         val transactionDetailsBytes = transactionDetails.toTransactionDetailsBytes()
         val serializedBytes = TransactionDetailsPayload(transactionDetailsBytes).serialize()
@@ -38,7 +35,6 @@ class TransactionDetailsPayloadTest {
 
     @Test
     fun serializeAndDeserializeEuroFiveProofs() {
-
         val transactionDetails = generateTransactionDetails(5)
         val transactionDetailsBytes = transactionDetails.toTransactionDetailsBytes()
         val serializedBytes = TransactionDetailsPayload(transactionDetailsBytes).serialize()
@@ -47,16 +43,16 @@ class TransactionDetailsPayloadTest {
         Assert.assertEquals(transactionDetails, fromBytes)
     }
 
-
     fun generateTransactionDetails(numberOfProofs: Int): TransactionDetails {
         val digitalEuro = generateDigitalEuro(numberOfProofs)
         val transactionProof = generateTranactionProof()
 
-        val previousSignature = if (numberOfProofs > 0) {
-            generateSignature()
-        } else {
-            null
-        }
+        val previousSignature =
+            if (numberOfProofs > 0) {
+                generateSignature()
+            } else {
+                null
+            }
 
         return TransactionDetails(
             digitalEuro,
@@ -65,7 +61,6 @@ class TransactionDetailsPayloadTest {
             generateSignature(),
             group.generateRandomElementOfG()
         )
-
     }
 
     fun generateTranactionProof(): TransactionProof {
@@ -77,7 +72,6 @@ class TransactionDetailsPayloadTest {
     }
 
     fun generateDigitalEuro(numberOfProofs: Int): DigitalEuro {
-
         val proofs = arrayListOf<GrothSahaiProof>()
         for (i: Int in 0 until numberOfProofs) {
             proofs.add(generateGrothSahaiProof())

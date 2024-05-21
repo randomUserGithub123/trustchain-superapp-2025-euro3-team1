@@ -31,16 +31,15 @@ import java.math.BigInteger
 class IPV8CommunicationProtocol(
     val addressBookManager: AddressBookManager,
     val community: OfflineEuroCommunity,
-    ) : ICommunicationProtocol {
-
+) : ICommunicationProtocol {
     val messageList = MessageList(this::handleRequestMessage)
 
     init {
         community.messageList = messageList
     }
 
-    private val SLEEP_DURATION: Long = 100
-    private val MAX_WAIT_DURATION_MS = 5000
+    private val sleepDuration: Long = 100
+    private val timeOutInMS = 5000
     override lateinit var participant: Participant
 
     override fun getGroupDescriptionAndCRS(): Pair<BilinearGroup, CRS> {
@@ -54,7 +53,11 @@ class IPV8CommunicationProtocol(
         return Pair(group, crs)
     }
 
-    override fun register(userName: String, publicKey: Element, nameTTP: String) {
+    override fun register(
+        userName: String,
+        publicKey: Element,
+        nameTTP: String
+    ) {
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
         community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
     }
@@ -84,7 +87,10 @@ class IPV8CommunicationProtocol(
         return replyMessage.signature
     }
 
-    override fun requestTransactionRandomness(userNameReceiver: String, group: BilinearGroup): RandomizationElements {
+    override fun requestTransactionRandomness(
+        userNameReceiver: String,
+        group: BilinearGroup
+    ): RandomizationElements {
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
         community.getTransactionRandomizationElements(peerAddress.peerPublicKey!!)
         val message = waitForMessage(CommunityMessageType.TransactionRandomnessReplyMessage) as TransactionRandomizationElementsReplyMessage
@@ -94,7 +100,7 @@ class IPV8CommunicationProtocol(
     override fun sendTransactionDetails(
         userNameReceiver: String,
         transactionDetails: TransactionDetails
-    ) : String {
+    ): String {
         val test = addressBookManager.getAllAddresses()
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
         community.sendTransactionDetails(peerAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
@@ -102,19 +108,21 @@ class IPV8CommunicationProtocol(
         return message.result
     }
 
-    override fun getPublicKeyOf(name: String, group: BilinearGroup): Element {
+    override fun getPublicKeyOf(
+        name: String,
+        group: BilinearGroup
+    ): Element {
         return addressBookManager.getAddressByName(name).publicKey
     }
 
     private fun waitForMessage(messageType: CommunityMessageType): ICommunityMessage {
-
         var loops = 0
 
         while (!community.messageList.any { it.messageType == messageType }) {
-            if (loops * SLEEP_DURATION >= MAX_WAIT_DURATION_MS) {
+            if (loops * sleepDuration >= timeOutInMS) {
                 throw Exception("TimeOut")
             }
-            Thread.sleep(SLEEP_DURATION)
+            Thread.sleep(sleepDuration)
             loops++
         }
 
@@ -124,6 +132,7 @@ class IPV8CommunicationProtocol(
 
         return message
     }
+
     private fun handleAddressMessage(message: AddressMessage) {
         val publicKey = participant.group.gElementFromBytes(message.publicKeyBytes)
         val address = Address(message.name, message.role, publicKey, message.peerPublicKey)
@@ -169,7 +178,6 @@ class IPV8CommunicationProtocol(
         val randomizationElements = participant.generateRandomizationElements(publicKey)
         val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
         community.sendTransactionRandomizationElements(randomizationElementBytes, requestingPeer)
-
     }
 
     private fun handleTransactionMessage(message: TransactionMessage) {
@@ -182,12 +190,9 @@ class IPV8CommunicationProtocol(
         val transactionResult = participant.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
         val requestingPeer = message.requestingPeer
         community.sendTransactionResult(transactionResult, requestingPeer)
-
     }
 
-
     private fun handleRequestMessage(message: ICommunityMessage) {
-
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)

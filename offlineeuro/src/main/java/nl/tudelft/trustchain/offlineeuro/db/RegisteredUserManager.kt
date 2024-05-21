@@ -18,12 +18,11 @@ import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
  * @property Context the context of the application, can be null, if a driver is given.
  * @property driver the driver of the database, can be used to pass a custom driver
  */
-class RegisteredUserManager (
+class RegisteredUserManager(
     context: Context?,
     private val bilinearGroup: BilinearGroup,
     private val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context!!, "registered_users.db"),
 ) {
-
     private val database: Database = Database(driver)
     private val queries: RegisteredUsersQueries = database.registeredUsersQueries
 
@@ -53,16 +52,17 @@ class RegisteredUserManager (
      * @param user the user that should be registered. Its id will be omitted.
      * @return true iff registering the user is successful.
      */
-    fun addRegisteredUser(userName: String, publicKey: Element): Boolean {
+    fun addRegisteredUser(
+        userName: String,
+        publicKey: Element
+    ): Boolean {
         try {
             queries.addUser(
                 userName,
                 publicKey.toBytes(),
-
             )
             return true
-        }
-        catch (e: SQLiteException) {
+        } catch (e: SQLiteException) {
             // TODO Perhaps throw specific custom exception to indicate which property was not unique
             return false
         }
@@ -89,13 +89,14 @@ class RegisteredUserManager (
         return queries.getUserByPublicKey(publicKey.toBytes(), registeredUserMapper)
             .executeAsOneOrNull()
     }
+
     /**
      * Gets the number of [RegisteredUser]s.
      *
      * @return The number of [RegisteredUser]s.
      */
     fun getUserCount(): Long {
-        return  queries.getRegisteredUserCount().executeAsOne()
+        return queries.getRegisteredUserCount().executeAsOne()
     }
 
     fun getAllRegisteredUsers(): List<RegisteredUser> {

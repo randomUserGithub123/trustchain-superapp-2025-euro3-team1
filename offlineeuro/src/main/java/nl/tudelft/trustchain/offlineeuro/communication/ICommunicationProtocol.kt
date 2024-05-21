@@ -9,14 +9,40 @@ import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import java.math.BigInteger
 
 interface ICommunicationProtocol {
-
     var participant: Participant
 
     fun getGroupDescriptionAndCRS(): Pair<BilinearGroup, CRS>
-    fun register(userName: String, publicKey: Element, nameTTP: String)
-    fun getBlindSignatureRandomness(publicKey:Element, bankName: String, group: BilinearGroup) : Element
-    fun requestBlindSignature(publicKey: Element, bankName: String, challenge: BigInteger) : BigInteger
-    fun requestTransactionRandomness(userNameReceiver: String, group: BilinearGroup): RandomizationElements
-    fun sendTransactionDetails(userNameReceiver: String, transactionDetails: TransactionDetails): String
-    fun getPublicKeyOf(name: String, group: BilinearGroup): Element
+
+    fun register(
+        userName: String,
+        publicKey: Element,
+        nameTTP: String
+    )
+
+    fun getBlindSignatureRandomness(
+        publicKey: Element,
+        bankName: String,
+        group: BilinearGroup
+    ): Element
+
+    fun requestBlindSignature(
+        publicKey: Element,
+        bankName: String,
+        challenge: BigInteger
+    ): BigInteger
+
+    fun requestTransactionRandomness(
+        userNameReceiver: String,
+        group: BilinearGroup
+    ): RandomizationElements
+
+    fun sendTransactionDetails(
+        userNameReceiver: String,
+        transactionDetails: TransactionDetails
+    ): String
+
+    fun getPublicKeyOf(
+        name: String,
+        group: BilinearGroup
+    ): Element
 }

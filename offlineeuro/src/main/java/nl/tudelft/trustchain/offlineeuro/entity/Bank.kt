@@ -8,16 +8,15 @@ import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import java.math.BigInteger
 import kotlin.math.min
 
-class Bank (
+class Bank(
     name: String,
     communicationProtocol: ICommunicationProtocol,
     private val context: Context?,
     private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, CentralAuthority.groupDescription)
-): Participant(communicationProtocol, name) {
-
-
+) : Participant(communicationProtocol, name) {
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
+
     init {
         communicationProtocol.participant = this
         setUp()
@@ -33,7 +32,10 @@ class Bank (
         return group.g.powZn(randomness)
     }
 
-    fun createBlindSignature(challenge: BigInteger, userPublicKey: Element): BigInteger {
+    fun createBlindSignature(
+        challenge: BigInteger,
+        userPublicKey: Element
+    ): BigInteger {
         val k = lookUp(userPublicKey) ?: return BigInteger.ZERO
         withdrawUserRandomness.remove(userPublicKey)
         // <Subtract balance here>
@@ -41,18 +43,18 @@ class Bank (
     }
 
     private fun lookUp(userPublicKey: Element): Element? {
-
-        for(element in withdrawUserRandomness.entries) {
+        for (element in withdrawUserRandomness.entries) {
             val key = element.key
 
-            if (key == userPublicKey)
+            if (key == userPublicKey) {
                 return element.value
+            }
         }
 
         return null
     }
-    private fun depositEuro(euro: DigitalEuro): String {
 
+    private fun depositEuro(euro: DigitalEuro): String {
         val duplicateEuros = depositedEuroManager.getDigitalEurosByDescriptor(euro)
 
         if (duplicateEuros.isEmpty()) {
@@ -67,11 +69,10 @@ class Bank (
             val euroProofs = euro.proofs
             val duplicateEuroProofs = duplicateEuro.proofs
 
-
             for (i in 0 until min(euroProofs.size, duplicateEuroProofs.size)) {
-                if (euroProofs[i] == duplicateEuroProofs[i])
+                if (euroProofs[i] == duplicateEuroProofs[i]) {
                     continue
-                else if (i > maxFirstDifferenceIndex) {
+                } else if (i > maxFirstDifferenceIndex) {
                     maxFirstDifferenceIndex = i
                     doubleSpendEuro = duplicateEuro
                     break
@@ -87,14 +88,13 @@ class Bank (
             if (doubleSpender != null) {
                 // <Increase user balance here>
                 depositedEuroManager.insertDigitalEuro(euro)
-               return  "Double spending detected. Double spender is ${doubleSpender.name} with PK: ${doubleSpender.publicKey}"
+                return "Double spending detected. Double spender is ${doubleSpender.name} with PK: ${doubleSpender.publicKey}"
             }
         }
 
         // <Increase user balance here>
         depositedEuroManager.insertDigitalEuro(euro)
         return "Detected double spending but could not blame anyone"
-
     }
 
     fun getDepositedTokens(): List<DigitalEuro> {

@@ -6,7 +6,6 @@ import org.junit.Assert
 import org.junit.Test
 
 class BilinearGroupCRSPayloadTest {
-
     @Test
     fun serializeAndDeserializeTest() {
         val group = BilinearGroup()
