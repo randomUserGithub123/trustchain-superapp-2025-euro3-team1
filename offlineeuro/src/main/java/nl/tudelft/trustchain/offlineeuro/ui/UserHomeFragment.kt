@@ -36,7 +36,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         super.onViewCreated(view, savedInstanceState)
 
         community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
-        val group = BilinearGroup(PairingTypes.FromFile)
+        val group = BilinearGroup(PairingTypes.FromFile, context = context)
         val addressBookManager = AddressBookManager(context, group)
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
         user = User("Name", context, null, communicationProtocol)

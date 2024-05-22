@@ -1,6 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
@@ -55,18 +57,26 @@ class Wallet(
         return walletManager.getWalletEntriesToSpend()
     }
 
-    fun spendEuro(randomizationElements: RandomizationElements): TransactionDetails? {
+    fun spendEuro(
+        randomizationElements: RandomizationElements,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
+    ): TransactionDetails? {
         val walletEntry = walletManager.getNumberOfWalletEntriesToSpend(1).firstOrNull() ?: return null
         val euro = walletEntry.digitalEuro
         walletManager.incrementTimesSpent(euro)
-        return Transaction.createTransaction(privateKey, publicKey, walletEntry, randomizationElements)
+        return Transaction.createTransaction(privateKey, publicKey, walletEntry, randomizationElements, bilinearGroup, crs)
     }
 
-    fun doubleSpendEuro(randomizationElements: RandomizationElements): TransactionDetails? {
+    fun doubleSpendEuro(
+        randomizationElements: RandomizationElements,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
+    ): TransactionDetails? {
         val walletEntry = walletManager.getNumberOfWalletEntriesToDoubleSpend(1).firstOrNull() ?: return null
         val euro = walletEntry.digitalEuro
         walletManager.incrementTimesSpent(euro)
 
-        return Transaction.createTransaction(privateKey, publicKey, walletEntry, randomizationElements)
+        return Transaction.createTransaction(privateKey, publicKey, walletEntry, randomizationElements, bilinearGroup, crs)
     }
 }

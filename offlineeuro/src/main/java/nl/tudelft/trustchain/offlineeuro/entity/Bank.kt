@@ -106,7 +106,7 @@ class Bank(
         publicKeyBank: Element,
         publicKeySender: Element
     ): String {
-        val isValid = Transaction.validate(transactionDetails, publicKeyBank)
+        val isValid = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
         if (isValid) {
             return depositEuro(transactionDetails.digitalEuro)
         }

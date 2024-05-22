@@ -231,6 +231,9 @@ class IPV8CommunicationProtocolTest {
     fun sendTransactionDetailsTest() {
         addressBookManager.insertAddress(receiverAddress)
         val transactionDetails = Mockito.mock(TransactionDetails::class.java)
+        val transactionDetailsBytes = Mockito.mock(TransactionDetailsBytes::class.java)
+        `when`(transactionDetails.toTransactionDetailsBytes()).thenReturn(transactionDetailsBytes)
+
         val result = iPV8CommunicationProtocol.sendTransactionDetails(receiverAddress.name, transactionDetails)
         verify(community, times(1)).sendTransactionDetails(receiverAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
         Assert.assertEquals("The returned result should be correct", transactionResult, result)

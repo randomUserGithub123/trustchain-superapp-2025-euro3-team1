@@ -27,13 +27,13 @@ class User(
 
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
-        val transactionDetails = wallet.spendEuro(randomizationElements)
+        val transactionDetails = wallet.spendEuro(randomizationElements, group, crs)
         return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
     }
 
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
-        val transactionDetails = wallet.doubleSpendEuro(randomizationElements)
+        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
         return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
     }
 
@@ -63,7 +63,7 @@ class User(
     ): String {
         val usedRandomness = lookUpRandomness(publicKeySender) ?: return "Randomness Not found!"
 
-        val isValid = Transaction.validate(transactionDetails, publicKeyBank)
+        val isValid = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
 
         if (isValid) {
             wallet.addToWallet(transactionDetails, usedRandomness)

@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.navigation.fragment.findNavController
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
-import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
     override fun onViewCreated(
@@ -17,13 +16,15 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
+        view.findViewById<Button>(R.id.JoinAsTTP).setOnClickListener {
+            findNavController().navigate(R.id.nav_home_ttphome)
+        }
+
         view.findViewById<Button>(R.id.JoinAsBankButton).setOnClickListener {
-            getIpv8().getOverlay<OfflineEuroCommunity>()!!.role = Role.Bank
             findNavController().navigate(R.id.nav_home_bankhome)
         }
 
         view.findViewById<Button>(R.id.JoinAsUserButton).setOnClickListener {
-            getIpv8().getOverlay<OfflineEuroCommunity>()!!.role = Role.User
             findNavController().navigate(R.id.nav_home_userhome)
         }
     }

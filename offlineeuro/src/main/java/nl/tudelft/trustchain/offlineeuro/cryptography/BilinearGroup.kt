@@ -1,11 +1,13 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
+import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import it.unisa.dia.gas.jpbc.Pairing
 import it.unisa.dia.gas.plaf.jpbc.pairing.PairingFactory
 import it.unisa.dia.gas.plaf.jpbc.pairing.a.TypeACurveGenerator
 import it.unisa.dia.gas.plaf.jpbc.pairing.e.TypeECurveGenerator
 import it.unisa.dia.gas.plaf.jpbc.pairing.f.TypeFCurveGenerator
+import java.io.InputStream
 import java.math.BigInteger
 
 enum class PairingTypes {
@@ -42,12 +44,13 @@ data class BilinearGroupElementsBytes(
 data class BilinearGroupElements(
     val g: Element,
     val h: Element,
-    val gt: Element
+    val gt: Element,
 )
 
 class BilinearGroup(
     pairingType: PairingTypes = PairingTypes.A,
     rBits: Int = 160,
+    val context: Context? = null
 ) {
     val pairing: Pairing
     var g: Element
@@ -78,7 +81,24 @@ class BilinearGroup(
                 }
 
                 PairingTypes.FromFile -> {
-                    PairingFactory.getPairing("lib/params/a_181_603.properties")
+                    if (context == null) {
+                        PairingFactory.getPairing("assets/params/a_181_603.properties")
+                    } else {
+                        // Access the assets folder
+
+                        // Access the assets folder
+                        val assetManager = context.assets
+                        val inputStream: InputStream = assetManager.open("params/a_181_603.properties")
+
+                        val filename = "Test.properties"
+                        context.openFileOutput(filename, Context.MODE_PRIVATE).use {
+                            inputStream.copyTo(it)
+                        }
+                        inputStream.close()
+
+                        val test = context.filesDir
+                        PairingFactory.getPairing("$test/$filename")
+                    }
                 }
             }
 

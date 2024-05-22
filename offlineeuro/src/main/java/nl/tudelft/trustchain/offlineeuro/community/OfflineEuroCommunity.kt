@@ -7,6 +7,7 @@ import nl.tudelft.ipv8.attestation.trustchain.TrustChainCrawler
 import nl.tudelft.ipv8.attestation.trustchain.TrustChainSettings
 import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
 import nl.tudelft.ipv8.messaging.Packet
+import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
@@ -22,10 +23,9 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPaylo
 import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionDetailsPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizationElementsPayload
-import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
-import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
@@ -56,11 +56,6 @@ class OfflineEuroCommunity(
     override val serviceId = "ffffd716494b474ea9f614a16a4da0aed6899aec"
 
     lateinit var messageList: MessageList<ICommunityMessage>
-
-    var role: Role = Role.User
-    val name: String = "BestBank"
-    lateinit var crs: CRS
-    var bilinearGroup = BilinearGroup()
 
     init {
 
@@ -106,27 +101,34 @@ class OfflineEuroCommunity(
     fun sendGroupDescriptionAndCRS(
         groupBytes: BilinearGroupElementsBytes,
         crsBytes: CRSBytes,
+        ttpPublicKeyBytes: ByteArray,
         requestingPeer: Peer
     ) {
         val groupAndCrsPacket =
             serializePacket(
                 MessageID.GET_GROUP_DESCRIPTION_CRS_REPLY,
-                BilinearGroupCRSPayload(groupBytes, crsBytes)
+                BilinearGroupCRSPayload(groupBytes, crsBytes, ttpPublicKeyBytes)
             )
 
         send(requestingPeer, groupAndCrsPacket)
     }
 
     private fun onGetGroupDescriptionAndCRSReplyPacket(packet: Packet) {
-        val (_, payload) = packet.getAuthPayload(BilinearGroupCRSPayload)
-        onGetGroupDescriptionAndCRSReply(payload)
+        val (peer, payload) = packet.getAuthPayload(BilinearGroupCRSPayload)
+        onGetGroupDescriptionAndCRSReply(payload, peer)
     }
 
-    fun onGetGroupDescriptionAndCRSReply(payload: BilinearGroupCRSPayload) {
+    fun onGetGroupDescriptionAndCRSReply(
+        payload: BilinearGroupCRSPayload,
+        peer: Peer
+    ) {
         val groupElements = payload.bilinearGroupElements
         val crs = payload.crs
-        val message = BilinearGroupCRSReplyMessage(groupElements, crs)
-        messageList.add(message)
+
+        val ttpAddressMessage = AddressMessage("TTP", Role.Bank, payload.ttpPublicKey, peer.publicKey.keyToBin())
+
+        val message = BilinearGroupCRSReplyMessage(groupElements, crs, ttpAddressMessage)
+        addMessage(message)
     }
 
     fun registerAtTTP(
@@ -168,7 +170,7 @@ class OfflineEuroCommunity(
                 senderPKBytes
             )
 
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun getBlindSignatureRandomness(
@@ -205,7 +207,7 @@ class OfflineEuroCommunity(
                 publicKey,
                 requestingPeer
             )
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun sendBlindSignatureRandomnessReply(
@@ -223,7 +225,7 @@ class OfflineEuroCommunity(
 
     fun onGetBlindSignatureRandomnessReply(payload: ByteArrayPayload) {
         val message = BlindSignatureRandomnessReplyMessage(payload.bytes)
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun getBlindSignature(
@@ -260,7 +262,7 @@ class OfflineEuroCommunity(
                 payload.publicKeyBytes,
                 requestingPeer
             )
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun sendBlindSignature(
@@ -284,7 +286,7 @@ class OfflineEuroCommunity(
             BlindSignatureReplyMessage(
                 BigInteger(payload.bytes)
             )
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun getTransactionRandomizationElements(publicKeyReceiver: ByteArray) {
@@ -313,7 +315,7 @@ class OfflineEuroCommunity(
         payload: ByteArrayPayload
     ) {
         val message = TransactionRandomizationElementsRequestMessage(payload.bytes, requestingPeer)
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun sendTransactionRandomizationElements(
@@ -334,14 +336,26 @@ class OfflineEuroCommunity(
 
     fun onGetTransactionRandomizationElements(payload: TransactionRandomizationElementsPayload) {
         val message = TransactionRandomizationElementsReplyMessage(payload.transactionRandomizationElementsBytes)
-        messageList.add(message)
+        addMessage(message)
     }
 
     fun sendTransactionDetails(
         publicKeyReceiver: ByteArray,
         transactionDetails: TransactionDetailsBytes
     ) {
-        // TODO
+        val peer = getPeerByPublicKeyBytes(publicKeyReceiver)
+
+        peer ?: throw Exception("User not found")
+
+        val packet =
+            serializePacket(
+                MessageID.TRANSACTION,
+                TransactionDetailsPayload(
+                    transactionDetails
+                )
+            )
+
+        send(peer, packet)
     }
 
     fun onTransactionPacket(packet: Packet) {
@@ -364,6 +378,12 @@ class OfflineEuroCommunity(
     private fun getRandomPeer(publicKeyBank: ByteArray): Peer? {
         return getPeers().shuffled().find {
             !it.publicKey.keyToBin().contentEquals(publicKeyBank)
+        }
+    }
+
+    fun addMessage(message: ICommunityMessage) {
+        if (this::messageList.isInitialized) {
+            messageList.add(message)
         }
     }
 

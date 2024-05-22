@@ -12,6 +12,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequest
 import nl.tudelft.trustchain.offlineeuro.community.message.CommunityMessageType
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
+import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
@@ -25,6 +26,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
+import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import java.math.BigInteger
 
@@ -50,6 +52,10 @@ class IPV8CommunicationProtocol(
         val group = BilinearGroup(pairingType = PairingTypes.FromFile)
         group.updateGroupElements(message.groupDescription)
         val crs = message.crs.toCRS(group)
+
+        participant.group = group
+        participant.crs = crs
+        messageList.add(message.addressMessage)
         return Pair(group, crs)
     }
 
@@ -101,7 +107,6 @@ class IPV8CommunicationProtocol(
         userNameReceiver: String,
         transactionDetails: TransactionDetails
     ): String {
-        val test = addressBookManager.getAllAddresses()
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
         community.sendTransactionDetails(peerAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
         val message = waitForMessage(CommunityMessageType.TransactionResultMessage) as TransactionResultMessage
@@ -120,7 +125,7 @@ class IPV8CommunicationProtocol(
 
         while (!community.messageList.any { it.messageType == messageType }) {
             if (loops * sleepDuration >= timeOutInMS) {
-                throw Exception("TimeOut")
+                // throw Exception("TimeOut")
             }
             Thread.sleep(sleepDuration)
             loops++
@@ -140,10 +145,19 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
-        val groupBytes = CentralAuthority.groupDescription.toGroupElementBytes()
-        val crsBytes = CentralAuthority.crs.toCRSBytes()
-        val peer = message.requestingPeer
-        community.sendGroupDescriptionAndCRS(groupBytes, crsBytes, peer)
+        if (participant !is TTP) {
+            return
+        } else {
+            val groupBytes = participant.group.toGroupElementBytes()
+            val crsBytes = participant.crs.toCRSBytes()
+            val peer = message.requestingPeer
+            community.sendGroupDescriptionAndCRS(
+                groupBytes,
+                crsBytes,
+                participant.publicKey.toBytes(),
+                peer
+            )
+        }
     }
 
     private fun handleBlindSignatureRandomnessRequest(message: BlindSignatureRandomnessRequestMessage) {
@@ -192,15 +206,26 @@ class IPV8CommunicationProtocol(
         community.sendTransactionResult(transactionResult, requestingPeer)
     }
 
+    private fun handleRegistrationMessage(message: TTPRegistrationMessage) {
+        if (participant !is TTP) {
+            return
+        }
+
+        val ttp = participant as TTP
+        val publicKey = ttp.group.gElementFromBytes(message.userPKBytes)
+        ttp.registerUser(message.userName, publicKey)
+    }
+
     private fun handleRequestMessage(message: ICommunityMessage) {
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
+            // is RegistrationMessage -> handleRegistrationMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
             is BlindSignatureRandomnessRequestMessage -> handleBlindSignatureRandomnessRequest(message)
             is BlindSignatureRequestMessage -> handleBlindSignatureRequestMessage(message)
             is TransactionRandomizationElementsRequestMessage -> handleTransactionRandomizationElementsRequest(message)
             is TransactionMessage -> handleTransactionMessage(message)
-
+            is TTPRegistrationMessage -> handleRegistrationMessage(message)
             else -> throw Exception("Unsupported message type")
         }
         return

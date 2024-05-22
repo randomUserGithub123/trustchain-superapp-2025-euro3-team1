@@ -8,7 +8,8 @@ class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommun
             BlindSignatureRandomnessRequestMessage::class.java,
             BlindSignatureRequestMessage::class.java,
             TransactionRandomizationElementsRequestMessage::class.java,
-            TransactionMessage::class.java
+            TransactionMessage::class.java,
+            TTPRegistrationMessage::class.java
         )
 
     override fun add(element: ICommunityMessage): Boolean {

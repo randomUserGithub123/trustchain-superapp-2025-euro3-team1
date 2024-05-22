@@ -1,26 +1,23 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
-import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.libraries.EBMap
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 
 object GrothSahai {
-    val bilinearGroup = CentralAuthority.groupDescription
-    val crs = CentralAuthority.crs
-
-    val pairing = bilinearGroup.pairing
-    val g = bilinearGroup.g
-    val h = bilinearGroup.h
-    val gt = bilinearGroup.gt
-
     fun createTransactionProof(
         privateKey: Element,
         publicKey: Element,
         target: Element,
         previousT: Element,
-        randomizationElements: RandomizationElements
+        randomizationElements: RandomizationElements,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
     ): Pair<TransactionProof, Element> {
+        val g = bilinearGroup.g
+        val h = bilinearGroup.h
+        val pairing = bilinearGroup.pairing
+
         val signatureElement = target.immutable
         val y = signatureElement.div(privateKey).immutable
         val computedY = h.powZn(y).immutable
@@ -49,8 +46,15 @@ object GrothSahai {
         return Pair(TransactionProof(grothSahaiProof, computedY, v.powZn(s).immutable), r)
     }
 
-    fun verifyTransactionProof(grothSahaiProof: GrothSahaiProof): Boolean {
+    fun verifyTransactionProof(
+        grothSahaiProof: GrothSahaiProof,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
+    ): Boolean {
         val (c1, c2, d1, d2, theta1, theta2, pi1, pi2, target) = grothSahaiProof
+        val g = bilinearGroup.g
+        val h = bilinearGroup.h
+        val gt = bilinearGroup.gt
 
         val u = crs.u
         val v = crs.v

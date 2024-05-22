@@ -25,6 +25,13 @@
                 android:textSize="25dp"
                 android:text="Pick the role you want to have:"
                 android:textStyle="bold"/>
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TTP"
+                android:id="@+id/JoinAsTTP"/>
+
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

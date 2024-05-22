@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
@@ -10,7 +11,6 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProofBytes
 import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
-import kotlin.system.measureTimeMillis
 
 data class TransactionDetailsBytes(
     val digitalEuroBytes: DigitalEuroBytes,
@@ -49,15 +49,13 @@ data class TransactionDetails(
 }
 
 object Transaction {
-    val bilinearGroup = CentralAuthority.groupDescription
-    val g = bilinearGroup.g
-    val h = bilinearGroup.h
-
     fun createTransaction(
         privateKey: Element,
         publicKey: Element,
         walletEntry: WalletEntry,
         randomizationElements: RandomizationElements,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
     ): TransactionDetails {
         val digitalEuro = walletEntry.digitalEuro
 
@@ -74,7 +72,9 @@ object Transaction {
                 publicKey,
                 target,
                 walletEntry.t,
-                randomizationElements
+                randomizationElements,
+                bilinearGroup,
+                crs
             )
 
         val theta1Signature = Schnorr.schnorrSignature(r, randomizationElements.group1TInv.toBytes(), bilinearGroup)
@@ -84,38 +84,28 @@ object Transaction {
 
     fun validate(
         transaction: TransactionDetails,
-        publicKeyBank: Element
+        publicKeyBank: Element,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
     ): Boolean {
         // Verify if the Digital euro is signed
         val digitalEuro = transaction.digitalEuro
-        val timeInMillis =
-            measureTimeMillis {
-                if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup)) {
-                    return false
-                }
-            }
-        // println("Bank signature verification $timeInMillis")
+        if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup)) {
+            return false
+        }
 
         // Verify if the current transaction signature is correct
         val transactionProof = transaction.currentTransactionProof
 
-        val transactionSignatureTime =
-            measureTimeMillis {
-                val transactionSignature = transaction.theta1Signature
-                if (!Schnorr.verifySchnorrSignature(transactionSignature, transactionProof.grothSahaiProof.c1, bilinearGroup)) {
-                    return false
-                }
-            }
-        // println("Transaction signature verification $transactionSignatureTime")
+        val transactionSignature = transaction.theta1Signature
+        if (!Schnorr.verifySchnorrSignature(transactionSignature, transactionProof.grothSahaiProof.c1, bilinearGroup)) {
+            return false
+        }
 
-        val grothProofValidation =
-            measureTimeMillis {
-                // Validate if the given Transaction proof is a valid Groth-Sahai proof
-                if (!GrothSahai.verifyTransactionProof(transactionProof.grothSahaiProof)) {
-                    return false
-                }
-            }
-        // println("Groth proof verification $grothProofValidation")
+        // Validate if the given Transaction proof is a valid Groth-Sahai proof
+        if (!GrothSahai.verifyTransactionProof(transactionProof.grothSahaiProof, bilinearGroup, crs)) {
+            return false
+        }
 
         // Validate that d2 is constructed correctly
         val usedY = transactionProof.usedY
@@ -134,31 +124,32 @@ object Transaction {
             return false
         }
 
-        var result = false
-
-        val chainValidation =
-            measureTimeMillis {
-                result = validateProofChain(transaction)
-            }
-
-        println("$timeInMillis, $transactionSignatureTime, $grothProofValidation, $chainValidation")
-        return result
+        return validateProofChain(transaction, bilinearGroup, crs)
     }
 
-    fun validateProofChain(currentTransactionDetails: TransactionDetails): Boolean {
+    fun validateProofChain(
+        currentTransactionDetails: TransactionDetails,
+        bilinearGroup: BilinearGroup,
+        crs: CRS
+    ): Boolean {
         val digitalEuro = currentTransactionDetails.digitalEuro
         val currentProof = currentTransactionDetails.currentTransactionProof
         val previousProofs = digitalEuro.proofs
 
         // Current proof is the first proof
         if (previousProofs.isEmpty()) {
-            return validateTSRelation(digitalEuro.firstTheta1, currentProof.grothSahaiProof.d1)
+            return validateTSRelation(digitalEuro.firstTheta1, currentProof.grothSahaiProof.d1, bilinearGroup)
         }
 
         // Special cases for the first proof
         val firstProof = previousProofs.first()
 
-        if (!validateTSRelation(digitalEuro.firstTheta1, firstProof.d1) || !GrothSahai.verifyTransactionProof(firstProof)) {
+        if (!validateTSRelation(
+                digitalEuro.firstTheta1,
+                firstProof.d1,
+                bilinearGroup
+            ) || !GrothSahai.verifyTransactionProof(firstProof, bilinearGroup, crs)
+        ) {
             return false
         }
 
@@ -166,8 +157,8 @@ object Transaction {
         var previousProof = firstProof
         for (i: Int in 1 until previousProofs.size) {
             val proof = previousProofs[i]
-            GrothSahai.verifyTransactionProof(proof)
-            if (!verifyProofChain(previousProof, proof)) {
+            GrothSahai.verifyTransactionProof(proof, bilinearGroup, crs)
+            if (!verifyProofChain(previousProof, proof, bilinearGroup)) {
                 return false
             }
             previousProof = proof
@@ -185,13 +176,16 @@ object Transaction {
             return false
         }
         // Verify the proof of the transaction to the last proof in the chain
-        return verifyProofChain(previousProof, currentProof.grothSahaiProof)
+        return verifyProofChain(previousProof, currentProof.grothSahaiProof, bilinearGroup)
     }
 
     fun verifyProofChain(
         previousProof: GrothSahaiProof,
-        currentProof: GrothSahaiProof
+        currentProof: GrothSahaiProof,
+        bilinearGroup: BilinearGroup,
     ): Boolean {
+        val g = bilinearGroup.g
+        val h = bilinearGroup.h
         val previousTargetToBytes = previousProof.target.toCanonicalRepresentation()
         val previousTargetAsPower = bilinearGroup.pairing.zr.newElementFromBytes(previousTargetToBytes)
         val expectedTarget = bilinearGroup.pair(g, h).powZn(previousTargetAsPower)
@@ -203,13 +197,17 @@ object Transaction {
         // Check if the relation with t and s is correct
         val previousTheta1 = previousProof.theta1
         val currentD1 = currentProof.d1
-        return validateTSRelation(previousTheta1, currentD1)
+        return validateTSRelation(previousTheta1, currentD1, bilinearGroup)
     }
 
     fun validateTSRelation(
         theta: Element,
-        s: Element
+        s: Element,
+        bilinearGroup: BilinearGroup
     ): Boolean {
+        val g = bilinearGroup.g
+        val h = bilinearGroup.h
+
         val expectedPairing = bilinearGroup.pair(g, h)
         val actualPairing = bilinearGroup.pair(theta, s)
         return expectedPairing == actualPairing
