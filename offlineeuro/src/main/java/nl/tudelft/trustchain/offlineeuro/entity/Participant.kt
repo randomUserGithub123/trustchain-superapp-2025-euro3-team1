@@ -24,9 +24,7 @@ abstract class Participant(
     }
 
     fun getGroupDescriptionAndCRS() {
-        val groupAndCRS = communicationProtocol.getGroupDescriptionAndCRS()
-        group = groupAndCRS.first
-        crs = groupAndCRS.second
+        communicationProtocol.getGroupDescriptionAndCRS()
     }
 
     fun generateKeyPair() {

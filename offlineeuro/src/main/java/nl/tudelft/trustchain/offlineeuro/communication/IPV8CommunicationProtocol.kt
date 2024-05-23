@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.communication
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.AddressRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
@@ -18,8 +19,6 @@ import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
-import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
@@ -28,6 +27,8 @@ import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
+import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.math.BigInteger
 
 class IPV8CommunicationProtocol(
@@ -44,19 +45,15 @@ class IPV8CommunicationProtocol(
     private val timeOutInMS = 5000
     override lateinit var participant: Participant
 
-    override fun getGroupDescriptionAndCRS(): Pair<BilinearGroup, CRS> {
+    override fun getGroupDescriptionAndCRS() {
         community.getGroupDescriptionAndCRS()
         val message =
             waitForMessage(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
 
-        val group = BilinearGroup(pairingType = PairingTypes.FromFile)
-        group.updateGroupElements(message.groupDescription)
-        val crs = message.crs.toCRS(group)
-
-        participant.group = group
+        participant.group.updateGroupElements(message.groupDescription)
+        val crs = message.crs.toCRS(participant.group)
         participant.crs = crs
         messageList.add(message.addressMessage)
-        return Pair(group, crs)
     }
 
     override fun register(
@@ -113,6 +110,9 @@ class IPV8CommunicationProtocol(
         return message.result
     }
 
+    fun scopePeers() {
+        community.scopePeers(participant.name, getParticipantRole(), participant.publicKey.toBytes())
+    }
     override fun getPublicKeyOf(
         name: String,
         group: BilinearGroup
@@ -216,9 +216,16 @@ class IPV8CommunicationProtocol(
         ttp.registerUser(message.userName, publicKey)
     }
 
+    private fun handleAddressRequestMessage(message: AddressRequestMessage) {
+        val role = getParticipantRole()
+
+        community.sendAddressReply(participant.name, role, participant.publicKey.toBytes(), message.requestingPeer)
+    }
+
     private fun handleRequestMessage(message: ICommunityMessage) {
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
+            is AddressRequestMessage -> handleAddressRequestMessage(message)
             // is RegistrationMessage -> handleRegistrationMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
             is BlindSignatureRandomnessRequestMessage -> handleBlindSignatureRandomnessRequest(message)
@@ -229,5 +236,14 @@ class IPV8CommunicationProtocol(
             else -> throw Exception("Unsupported message type")
         }
         return
+    }
+
+    private fun getParticipantRole(): Role {
+        return when (participant) {
+            is User -> Role.User
+            is TTP -> Role.TTP
+            is Bank -> Role.Bank
+            else -> throw Exception("Unknown role")
+        }
     }
 }

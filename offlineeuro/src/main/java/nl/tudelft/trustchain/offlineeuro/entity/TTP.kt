@@ -33,6 +33,10 @@ class TTP(
         return registeredUserManager.addRegisteredUser(name, publicKey)
     }
 
+    fun getRegisteredUsers(): List<RegisteredUser> {
+        return registeredUserManager.getAllRegisteredUsers()
+    }
+
     override fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,

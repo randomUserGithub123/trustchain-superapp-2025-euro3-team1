@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
+import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
 
 object TableHelpers {
@@ -27,6 +28,16 @@ object TableHelpers {
         }
     }
 
+    fun addAddressesToTable(
+        table: TableLayout,
+        addresses: List<Address>
+    ) {
+        val context = table.context
+        for (address in addresses) {
+            table.addView(addressToTableRow(address, context))
+        }
+    }
+
     private fun registeredUserToTableRow(
         user: RegisteredUser,
         context: Context
@@ -39,8 +50,33 @@ object TableHelpers {
         val nameField = TextView(context)
         nameField.text = user.name
 
+        val publicKeyField = TextView(context)
+        publicKeyField.text = user.publicKey.toString()
+
         tableRow.addView(idField)
         tableRow.addView(nameField)
+        tableRow.addView(publicKeyField)
+        return tableRow
+    }
+
+    private fun addressToTableRow(
+        address: Address,
+        context: Context
+    ): TableRow {
+        val tableRow = TableRow(context)
+
+        val nameField = TextView(context)
+        nameField.text = address.name
+
+        val roleField = TextView(context)
+        roleField.text = address.type.toString()
+
+        val publicKeyField = TextView(context)
+        publicKeyField.text = address.publicKey.toString()
+
+        tableRow.addView(nameField)
+        tableRow.addView(roleField)
+        tableRow.addView(publicKeyField)
         return tableRow
     }
 }

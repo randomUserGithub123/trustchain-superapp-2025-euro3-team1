@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import java.math.BigInteger
@@ -10,6 +11,7 @@ import kotlin.math.min
 
 class Bank(
     name: String,
+    group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
     private val context: Context?,
     private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, CentralAuthority.groupDescription)
@@ -19,6 +21,7 @@ class Bank(
 
     init {
         communicationProtocol.participant = this
+        this.group = group
         setUp()
     }
 

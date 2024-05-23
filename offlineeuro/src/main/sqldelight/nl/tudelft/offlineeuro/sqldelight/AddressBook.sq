@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS AddressBook (
 );
 
 insertAddress:
-INSERT INTO AddressBook(
+INSERT OR REPLACE INTO AddressBook(
     name,
     type,
     publicKey,

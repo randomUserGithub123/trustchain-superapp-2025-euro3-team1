@@ -3,12 +3,14 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
 
 class User(
     name: String,
+    group: BilinearGroup,
     context: Context?,
     private var walletManager: WalletManager? = null,
     communicationProtocol: ICommunicationProtocol
@@ -16,8 +18,9 @@ class User(
     val wallet: Wallet
 
     init {
-        setUp()
         communicationProtocol.participant = this
+        this.group = group
+        setUp()
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
         }

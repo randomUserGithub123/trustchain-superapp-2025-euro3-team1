@@ -82,7 +82,7 @@ class BilinearGroup(
 
                 PairingTypes.FromFile -> {
                     if (context == null) {
-                        PairingFactory.getPairing("assets/params/a_181_603.properties")
+                        PairingFactory.getPairing("lib/params/a_181_603.properties")
                     } else {
                         // Access the assets folder
 

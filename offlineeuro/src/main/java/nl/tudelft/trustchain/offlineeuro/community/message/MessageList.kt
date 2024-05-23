@@ -4,6 +4,7 @@ class MessageList<ICommunityMessage>(private val onRequestMessageAdded: (ICommun
     private val requestMessageTypes =
         setOf(
             AddressMessage::class.java,
+            AddressRequestMessage::class.java,
             BilinearGroupCRSRequestMessage::class.java,
             BlindSignatureRandomnessRequestMessage::class.java,
             BlindSignatureRequestMessage::class.java,

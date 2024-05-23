@@ -48,7 +48,6 @@ class SystemTest {
     // Setup the TTP
     private val ca = CentralAuthority
     private val ttpPK = ca.groupDescription.generateRandomElementOfG()
-    private val ttpAddress = Address("TTP", Role.Bank, ttpPK, "TTPPublicKey".toByteArray())
     private val registrationNameCaptor = argumentCaptor<String>()
     private val publicKeyCaptor = argumentCaptor<ByteArray>()
     private val userList = hashMapOf<User, OfflineEuroCommunity>()
@@ -263,7 +262,6 @@ class SystemTest {
 
     private fun createAddressManager(group: BilinearGroup): AddressBookManager {
         val addressBookManager = AddressBookManager(null, group, createDriver())
-        addressBookManager.insertAddress(ttpAddress)
         return addressBookManager
     }
 
@@ -277,9 +275,11 @@ class SystemTest {
 
     private fun prepareCommunityMock(): OfflineEuroCommunity {
         val community = Mockito.mock(OfflineEuroCommunity::class.java)
+        val ttpAddress = Address("TTP", Role.Bank, ttpPK, "TTPPublicKey".toByteArray())
+        val ttpAddressMessage = AddressMessage("TTP", ttpAddress.type, ttpAddress.publicKey.toBytes(), ttpAddress.peerPublicKey!!)
 
         `when`(community.getGroupDescriptionAndCRS()).then {
-            val message = BilinearGroupCRSReplyMessage(ca.groupDescription.toGroupElementBytes(), ca.crs.toCRSBytes())
+            val message = BilinearGroupCRSReplyMessage(ca.groupDescription.toGroupElementBytes(), ca.crs.toCRSBytes(), ttpAddressMessage)
             community.messageList.add(message)
         }
 

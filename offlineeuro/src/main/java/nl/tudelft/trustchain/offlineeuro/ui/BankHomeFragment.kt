@@ -27,6 +27,6 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         val addressBookManager = AddressBookManager(context, group)
         val depositedEuroManager = DepositedEuroManager(context, group)
         iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        bank = Bank("Bank", iPV8CommunicationProtocol, context, depositedEuroManager)
+        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, depositedEuroManager)
     }
 }

@@ -5,6 +5,7 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
 import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
+import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
@@ -23,6 +24,7 @@ import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
+import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.User
@@ -76,13 +78,13 @@ class IPV8CommunicationProtocolTest {
     @Before
     fun setup() {
         `when`(community.messageList).thenReturn(iPV8CommunicationProtocol.messageList)
-
+        val ttpAddressMessage = AddressMessage(ttpAddress.name, ttpAddress.type, ttpAddress.publicKey.toBytes(), ttpAddress.peerPublicKey!!)
         `when`(community.getGroupDescriptionAndCRS()).then {
-            val message = BilinearGroupCRSReplyMessage(ttpBilinearGroup.toGroupElementBytes(), ttpCRS.first.toCRSBytes())
+            val message = BilinearGroupCRSReplyMessage(ttpBilinearGroup.toGroupElementBytes(), ttpCRS.first.toCRSBytes(), ttpAddressMessage)
             community.messageList.add(message)
         }
 
-        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any())).then { }
+        `when`(community.sendGroupDescriptionAndCRS(any(), any(), any(), any())).then { }
 
         `when`(community.registerAtTTP(any(), any(), any())).then { }
 
@@ -108,12 +110,15 @@ class IPV8CommunicationProtocolTest {
             val message = TransactionResultMessage(transactionResult)
             community.messageList.add(message)
         }
-
-        addressBookManager.insertAddress(ttpAddress)
     }
 
     @Test
     fun getGroupDescriptionAndCRSTest() {
+        val ttp = Mockito.mock(TTP::class.java)
+        iPV8CommunicationProtocol.participant = ttp
+        `when`(ttp.group).thenReturn(ttpBilinearGroup)
+        `when`(ttp.crs).thenReturn(ttpCRS.first)
+
         val (groupDescription, crs) = iPV8CommunicationProtocol.getGroupDescriptionAndCRS()
         Assert.assertEquals(ttpBilinearGroup.pairing, groupDescription.pairing)
         Assert.assertEquals(ttpBilinearGroup.g, groupDescription.g)
@@ -126,18 +131,34 @@ class IPV8CommunicationProtocolTest {
     fun sendBilinearGroupAndCRSTest() {
         val message = BilinearGroupCRSRequestMessage(receivingPeer)
 
-        val expectedGroupElements = CentralAuthority.groupDescription.toGroupElementBytes()
-        val expectedCRSBytes = CentralAuthority.crs.toCRSBytes()
+        val ttp = Mockito.mock(TTP::class.java)
+        iPV8CommunicationProtocol.participant = ttp
+
+        `when`(ttp.group).thenReturn(ttpBilinearGroup)
+        `when`(ttp.crs).thenReturn(ttpCRS.first)
+        `when`(ttp.publicKey).thenReturn(ttpPK)
+
+        val expectedGroupElements = ttpBilinearGroup.toGroupElementBytes()
+        val expectedCRSBytes = ttpCRS.first.toCRSBytes()
 
         community.messageList.add(message)
         verify(community, times(1))
-            .sendGroupDescriptionAndCRS(expectedGroupElements, expectedCRSBytes, receivingPeer)
+            .sendGroupDescriptionAndCRS(expectedGroupElements, expectedCRSBytes, ttpAddress.publicKey.toBytes(), receivingPeer)
     }
 
     @Test
     fun registrationTest() {
         val publicKey = ttpBilinearGroup.generateRandomElementOfG()
         val userName = "UserTryingToRegister"
+        val participant = Mockito.mock(User::class.java)
+        `when`(participant.publicKey).thenReturn(publicKey)
+        `when`(participant.name).thenReturn(userName)
+        `when`(participant.group).thenReturn(ttpBilinearGroup)
+
+        iPV8CommunicationProtocol.participant = participant
+        iPV8CommunicationProtocol.messageList.add(
+            AddressMessage(ttpAddress.name, ttpAddress.type, ttpAddress.publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+        )
         iPV8CommunicationProtocol.register(userName, publicKey, ttpAddress.name)
         // Assert that the registration request is sent correctly
         verify(community, times(1)).registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)

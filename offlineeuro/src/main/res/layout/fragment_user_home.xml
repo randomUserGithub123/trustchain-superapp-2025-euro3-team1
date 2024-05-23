@@ -24,8 +24,8 @@
                 android:layout_height="match_parent"
                 android:gravity="center_horizontal"
                 android:orientation="vertical"
-                android:id="@+id/user_home_bank_list"
-                app:layout_constraintTop_toBottomOf="@id/BankDetailsLayout">
+                android:id="@+id/user_home_entity_list"
+                app:layout_constraintTop_toBottomOf="@id/user_home_layout">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -34,18 +34,50 @@
                     android:orientation="vertical">
 
                 <Button
-                    android:id="@+id/user_home_sync_banks"
+                    android:id="@+id/user_home_sync_addresses"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Sync Bank list" />
+                    android:text="Sync Entity list" />
 
                 <TextView
                     android:id="@+id/textView2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Banks"
+                    android:text="Addresses"
                     app:layout_constraintTop_toTopOf="parent" />
                 </LinearLayout>
+                <TableLayout
+                    android:id="@+id/user_home_entity_list2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textView2"
+                    android:layout_weight="0.5">
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        >
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="UserID"
+                            android:layout_weight="0.25"
+                            />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Name"
+                            android:layout_weight="0.75"
+                            />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.75"
+                            android:text="Public Key" />
+                    </TableRow>
+                </TableLayout>
             </LinearLayout>
         </LinearLayout>
         </LinearLayout>

@@ -8,6 +8,7 @@ import nl.tudelft.ipv8.attestation.trustchain.TrustChainSettings
 import nl.tudelft.ipv8.attestation.trustchain.store.TrustChainStore
 import nl.tudelft.ipv8.messaging.Packet
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.AddressRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
@@ -19,6 +20,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.payload.AddressPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
@@ -33,6 +35,7 @@ import nl.tudelft.trustchain.offlineeuro.enums.Role
 import java.math.BigInteger
 
 object MessageID {
+
     const val GET_GROUP_DESCRIPTION_CRS = 9
     const val GET_GROUP_DESCRIPTION_CRS_REPLY = 10
     const val REGISTER_AT_TTP = 11
@@ -46,6 +49,8 @@ object MessageID {
     const val GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY = 17
 
     const val TRANSACTION = 18
+    const val SCOPE_PEERS = 19
+    const val ADDRESS_RESPONSE = 20
 }
 
 class OfflineEuroCommunity(
@@ -74,6 +79,9 @@ class OfflineEuroCommunity(
         messageHandlers[MessageID.GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY] = ::onGetTransactionRandomizationElementsReplyPacket
 
         messageHandlers[MessageID.TRANSACTION] = ::onTransactionPacket
+
+        messageHandlers[MessageID.SCOPE_PEERS] = ::onScopePeersPacket
+        messageHandlers[MessageID.ADDRESS_RESPONSE] = ::onAddressReplyPacket
     }
 
     fun getGroupDescriptionAndCRS() {
@@ -332,6 +340,7 @@ class OfflineEuroCommunity(
 
     fun onGetTransactionRandomizationElementsReplyPacket(packet: Packet) {
         val (_, payload) = packet.getAuthPayload(TransactionRandomizationElementsPayload)
+        onGetTransactionRandomizationElements(payload)
     }
 
     fun onGetTransactionRandomizationElements(payload: TransactionRandomizationElementsPayload) {
@@ -369,6 +378,53 @@ class OfflineEuroCommunity(
         // TODO
     }
 
+    fun sendAddressReply(name: String, role: Role, publicKeyBytes: ByteArray, requestingPeer: Peer) {
+        val addressPacket = serializePacket(
+            MessageID.ADDRESS_RESPONSE,
+            AddressPayload(
+                name, publicKeyBytes, role
+            )
+        )
+
+        send(requestingPeer, addressPacket)
+    }
+
+    private fun onAddressReplyPacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(AddressPayload)
+        onAddressReply(payload, peer)
+    }
+
+    private fun onAddressReply(payload: AddressPayload, peer: Peer) {
+        val message = AddressMessage(payload.userName, payload.role, payload.publicKey, peer.publicKey.keyToBin())
+        addMessage(message)
+    }
+
+    fun scopePeers(name: String, role: Role, publicKeyBytes: ByteArray) {
+        val addressPacket = serializePacket(
+            MessageID.SCOPE_PEERS,
+            AddressPayload(
+                name, publicKeyBytes, role
+            )
+        )
+
+        for (peer in getPeers()) {
+            send(peer, addressPacket)
+        }
+
+    }
+
+    private fun onScopePeersPacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(AddressPayload)
+        onScopePeers(payload, requestingPeer)
+    }
+
+    private fun onScopePeers(payload: AddressPayload, requestingPeer: Peer) {
+        val addressMessage = AddressMessage(payload.userName, payload.role, payload.publicKey, requestingPeer.publicKey.keyToBin())
+        addMessage(addressMessage)
+
+        val addressRequestMessage = AddressRequestMessage(requestingPeer)
+        addMessage(addressRequestMessage)
+    }
     private fun getPeerByPublicKeyBytes(publicKey: ByteArray): Peer? {
         return getPeers().find {
             it.publicKey.keyToBin().contentEquals(publicKey)
