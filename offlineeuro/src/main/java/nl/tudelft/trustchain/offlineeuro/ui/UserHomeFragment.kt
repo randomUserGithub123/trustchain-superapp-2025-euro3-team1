@@ -4,9 +4,11 @@ import android.app.AlertDialog
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TableLayout
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.os.bundleOf
 import androidx.navigation.fragment.findNavController
@@ -37,14 +39,20 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
         user = User("Name", group, context, null, communicationProtocol)
         communicationProtocol.scopePeers()
-        syncBankList(view)
+        // syncBankList(view)
+
+        view.findViewById<Button>(R.id.user_home_sync_addresses).setOnClickListener {
+            syncBankList(view)
+            Toast.makeText(context, "Syncing users....", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun syncBankList(view: View) {
+        communicationProtocol.scopePeers()
         val bankList = view.findViewById<TableLayout>(R.id.user_home_entity_list2)
         clearOldList(bankList)
         val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-        TableHelpers.addAddressesToTable(bankList, addresses)
+        TableHelpers.addAddressesToTable(bankList, addresses, user)
     }
 
     private fun clearOldList(list: LinearLayout) {

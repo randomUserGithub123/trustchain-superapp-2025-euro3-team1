@@ -27,6 +27,9 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         view.findViewById<Button>(R.id.JoinAsUserButton).setOnClickListener {
             findNavController().navigate(R.id.nav_home_userhome)
         }
+        view.findViewById<Button>(R.id.JoinAsAllRolesButton).setOnClickListener {
+            findNavController().navigate(R.id.nav_home_all_roles_home)
+        }
     }
 
     override fun onActivityResult(

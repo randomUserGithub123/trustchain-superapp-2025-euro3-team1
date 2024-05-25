@@ -17,6 +17,9 @@
         <action
             android:id="@+id/nav_home_ttphome"
             app:destination="@id/TTPHomeFragment" />
+        <action
+            android:id="@+id/nav_home_all_roles_home"
+            app:destination="@id/allRolesFragment" />
     </fragment>
     <fragment
         android:id="@+id/bankHomeFragment"
@@ -45,4 +48,8 @@
         android:id="@+id/TTPHomeFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.TTPHomeFragment"
         android:label="TTPHomeFragment" />
+    <fragment
+        android:id="@+id/allRolesFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.AllRolesFragment"
+        android:label="AllRolesFragment" />
 </navigation>

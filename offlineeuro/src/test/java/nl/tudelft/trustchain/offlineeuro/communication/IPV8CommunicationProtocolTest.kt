@@ -101,12 +101,12 @@ class IPV8CommunicationProtocolTest {
             community.messageList.add(message)
         }
 
-        `when`(community.getTransactionRandomizationElements(any())).then {
+        `when`(community.getTransactionRandomizationElements(any(), any())).then {
             val message = TransactionRandomizationElementsReplyMessage(randomizationElements.toRandomizationElementsBytes())
             community.messageList.add(message)
         }
 
-        `when`(community.sendTransactionDetails(any(), any())).then {
+        `when`(community.sendTransactionDetails(any(), any(), any())).then {
             val message = TransactionResultMessage(transactionResult)
             community.messageList.add(message)
         }
@@ -119,7 +119,9 @@ class IPV8CommunicationProtocolTest {
         `when`(ttp.group).thenReturn(ttpBilinearGroup)
         `when`(ttp.crs).thenReturn(ttpCRS.first)
 
-        val (groupDescription, crs) = iPV8CommunicationProtocol.getGroupDescriptionAndCRS()
+        iPV8CommunicationProtocol.getGroupDescriptionAndCRS()
+        val groupDescription = ttp.group
+        val crs = ttp.crs
         Assert.assertEquals(ttpBilinearGroup.pairing, groupDescription.pairing)
         Assert.assertEquals(ttpBilinearGroup.g, groupDescription.g)
         Assert.assertEquals(ttpBilinearGroup.h, groupDescription.h)
@@ -220,9 +222,14 @@ class IPV8CommunicationProtocolTest {
 
     @Test
     fun requestTransactionRandomnessTest() {
+        val bank = Mockito.mock(Bank::class.java)
+        iPV8CommunicationProtocol.participant = bank
+
+        val bankPK = ttpBilinearGroup.generateRandomElementOfG()
+        `when`(bank.publicKey).thenReturn(bankPK)
         addressBookManager.insertAddress(receiverAddress)
         val transactionRandomness = iPV8CommunicationProtocol.requestTransactionRandomness(receiverAddress.name, ttpBilinearGroup)
-        verify(community, times(1)).getTransactionRandomizationElements(receiverAddress.peerPublicKey!!)
+        verify(community, times(1)).getTransactionRandomizationElements(bankPK.toBytes(), receiverAddress.peerPublicKey!!)
         Assert.assertEquals("The transaction randomness should be correct", randomizationElements, transactionRandomness)
     }
 
@@ -250,13 +257,22 @@ class IPV8CommunicationProtocolTest {
 
     @Test
     fun sendTransactionDetailsTest() {
+        val user = Mockito.mock(User::class.java)
+        iPV8CommunicationProtocol.participant = user
+
+        val userPK = ttpBilinearGroup.generateRandomElementOfG()
+        `when`(user.publicKey).thenReturn(userPK)
+
         addressBookManager.insertAddress(receiverAddress)
         val transactionDetails = Mockito.mock(TransactionDetails::class.java)
         val transactionDetailsBytes = Mockito.mock(TransactionDetailsBytes::class.java)
         `when`(transactionDetails.toTransactionDetailsBytes()).thenReturn(transactionDetailsBytes)
 
         val result = iPV8CommunicationProtocol.sendTransactionDetails(receiverAddress.name, transactionDetails)
-        verify(community, times(1)).sendTransactionDetails(receiverAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
+        verify(
+            community,
+            times(1)
+        ).sendTransactionDetails(userPK.toBytes(), receiverAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
         Assert.assertEquals("The returned result should be correct", transactionResult, result)
     }
 

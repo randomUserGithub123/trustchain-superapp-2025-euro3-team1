@@ -53,6 +53,7 @@ class SystemTest {
     private val userList = hashMapOf<User, OfflineEuroCommunity>()
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
+    private var i = 0
 
     @Test
     fun withdrawSpendDepositDoubleSpendDepositTest() {
@@ -108,6 +109,30 @@ class SystemTest {
         spendEuro(user3, bank, "Double spending detected. Double spender is ${user.name} with PK: ${user.publicKey}")
     }
 
+    @Test
+    fun getManyBlindSignatures()  {
+        // Initiate
+        ca.initializeRegisteredUserManager(null, createDriver())
+        createBank()
+        val user = createTestUser()
+
+        bank.group = ca.groupDescription
+        bank.crs = ca.crs
+
+        user.group = ca.groupDescription
+        user.crs = ca.crs
+        // Assert that the group descriptions and crs are equal
+        Assert.assertEquals("The group descriptions should be equal", bank.group, user.group)
+        Assert.assertEquals("The group descriptions should be equal", bank.crs, user.crs)
+
+        val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
+        addMessageToList(user, bankAddressMessage)
+        // TODO MAKE THIS UNNECESSARY
+        bankCommunity.messageList.add(bankAddressMessage)
+        for (i in 0 until 50)
+            withdrawDigitalEuro(user, bank.name)
+    }
+
     private fun withdrawDigitalEuro(
         user: User,
         bankName: String
@@ -125,7 +150,7 @@ class SystemTest {
             val randomnessRequestMessage = BlindSignatureRandomnessRequestMessage(publicKeyBytes, userPeer)
             bankCommunity.messageList.add(randomnessRequestMessage)
 
-            verify(bankCommunity, times(1)).sendBlindSignatureRandomnessReply(byteArrayCaptor.capture(), any())
+            verify(bankCommunity, atLeastOnce()).sendBlindSignatureRandomnessReply(byteArrayCaptor.capture(), any())
             val givenRandomness = byteArrayCaptor.lastValue
 
             val randomnessReplyMessage = BlindSignatureRandomnessReplyMessage(givenRandomness)
@@ -137,7 +162,7 @@ class SystemTest {
                 val signatureRequestMessage = BlindSignatureRequestMessage(challenge, publicKeyBytes, userPeer)
                 bankCommunity.messageList.add(signatureRequestMessage)
 
-                verify(bankCommunity, times(1)).sendBlindSignature(challengeCaptor.capture(), any())
+                verify(bankCommunity, atLeastOnce()).sendBlindSignature(challengeCaptor.capture(), any())
                 val signature = challengeCaptor.lastValue
 
                 val signatureMessage = BlindSignatureReplyMessage(signature)
@@ -148,18 +173,19 @@ class SystemTest {
         val withdrawnEuro = user.withdrawDigitalEuro(bankName)
 
         // User must make two requests
-        verify(userCommunity, times(1)).getBlindSignatureRandomness(publicKeyBytes, bank.name.toByteArray())
-        verify(userCommunity, times(1)).getBlindSignature(any(), eq(publicKeyBytes), eq(bank.name.toByteArray()))
+        verify(userCommunity, atLeastOnce()).getBlindSignatureRandomness(publicKeyBytes, bank.name.toByteArray())
+        verify(userCommunity, atLeastOnce()).getBlindSignature(any(), eq(publicKeyBytes), eq(bank.name.toByteArray()))
 
         // Bank must respond twice
-        verify(bankCommunity, times(1)).sendBlindSignatureRandomnessReply(any(), eq(userPeer))
-        verify(bankCommunity, times(1)).sendBlindSignature(any(), eq(userPeer))
+        verify(bankCommunity, atLeastOnce()).sendBlindSignatureRandomnessReply(any(), eq(userPeer))
+        verify(bankCommunity, atLeastOnce()).sendBlindSignature(any(), eq(userPeer))
 
         // The euro must be valid
         Assert.assertTrue(
             "The signature should be valid for the user",
             Schnorr.verifySchnorrSignature(withdrawnEuro.signature, bank.publicKey, user.group)
         )
+        print("Valid ${i++}")
         Assert.assertEquals("There should be no proofs", arrayListOf<GrothSahaiProof>(), withdrawnEuro.proofs)
 
         return withdrawnEuro
@@ -183,7 +209,7 @@ class SystemTest {
         val transactionDetailsCaptor = argumentCaptor<TransactionDetailsBytes>()
         val transactionResultCaptor = argumentCaptor<String>()
 
-        `when`(senderCommunity.getTransactionRandomizationElements(receiver.name.toByteArray())).then {
+        `when`(senderCommunity.getTransactionRandomizationElements(sender.publicKey.toBytes(), receiver.name.toByteArray())).then {
             val requestMessage = TransactionRandomizationElementsRequestMessage(sender.publicKey.toBytes(), spenderPeer)
             receiverCommunity.messageList.add(requestMessage)
             verify(receiverCommunity).sendTransactionRandomizationElements(randomizationElementsCaptor.capture(), eq(spenderPeer))
@@ -192,7 +218,13 @@ class SystemTest {
             senderCommunity.messageList.add(randomizationElementsMessage)
 
             // To send the transaction details
-            `when`(senderCommunity.sendTransactionDetails(eq(receiver.name.toByteArray()), transactionDetailsCaptor.capture())).then {
+            `when`(
+                senderCommunity.sendTransactionDetails(
+                    eq(sender.publicKey.toBytes()),
+                    eq(receiver.name.toByteArray()),
+                    transactionDetailsCaptor.capture()
+                )
+            ).then {
                 val transactionDetailsBytes = transactionDetailsCaptor.lastValue
                 val transactionMessage = TransactionMessage(sender.publicKey.toBytes(), transactionDetailsBytes, spenderPeer)
                 receiverCommunity.messageList.add(transactionMessage)
@@ -225,7 +257,7 @@ class SystemTest {
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
         `when`(community.messageList).thenReturn(communicationProtocol.messageList)
-        val user = User(userName, null, walletManager, communicationProtocol)
+        val user = User(userName, group, null, walletManager, communicationProtocol)
         userList[user] = community
 
         // Handle registration verification
@@ -250,7 +282,7 @@ class SystemTest {
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
         `when`(community.messageList).thenReturn(communicationProtocol.messageList)
-        bank = Bank("Bank", communicationProtocol, null, depositedEuroManager)
+        bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager)
         bankCommunity = community
 
         // Assert that the bank is registered

@@ -1,11 +1,15 @@
 package nl.tudelft.trustchain.offlineeuro.libraries
 
 import android.content.Context
+import android.widget.Button
 import android.widget.TableLayout
 import android.widget.TableRow
 import android.widget.TextView
+import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.RegisteredUser
+import nl.tudelft.trustchain.offlineeuro.entity.User
+import nl.tudelft.trustchain.offlineeuro.enums.Role
 
 object TableHelpers {
     fun removeAllButFirstRow(table: TableLayout) {
@@ -30,17 +34,18 @@ object TableHelpers {
 
     fun addAddressesToTable(
         table: TableLayout,
-        addresses: List<Address>
+        addresses: List<Address>,
+        user: User
     ) {
         val context = table.context
         for (address in addresses) {
-            table.addView(addressToTableRow(address, context))
+            table.addView(addressToTableRow(address, context, user))
         }
     }
 
     private fun registeredUserToTableRow(
         user: RegisteredUser,
-        context: Context
+        context: Context,
     ): TableRow {
         val tableRow = TableRow(context)
 
@@ -61,7 +66,8 @@ object TableHelpers {
 
     private fun addressToTableRow(
         address: Address,
-        context: Context
+        context: Context,
+        user: User,
     ): TableRow {
         val tableRow = TableRow(context)
 
@@ -76,7 +82,33 @@ object TableHelpers {
 
         tableRow.addView(nameField)
         tableRow.addView(roleField)
-        tableRow.addView(publicKeyField)
+        // tableRow.addView(publicKeyField)
+
+        val button = Button(context)
+        button.setOnClickListener {
+            when (address.type) {
+                Role.Bank -> {
+                    try {
+                        user.withdrawDigitalEuro(address.name)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                Role.User -> {
+                    try {
+                        user.sendDigitalEuroTo(address.name)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                Role.TTP -> {
+                }
+            }
+        }
+
+        if (address.type != Role.TTP) {
+            tableRow.addView(button)
+        }
         return tableRow
     }
 }

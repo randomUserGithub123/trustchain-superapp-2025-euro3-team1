@@ -11,16 +11,22 @@ import java.util.UUID
 class User(
     name: String,
     group: BilinearGroup,
-    context: Context?,
+    val context: Context?,
     private var walletManager: WalletManager? = null,
-    communicationProtocol: ICommunicationProtocol
+    communicationProtocol: ICommunicationProtocol,
+    runSetup: Boolean = true
 ) : Participant(communicationProtocol, name) {
     val wallet: Wallet
 
     init {
         communicationProtocol.participant = this
         this.group = group
-        setUp()
+
+        if (runSetup) {
+            setUp()
+        } else {
+            generateKeyPair()
+        }
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
         }

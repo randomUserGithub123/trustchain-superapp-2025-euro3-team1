@@ -61,10 +61,10 @@ object Transaction {
 
         val target =
             if (digitalEuro.proofs.isEmpty()) {
-                CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(digitalEuro.signature.toBytes())
+                bilinearGroup.pairing.zr.newElementFromBytes(digitalEuro.signature.toBytes())
             } else {
                 val targetBytes = digitalEuro.proofs.last().target.toBytes()
-                CentralAuthority.groupDescription.pairing.zr.newElementFromBytes(targetBytes)
+                bilinearGroup.pairing.zr.newElementFromBytes(targetBytes)
             }
         val (transactionProof, r) =
             GrothSahai.createTransactionProof(

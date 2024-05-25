@@ -15,19 +15,24 @@ class TransactionDetailsPayloadTest {
 
     @Test
     fun serializeAndDeserializeInitialEuro() {
+        val publicKey = group.generateRandomElementOfG().toBytes()
         val transactionDetails = generateTransactionDetails(0)
         val transactionDetailsBytes = transactionDetails.toTransactionDetailsBytes()
-        val serializedBytes = TransactionDetailsPayload(transactionDetailsBytes).serialize()
-        val deserializedBytes = TransactionDetailsPayload.deserialize(serializedBytes).first.transactionDetailsBytes
-        val fromBytes = deserializedBytes.toTransactionDetails(group)
+        val serializedBytes = TransactionDetailsPayload(publicKey, transactionDetailsBytes).serialize()
+        val deserializedBytes = TransactionDetailsPayload.deserialize(serializedBytes).first
+        val deserializedPublicKey = deserializedBytes.publicKey
+        val deserializedTransactionDetails = deserializedBytes.transactionDetailsBytes
+        val fromBytes = deserializedTransactionDetails.toTransactionDetails(group)
+        Assert.assertArrayEquals(publicKey, deserializedPublicKey)
         Assert.assertEquals(transactionDetails, fromBytes)
     }
 
     @Test
     fun serializeAndDeserializeEuroOneProof() {
+        val publicKey = group.generateRandomElementOfG().toBytes()
         val transactionDetails = generateTransactionDetails(1)
         val transactionDetailsBytes = transactionDetails.toTransactionDetailsBytes()
-        val serializedBytes = TransactionDetailsPayload(transactionDetailsBytes).serialize()
+        val serializedBytes = TransactionDetailsPayload(publicKey, transactionDetailsBytes).serialize()
         val deserializedBytes = TransactionDetailsPayload.deserialize(serializedBytes).first.transactionDetailsBytes
         val fromBytes = deserializedBytes.toTransactionDetails(group)
         Assert.assertEquals(transactionDetails, fromBytes)
@@ -35,9 +40,10 @@ class TransactionDetailsPayloadTest {
 
     @Test
     fun serializeAndDeserializeEuroFiveProofs() {
+        val publicKey = group.generateRandomElementOfG().toBytes()
         val transactionDetails = generateTransactionDetails(5)
         val transactionDetailsBytes = transactionDetails.toTransactionDetailsBytes()
-        val serializedBytes = TransactionDetailsPayload(transactionDetailsBytes).serialize()
+        val serializedBytes = TransactionDetailsPayload(publicKey, transactionDetailsBytes).serialize()
         val deserializedBytes = TransactionDetailsPayload.deserialize(serializedBytes).first.transactionDetailsBytes
         val fromBytes = deserializedBytes.toTransactionDetails(group)
         Assert.assertEquals(transactionDetails, fromBytes)

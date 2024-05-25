@@ -9,11 +9,13 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuroBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 
 class TransactionDetailsPayload(
+    val publicKey: ByteArray,
     val transactionDetailsBytes: TransactionDetailsBytes
 ) : Serializable {
     override fun serialize(): ByteArray {
         var payload = ByteArray(0)
 
+        payload += serializeVarLen(publicKey)
         // Add the Digital Euro Part
         val digitalEuroBytes = transactionDetailsBytes.digitalEuroBytes
         payload += serializeVarLen(digitalEuroBytes.serialNumberBytes)
@@ -41,6 +43,9 @@ class TransactionDetailsPayload(
             offset: Int
         ): Pair<TransactionDetailsPayload, Int> {
             var localOffset = offset
+
+            val (publicKeyBytes, publicKeyBytesSize) = deserializeVarLen(buffer, localOffset)
+            localOffset += publicKeyBytesSize
 
             // Digital Euro Parts
             val (serialNumberBytes, serialNumberSize) = deserializeVarLen(buffer, localOffset)
@@ -97,7 +102,7 @@ class TransactionDetailsPayload(
                 )
 
             return Pair(
-                TransactionDetailsPayload(transactionDetailsBytes),
+                TransactionDetailsPayload(publicKeyBytes, transactionDetailsBytes),
                 localOffset - offset
             )
         }

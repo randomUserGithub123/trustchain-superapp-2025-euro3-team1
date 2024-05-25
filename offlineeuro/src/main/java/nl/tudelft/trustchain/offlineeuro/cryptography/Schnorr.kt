@@ -88,7 +88,7 @@ object Schnorr {
                 .mul(signerPublicKey.powZn(beta.mul(-1)))
 
         val challenge = hash(rPrime, message, group.getZrOrder())
-        val blindedChallenge = challenge + beta.toBigInteger()
+        val blindedChallenge = (challenge + beta.toBigInteger())
 
         return BlindedChallenge(challenge, blindedChallenge, alpha.toBigInteger(), message)
     }

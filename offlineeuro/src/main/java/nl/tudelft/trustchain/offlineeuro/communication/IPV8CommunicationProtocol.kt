@@ -23,7 +23,6 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
-import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
@@ -42,7 +41,7 @@ class IPV8CommunicationProtocol(
     }
 
     private val sleepDuration: Long = 100
-    private val timeOutInMS = 5000
+    private val timeOutInMS = 10000
     override lateinit var participant: Participant
 
     override fun getGroupDescriptionAndCRS() {
@@ -95,7 +94,7 @@ class IPV8CommunicationProtocol(
         group: BilinearGroup
     ): RandomizationElements {
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
-        community.getTransactionRandomizationElements(peerAddress.peerPublicKey!!)
+        community.getTransactionRandomizationElements(participant.publicKey.toBytes(), peerAddress.peerPublicKey!!)
         val message = waitForMessage(CommunityMessageType.TransactionRandomnessReplyMessage) as TransactionRandomizationElementsReplyMessage
         return message.randomizationElementsBytes.toRandomizationElements(group)
     }
@@ -105,7 +104,11 @@ class IPV8CommunicationProtocol(
         transactionDetails: TransactionDetails
     ): String {
         val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
-        community.sendTransactionDetails(peerAddress.peerPublicKey!!, transactionDetails.toTransactionDetailsBytes())
+        community.sendTransactionDetails(
+            participant.publicKey.toBytes(),
+            peerAddress.peerPublicKey!!,
+            transactionDetails.toTransactionDetailsBytes()
+        )
         val message = waitForMessage(CommunityMessageType.TransactionResultMessage) as TransactionResultMessage
         return message.result
     }
@@ -113,6 +116,7 @@ class IPV8CommunicationProtocol(
     fun scopePeers() {
         community.scopePeers(participant.name, getParticipantRole(), participant.publicKey.toBytes())
     }
+
     override fun getPublicKeyOf(
         name: String,
         group: BilinearGroup
@@ -125,7 +129,7 @@ class IPV8CommunicationProtocol(
 
         while (!community.messageList.any { it.messageType == messageType }) {
             if (loops * sleepDuration >= timeOutInMS) {
-                // throw Exception("TimeOut")
+                throw Exception("TimeOut")
             }
             Thread.sleep(sleepDuration)
             loops++
@@ -165,7 +169,7 @@ class IPV8CommunicationProtocol(
             throw Exception("Participant is not a bank")
         }
         val bank = (participant as Bank)
-        val publicKey = CentralAuthority.groupDescription.gElementFromBytes(message.publicKeyBytes)
+        val publicKey = bank.group.gElementFromBytes(message.publicKeyBytes)
         val randomness = bank.getBlindSignatureRandomness(publicKey)
         val requestingPeer = message.peer
         community.sendBlindSignatureRandomnessReply(randomness.toBytes(), requestingPeer)
@@ -177,7 +181,7 @@ class IPV8CommunicationProtocol(
         }
         val bank = (participant as Bank)
 
-        val publicKey = CentralAuthority.groupDescription.gElementFromBytes(message.publicKeyBytes)
+        val publicKey = bank.group.gElementFromBytes(message.publicKeyBytes)
         val challenge = message.challenge
         val signature = bank.createBlindSignature(challenge, publicKey)
         val requestingPeer = message.peer

@@ -14,7 +14,8 @@ class Bank(
     group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
     private val context: Context?,
-    private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, CentralAuthority.groupDescription)
+    private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, group),
+    runSetup: Boolean = true
 ) : Participant(communicationProtocol, name) {
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
@@ -22,7 +23,9 @@ class Bank(
     init {
         communicationProtocol.participant = this
         this.group = group
-        setUp()
+        if (runSetup) {
+            setUp()
+        }
     }
 
     fun getBlindSignatureRandomness(userPublicKey: Element): Element {
@@ -39,8 +42,10 @@ class Bank(
         challenge: BigInteger,
         userPublicKey: Element
     ): BigInteger {
-        val k = lookUp(userPublicKey) ?: return BigInteger.ZERO
-        withdrawUserRandomness.remove(userPublicKey)
+        val k =
+            lookUp(userPublicKey)
+                ?: return BigInteger.ZERO
+        remove(userPublicKey)
         // <Subtract balance here>
         return Schnorr.signBlindedChallenge(k, challenge, privateKey)
     }
@@ -51,6 +56,18 @@ class Bank(
 
             if (key == userPublicKey) {
                 return element.value
+            }
+        }
+
+        return null
+    }
+
+    private fun remove(userPublicKey: Element): Element? {
+        for (element in withdrawUserRandomness.entries) {
+            val key = element.key
+
+            if (key == userPublicKey) {
+                return withdrawUserRandomness.remove(key)
             }
         }
 
