@@ -5,14 +5,16 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 
 class TTP(
     name: String = "TTP",
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
-    group: BilinearGroup
-) : Participant(communicationProtocol, name) {
+    group: BilinearGroup,
+    onDataChangeCallback: ((String?) -> Unit)? = null
+) : Participant(communicationProtocol, name, onDataChangeCallback) {
     private val registeredUserManager: RegisteredUserManager
     private val crsMap: Map<Element, Element>
 
@@ -30,7 +32,9 @@ class TTP(
         name: String,
         publicKey: Element
     ): Boolean {
-        return registeredUserManager.addRegisteredUser(name, publicKey)
+        val result = registeredUserManager.addRegisteredUser(name, publicKey)
+        onDataChangeCallback?.invoke("Registered $name")
+        return result
     }
 
     fun getRegisteredUsers(): List<RegisteredUser> {
@@ -43,5 +47,33 @@ class TTP(
         publicKeySender: Element
     ): String {
         TODO("Not yet implemented")
+    }
+
+    fun getUserFromProof(grothSahaiProof: GrothSahaiProof): RegisteredUser? {
+        val crsExponent = crsMap[crs.u]
+        val publicKey =
+            grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
+
+        return registeredUserManager.getRegisteredUserByPublicKey(publicKey)
+    }
+
+    fun getUserFromProofs(
+        firstProof: GrothSahaiProof,
+        secondProof: GrothSahaiProof
+    ): String {
+        val firstPK = getUserFromProof(firstProof)
+        val secondPK = getUserFromProof(secondProof)
+
+        return if (firstPK != null && firstPK == secondPK) {
+            onDataChangeCallback?.invoke("Found proof that  ${firstPK.name} committed fraud!")
+            "Double spending detected. Double spender is ${firstPK.name} with PK: ${firstPK.publicKey}"
+        } else {
+            onDataChangeCallback?.invoke("Invalid fraud request received!")
+            "No double spending detected"
+        }
+    }
+
+    override fun reset() {
+        registeredUserManager.clearAllRegisteredUsers()
     }
 }

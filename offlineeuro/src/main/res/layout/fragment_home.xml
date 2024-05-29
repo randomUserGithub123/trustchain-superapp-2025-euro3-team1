@@ -26,26 +26,31 @@
                 android:text="Pick the role you want to have:"
                 android:textStyle="bold"/>
 
-            <Button
+            <LinearLayout
                 android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+            <Button
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="TTP"
                 android:id="@+id/JoinAsTTP"/>
 
             <Button
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Bank"
                 android:id="@+id/JoinAsBankButton"/>
             <Button
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="User"
                 android:id="@+id/JoinAsUserButton"/>
             <Button
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="All Roles"
                 android:id="@+id/JoinAsAllRolesButton"/>
+        </LinearLayout>
         </LinearLayout>
 </LinearLayout>

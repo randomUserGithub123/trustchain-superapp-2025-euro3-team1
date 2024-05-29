@@ -56,4 +56,8 @@ class DepositedEuroManager(
     fun getAllDepositedEuros(): List<DigitalEuro> {
         return queries.getDepositedEuros(digitalEuroMapper).executeAsList()
     }
+
+    fun clearDepositedEuros() {
+        return queries.clearDepositedEurosTable()
+    }
 }

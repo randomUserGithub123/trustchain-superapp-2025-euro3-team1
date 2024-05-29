@@ -5,87 +5,98 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-        <LinearLayout
-            android:id="@+id/ttp_home_layout"
+    <LinearLayout
+        android:id="@+id/ttp_home_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintTop_toTopOf="parent">
+    <TextView
+        android:id="@+id/user_home_welcome_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hello TTP, Welcome"
+        android:textSize="20sp"
+        android:gravity="center"
+        android:layout_marginVertical="30dp"
+        />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/ttp_home_layout"
+        app:layout_constraintBottom_toTopOf="@id/ttp_home_button_layout">
+    <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
-            app:layout_constraintTop_toTopOf="parent">
-            <TextView
-                android:id="@+id/ttpName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="This is the TTP" />
-
-<!--            <Button-->
-<!--                android:id="@+id/ViewBankCryptographicDetails"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="View cryptographic details" />-->
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
+            android:gravity="center_horizontal"
+            android:layout_marginHorizontal="10dp"
             app:layout_constraintTop_toBottomOf="@id/ttp_home_layout">
 
             <TextView
-                android:id="@+id/textView2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:layout_constraintTop_toTopOf="parent"
                 android:text="Registered users"
                 />
         <LinearLayout
+            android:id="@+id/tpp_home_registered_user_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center"
-            app:layout_constraintTop_toBottomOf="@+id/textView2"
-            android:weightSum="1">
+            >
 
-                <TableLayout
-                    android:id="@+id/ttp_home_userlist"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:background="@color/colorPrimary"
+                >
+
+                <TextView
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    app:layout_constraintTop_toBottomOf="@+id/textView2"
-                    android:layout_weight="0.5">
+                    android:text="UserID"
+                    android:gravity="center"
+                    android:layout_weight="0.2"
+                    android:textColor="@color/white"/>
 
-                    <TableRow
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        >
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:text="Name"
+                    android:gravity="center"
+                    android:layout_weight="0.2"
+                    android:textColor="@color/white"/>
 
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="UserID"
-                            android:layout_weight="0.25"
-                            />
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Name"
-                            android:layout_weight="0.75"
-                            />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.75"
-                            android:text="Public Key" />
-                    </TableRow>
-                </TableLayout>
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:text="Public Key"
+                    android:gravity="center"
+                    android:layout_weight="0.7"
+                    android:textColor="@color/white"/>
             </LinearLayout>
-            <Button
-                android:id="@+id/ttp_home_sync_user_button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Sync userlist"/>
-
         </LinearLayout>
+    </LinearLayout>
+    </ScrollView>
+    <LinearLayout
+        android:id="@+id/ttp_home_button_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        app:layout_constraintBottom_toBottomOf="parent">
+    <Button
+        android:id="@+id/ttp_home_sync_user_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sync userlist"
+/>
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

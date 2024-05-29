@@ -54,4 +54,8 @@ class AddressBookManager(
     fun getAllAddresses(): List<Address> {
         return queries.getAllAddresses(addressMapper).executeAsList()
     }
+
+    fun clear() {
+        return queries.clearAddressBookTable()
+    }
 }

@@ -110,7 +110,7 @@ class SystemTest {
     }
 
     @Test
-    fun getManyBlindSignatures()  {
+    fun getManyBlindSignatures() {
         // Initiate
         ca.initializeRegisteredUserManager(null, createDriver())
         createBank()

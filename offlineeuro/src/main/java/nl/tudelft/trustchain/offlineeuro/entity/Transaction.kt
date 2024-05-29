@@ -12,6 +12,19 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProofBytes
 import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
 
+enum class TransactionResult(val valid: Boolean, val description: String) {
+    VALID_TRANSACTION(true, "Valid transaction"),
+    INVALID_BANK_SIGNATURE(false, "Invalid bank signature"),
+    INVALID_TRANSACTION_SIGNATURE(false, "Invalid transaction signature"),
+    INVALID_CURRENT_TRANSACTION_PROOF(false, "Invalid current transaction proof"),
+    INVALID_YS_GIVEN(false, "Invalid YS given"),
+    INVALID_CURRENT_TARGET(false, "Invalid target in current proof"),
+    INVALID_TS_RELATION_BANK_SIGNATURE(false, "Invalid TS relation bank signature"),
+    INVALID_PROOF_IN_CHAIN(false, "Invalid proof in chain"),
+    INVALID_CHAIN_OF_PROOFS(false, "Invalid chaining of proofs"),
+    INVALID_PREVIOUS_TRANSACTION_SIGNATURE(false, "Invalid previous transaction signature"),
+}
+
 data class TransactionDetailsBytes(
     val digitalEuroBytes: DigitalEuroBytes,
     val currentTransactionProofBytes: TransactionProofBytes,
@@ -87,11 +100,11 @@ object Transaction {
         publicKeyBank: Element,
         bilinearGroup: BilinearGroup,
         crs: CRS
-    ): Boolean {
+    ): TransactionResult {
         // Verify if the Digital euro is signed
         val digitalEuro = transaction.digitalEuro
         if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup)) {
-            return false
+            return TransactionResult.INVALID_BANK_SIGNATURE
         }
 
         // Verify if the current transaction signature is correct
@@ -99,12 +112,12 @@ object Transaction {
 
         val transactionSignature = transaction.theta1Signature
         if (!Schnorr.verifySchnorrSignature(transactionSignature, transactionProof.grothSahaiProof.c1, bilinearGroup)) {
-            return false
+            return TransactionResult.INVALID_TRANSACTION_SIGNATURE
         }
 
         // Validate if the given Transaction proof is a valid Groth-Sahai proof
         if (!GrothSahai.verifyTransactionProof(transactionProof.grothSahaiProof, bilinearGroup, crs)) {
-            return false
+            return TransactionResult.INVALID_CURRENT_TRANSACTION_PROOF
         }
 
         // Validate that d2 is constructed correctly
@@ -113,7 +126,7 @@ object Transaction {
         val d2 = transactionProof.grothSahaiProof.d2
 
         if (d2.div(usedY) != usedVS) {
-            return false
+            return TransactionResult.INVALID_YS_GIVEN
         }
 
         // Validate if the public key is used correctly
@@ -121,7 +134,7 @@ object Transaction {
         val expectedTarget = bilinearGroup.pair(spenderPublicKey, usedY)
 
         if (expectedTarget != transactionProof.grothSahaiProof.target) {
-            return false
+            return TransactionResult.INVALID_CURRENT_TARGET
         }
 
         return validateProofChain(transaction, bilinearGroup, crs)
@@ -131,14 +144,18 @@ object Transaction {
         currentTransactionDetails: TransactionDetails,
         bilinearGroup: BilinearGroup,
         crs: CRS
-    ): Boolean {
+    ): TransactionResult {
         val digitalEuro = currentTransactionDetails.digitalEuro
         val currentProof = currentTransactionDetails.currentTransactionProof
         val previousProofs = digitalEuro.proofs
 
         // Current proof is the first proof
         if (previousProofs.isEmpty()) {
-            return validateTSRelation(digitalEuro.firstTheta1, currentProof.grothSahaiProof.d1, bilinearGroup)
+            return if (!validateTSRelation(digitalEuro.firstTheta1, currentProof.grothSahaiProof.d1, bilinearGroup)) {
+                TransactionResult.INVALID_TS_RELATION_BANK_SIGNATURE
+            } else {
+                TransactionResult.VALID_TRANSACTION
+            }
         }
 
         // Special cases for the first proof
@@ -148,18 +165,25 @@ object Transaction {
                 digitalEuro.firstTheta1,
                 firstProof.d1,
                 bilinearGroup
-            ) || !GrothSahai.verifyTransactionProof(firstProof, bilinearGroup, crs)
+            )
         ) {
-            return false
+            return TransactionResult.INVALID_TS_RELATION_BANK_SIGNATURE
+        }
+
+        if (!GrothSahai.verifyTransactionProof(firstProof, bilinearGroup, crs)) {
+            return TransactionResult.INVALID_PROOF_IN_CHAIN
         }
 
         // Verify the remainder of the chain
         var previousProof = firstProof
         for (i: Int in 1 until previousProofs.size) {
             val proof = previousProofs[i]
-            GrothSahai.verifyTransactionProof(proof, bilinearGroup, crs)
+            if (!GrothSahai.verifyTransactionProof(proof, bilinearGroup, crs)) {
+                return TransactionResult.INVALID_PROOF_IN_CHAIN
+            }
+
             if (!verifyProofChain(previousProof, proof, bilinearGroup)) {
-                return false
+                return TransactionResult.INVALID_CHAIN_OF_PROOFS
             }
             previousProof = proof
         }
@@ -173,10 +197,14 @@ object Transaction {
             !Schnorr.verifySchnorrSignature(previousTransactionProof, usedC1, bilinearGroup) ||
             !usedTheta.toBytes().contentEquals(previousTransactionProof.signedMessage)
         ) {
-            return false
+            return TransactionResult.INVALID_PREVIOUS_TRANSACTION_SIGNATURE
         }
         // Verify the proof of the transaction to the last proof in the chain
-        return verifyProofChain(previousProof, currentProof.grothSahaiProof, bilinearGroup)
+        return if (verifyProofChain(previousProof, currentProof.grothSahaiProof, bilinearGroup)) {
+            TransactionResult.VALID_TRANSACTION
+        } else {
+            TransactionResult.INVALID_CHAIN_OF_PROOFS
+        }
     }
 
     fun verifyProofChain(

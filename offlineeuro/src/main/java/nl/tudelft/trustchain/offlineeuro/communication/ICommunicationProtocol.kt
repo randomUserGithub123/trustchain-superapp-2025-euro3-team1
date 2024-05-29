@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.communication
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
@@ -38,6 +39,12 @@ interface ICommunicationProtocol {
     fun sendTransactionDetails(
         userNameReceiver: String,
         transactionDetails: TransactionDetails
+    ): String
+
+    fun requestFraudControl(
+        firstProof: GrothSahaiProof,
+        secondProof: GrothSahaiProof,
+        nameTTP: String
     ): String
 
     fun getPublicKeyOf(

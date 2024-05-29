@@ -1,9 +1,9 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
@@ -30,15 +30,24 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         savedInstanceState: Bundle?
     ) {
         super.onViewCreated(view, savedInstanceState)
-
+        activity?.title = "Flexible role"
         community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
         val group = BilinearGroup(PairingTypes.FromFile, context = context)
         val addressBookManager = AddressBookManager(context, group)
         iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        ttp = TTP("TTP", iPV8CommunicationProtocol, context, group)
+        ttp = TTP("TTP", iPV8CommunicationProtocol, context, group, onTTPDataChangeCallback)
 
-        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, runSetup = false)
-        user = User("TestUser", group, context, null, iPV8CommunicationProtocol, runSetup = false)
+        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, runSetup = false, onDataChangeCallback = onBankDataChangeCallBack)
+        user =
+            User(
+                "TestUser",
+                group,
+                context,
+                null,
+                iPV8CommunicationProtocol,
+                runSetup = false,
+                onDataChangeCallback = onUserDataChangeCallBack
+            )
 
         bank.group = ttp.group
         bank.crs = ttp.crs
@@ -47,50 +56,112 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         user.group = ttp.group
         user.crs = ttp.crs
 
+        ParticipantHolder.ttp = ttp
+        ParticipantHolder.bank = bank
+        ParticipantHolder.user = user
+
         iPV8CommunicationProtocol.participant = ttp
+
+        ttp.registerUser(user.name, user.publicKey)
+        ttp.registerUser(bank.name, bank.publicKey)
 
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(bank.name, Role.Bank, bank.publicKey, null))
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(user.name, Role.User, user.publicKey, null))
-        view.findViewById<Button>(R.id.all_roles_set_ttp).setOnClickListener {
-            iPV8CommunicationProtocol.participant = ttp
-            Toast.makeText(context, "Switched to TTP", Toast.LENGTH_SHORT).show()
+
+        prepareButtons(view)
+        setTTPAsChild()
+        updateUserList(view)
+    }
+
+    private fun prepareButtons(view: View) {
+        val ttpButton = view.findViewById<Button>(R.id.all_roles_set_ttp)
+        val bankButton = view.findViewById<Button>(R.id.all_roles_set_bank)
+        val userButton = view.findViewById<Button>(R.id.all_roles_set_user)
+        ttpButton.setOnClickListener {
+            ttpButton.isEnabled = false
+            bankButton.isEnabled = true
+            userButton.isEnabled = true
+            setTTPAsChild()
         }
 
-        view.findViewById<Button>(R.id.all_roles_set_bank).setOnClickListener {
-            iPV8CommunicationProtocol.participant = bank
-            Toast.makeText(context, "Switched to Bank", Toast.LENGTH_SHORT).show()
+        bankButton.setOnClickListener {
+            ttpButton.isEnabled = true
+            bankButton.isEnabled = false
+            userButton.isEnabled = true
+            setBankAsChild()
         }
 
-        view.findViewById<Button>(R.id.all_roles_set_user).setOnClickListener {
-            iPV8CommunicationProtocol.participant = user
-            Toast.makeText(context, "Switched to User", Toast.LENGTH_SHORT).show()
+        userButton.setOnClickListener {
+            ttpButton.isEnabled = true
+            bankButton.isEnabled = true
+            userButton.isEnabled = false
+            setUserAsChild()
         }
     }
 
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
-    ) {
-        try {
-            val euroTokenCommunity = getIpv8().getOverlay<OfflineEuroCommunity>()
-            if (euroTokenCommunity == null) {
-                Toast.makeText(requireContext(), "Could not find community", Toast.LENGTH_LONG)
-                    .show()
+    private fun setTTPAsChild() {
+        iPV8CommunicationProtocol.participant = ttp
+        val ttpFragment = TTPHomeFragment()
+        childFragmentManager.beginTransaction()
+            .replace(R.id.parent_fragment_container, ttpFragment)
+            .commit()
+        Toast.makeText(context, "Switched to TTP", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setBankAsChild()  {
+        iPV8CommunicationProtocol.participant = bank
+        val bankFragment = BankHomeFragment()
+        childFragmentManager.beginTransaction()
+            .replace(R.id.parent_fragment_container, bankFragment)
+            .commit()
+        Toast.makeText(context, "Switched to Bank", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setUserAsChild() {
+        iPV8CommunicationProtocol.participant = user
+        val userFragment = UserHomeFragment()
+        childFragmentManager.beginTransaction()
+            .replace(R.id.parent_fragment_container, userFragment)
+            .commit()
+        Toast.makeText(context, "Switched to User", Toast.LENGTH_SHORT).show()
+    }
+
+    private val onBankDataChangeCallBack: (String?) -> Unit = { message ->
+        if (this::bank.isInitialized) {
+            requireActivity().runOnUiThread {
+                CallbackLibrary.bankCallback(requireContext(), message, requireView(), bank)
             }
-            if (euroTokenCommunity != null) {
-                Toast.makeText(requireContext(), "Found community", Toast.LENGTH_LONG)
-                    .show()
-            }
-        } catch (e: Exception) {
-            logger.error { e }
-            Toast.makeText(
-                requireContext(),
-                "Failed to send transactions",
-                Toast.LENGTH_LONG
-            )
-                .show()
         }
-        return
+    }
+
+    private val onUserDataChangeCallBack: (String?) -> Unit = { message ->
+        if (this::user.isInitialized) {
+            requireActivity().runOnUiThread {
+                val context = requireContext()
+                CallbackLibrary.userCallback(
+                    context,
+                    message,
+                    requireView(),
+                    iPV8CommunicationProtocol,
+                    user
+                )
+            }
+        }
+    }
+
+    private val onTTPDataChangeCallback: (String?) -> Unit = { message ->
+        if (this::ttp.isInitialized) {
+            requireActivity().runOnUiThread {
+                val context = requireContext()
+                CallbackLibrary.ttpCallback(context, message, requireView(), ttp)
+            }
+        }
+    }
+
+    private fun updateUserList(view: View) {
+        val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
+        val users = ttp.getRegisteredUsers()
+        TableHelpers.removeAllButFirstRow(table)
+        TableHelpers.addRegisteredUsersToTable(table, users)
     }
 }

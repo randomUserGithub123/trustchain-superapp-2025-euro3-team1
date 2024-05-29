@@ -22,11 +22,33 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
     ) {
         super.onViewCreated(view, savedInstanceState)
 
-        community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
-        val group = BilinearGroup(PairingTypes.FromFile, context = context)
-        val addressBookManager = AddressBookManager(context, group)
-        val depositedEuroManager = DepositedEuroManager(context, group)
-        iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, depositedEuroManager)
+        if (ParticipantHolder.bank != null) {
+            bank = ParticipantHolder.bank!!
+        } else {
+            activity?.title = "Bank"
+            community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
+            val group = BilinearGroup(PairingTypes.FromFile, context = context)
+            val addressBookManager = AddressBookManager(context, group)
+            val depositedEuroManager = DepositedEuroManager(context, group)
+            iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+            bank =
+                Bank(
+                    "Bank",
+                    group,
+                    iPV8CommunicationProtocol,
+                    context,
+                    depositedEuroManager,
+                    onDataChangeCallback = onDataChangeCallBack
+                )
+        }
+    }
+
+    private val onDataChangeCallBack: (String?) -> Unit = { message ->
+        if (this::bank.isInitialized) {
+            requireActivity().runOnUiThread {
+                val context = requireContext()
+                CallbackLibrary.bankCallback(context, message, requireView(), bank)
+            }
+        }
     }
 }

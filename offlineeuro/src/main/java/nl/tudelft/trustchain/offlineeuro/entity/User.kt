@@ -11,11 +11,12 @@ import java.util.UUID
 class User(
     name: String,
     group: BilinearGroup,
-    val context: Context?,
+    context: Context?,
     private var walletManager: WalletManager? = null,
     communicationProtocol: ICommunicationProtocol,
-    runSetup: Boolean = true
-) : Participant(communicationProtocol, name) {
+    runSetup: Boolean = true,
+    onDataChangeCallback: ((String?) -> Unit)? = null
+) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val wallet: Wallet
 
     init {
@@ -37,13 +38,24 @@ class User(
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails = wallet.spendEuro(randomizationElements, group, crs)
-        return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
+
+        if (transactionDetails == null) {
+            val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
+            val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
+            onDataChangeCallback?.invoke(result)
+            return result
+        }
+        val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails)
+        onDataChangeCallback?.invoke(result)
+        return result
     }
 
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
-        return communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
+        val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
+        onDataChangeCallback?.invoke(result)
+        return result
     }
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {
@@ -62,7 +74,12 @@ class User(
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
         wallet.addToWallet(digitalEuro, firstT)
+        onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
         return digitalEuro
+    }
+
+    fun getBalance(): Int {
+        return walletManager!!.getWalletEntriesToSpend().count()
     }
 
     override fun onReceivedTransaction(
@@ -71,14 +88,21 @@ class User(
         publicKeySender: Element
     ): String {
         val usedRandomness = lookUpRandomness(publicKeySender) ?: return "Randomness Not found!"
+        removeRandomness(publicKeySender)
+        val transactionResult = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
 
-        val isValid = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
-
-        if (isValid) {
+        if (transactionResult.valid) {
             wallet.addToWallet(transactionDetails, usedRandomness)
-            return "Successful transaction"
+            onDataChangeCallback?.invoke("Received an euro from $publicKeySender")
+            return transactionResult.description
         }
+        onDataChangeCallback?.invoke(transactionResult.description)
+        return transactionResult.description
+    }
 
-        return "Invalid Transaction!"
+    override fun reset() {
+        randomizationElementMap.clear()
+        walletManager!!.clearWalletEntries()
+        setUp()
     }
 }

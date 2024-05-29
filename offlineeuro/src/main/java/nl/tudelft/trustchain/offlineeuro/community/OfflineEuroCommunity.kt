@@ -15,6 +15,8 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
@@ -26,6 +28,7 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.AddressPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.FraudControlRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionDetailsPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizationElementsPayload
@@ -50,9 +53,12 @@ object MessageID {
     const val GET_TRANSACTION_RANDOMIZATION_ELEMENTS_REPLY = 17
 
     const val TRANSACTION = 18
-    const val TRANSACTION_RESULT = 21
-    const val SCOPE_PEERS = 19
-    const val ADDRESS_RESPONSE = 20
+    const val TRANSACTION_RESULT = 19
+    const val SCOPE_PEERS = 20
+    const val ADDRESS_RESPONSE = 21
+
+    const val FRAUD_CONTROL_REQUEST = 22
+    const val FRAUD_CONTROL_REPLY = 23
 }
 
 class OfflineEuroCommunity(
@@ -85,6 +91,9 @@ class OfflineEuroCommunity(
 
         messageHandlers[MessageID.SCOPE_PEERS] = ::onScopePeersPacket
         messageHandlers[MessageID.ADDRESS_RESPONSE] = ::onAddressReplyPacket
+
+        messageHandlers[MessageID.FRAUD_CONTROL_REQUEST] = ::onFraudControlRequestPacket
+        messageHandlers[MessageID.FRAUD_CONTROL_REPLY] = ::onFraudControlReplyPacket
     }
 
     fun getGroupDescriptionAndCRS() {
@@ -136,7 +145,7 @@ class OfflineEuroCommunity(
         val groupElements = payload.bilinearGroupElements
         val crs = payload.crs
 
-        val ttpAddressMessage = AddressMessage("TTP", Role.Bank, payload.ttpPublicKey, peer.publicKey.keyToBin())
+        val ttpAddressMessage = AddressMessage("TTP", Role.TTP, payload.ttpPublicKey, peer.publicKey.keyToBin())
 
         val message = BilinearGroupCRSReplyMessage(groupElements, crs, ttpAddressMessage)
         addMessage(message)
@@ -443,6 +452,64 @@ class OfflineEuroCommunity(
     ) {
         val message = AddressMessage(payload.userName, payload.role, payload.publicKey, peer.publicKey.keyToBin())
         addMessage(message)
+    }
+
+    fun sendFraudControlRequest(
+        firstProofBytes: ByteArray,
+        secondProofBytes: ByteArray,
+        ttpPublicKeyBytes: ByteArray
+    ) {
+        val peer = getPeerByPublicKeyBytes(ttpPublicKeyBytes)
+
+        peer ?: throw Exception("TTP not found")
+
+        val packet =
+            serializePacket(
+                MessageID.FRAUD_CONTROL_REQUEST,
+                FraudControlRequestPayload(
+                    firstProofBytes,
+                    secondProofBytes
+                )
+            )
+
+        send(peer, packet)
+    }
+
+    fun onFraudControlRequestPacket(packet: Packet) {
+        val (peer, payload) = packet.getAuthPayload(FraudControlRequestPayload)
+        onFraudControlRequest(peer, payload)
+    }
+
+    private fun onFraudControlRequest(
+        peer: Peer,
+        payload: FraudControlRequestPayload
+    ) {
+        val message = FraudControlRequestMessage(payload.firstProofBytes, payload.secondProofBytes, peer)
+        addMessage(message)
+    }
+
+    fun sendFraudControlReply(
+        result: String,
+        peer: Peer
+    ) {
+        val packet =
+            serializePacket(
+                MessageID.FRAUD_CONTROL_REPLY,
+                ByteArrayPayload(
+                    result.toByteArray()
+                )
+            )
+        send(peer, packet)
+    }
+
+    fun onFraudControlReplyPacket(packet: Packet) {
+        val (_, payload) = packet.getAuthPayload(ByteArrayPayload)
+        onFraudControlReply(payload)
+    }
+
+    fun onFraudControlReply(payload: ByteArrayPayload)  {
+        val fraudControlResult = payload.bytes.toString(Charsets.UTF_8)
+        addMessage(FraudControlReplyMessage(fraudControlResult))
     }
 
     fun scopePeers(

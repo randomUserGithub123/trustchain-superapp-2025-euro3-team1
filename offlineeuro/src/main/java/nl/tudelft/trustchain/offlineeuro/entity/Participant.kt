@@ -9,7 +9,8 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 
 abstract class Participant(
     val communicationProtocol: ICommunicationProtocol,
-    val name: String
+    val name: String,
+    val onDataChangeCallback: ((String?) -> Unit)? = null
 ) {
     protected lateinit var privateKey: Element
     lateinit var publicKey: Element
@@ -55,9 +56,21 @@ abstract class Participant(
         return null
     }
 
+    fun removeRandomness(publicKey: Element) {
+        for (element in randomizationElementMap.entries) {
+            val key = element.key
+
+            if (key == publicKey) {
+                randomizationElementMap.remove(key)
+            }
+        }
+    }
+
     abstract fun onReceivedTransaction(
         transactionDetails: TransactionDetails,
         publicKeyBank: Element,
         publicKeySender: Element
     ): String
+
+    abstract fun reset()
 }

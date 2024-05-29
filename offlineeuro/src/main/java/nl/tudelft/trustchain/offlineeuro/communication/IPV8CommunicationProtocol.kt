@@ -11,6 +11,8 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.CommunityMessageType
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.MessageList
 import nl.tudelft.trustchain.offlineeuro.community.message.TTPRegistrationMessage
@@ -19,6 +21,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.entity.Address
@@ -28,6 +31,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import java.math.BigInteger
 
 class IPV8CommunicationProtocol(
@@ -113,6 +117,21 @@ class IPV8CommunicationProtocol(
         return message.result
     }
 
+    override fun requestFraudControl(
+        firstProof: GrothSahaiProof,
+        secondProof: GrothSahaiProof,
+        nameTTP: String
+    ): String {
+        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+        community.sendFraudControlRequest(
+            GrothSahaiSerializer.serializeGrothSahaiProof(firstProof),
+            GrothSahaiSerializer.serializeGrothSahaiProof(secondProof),
+            ttpAddress.peerPublicKey!!
+        )
+        val message = waitForMessage(CommunityMessageType.FraudControlReplyMessage) as FraudControlReplyMessage
+        return message.result
+    }
+
     fun scopePeers() {
         community.scopePeers(participant.name, getParticipantRole(), participant.publicKey.toBytes())
     }
@@ -146,6 +165,7 @@ class IPV8CommunicationProtocol(
         val publicKey = participant.group.gElementFromBytes(message.publicKeyBytes)
         val address = Address(message.name, message.role, publicKey, message.peerPublicKey)
         addressBookManager.insertAddress(address)
+        participant.onDataChangeCallback?.invoke(null)
     }
 
     private fun handleGetBilinearGroupAndCRSRequest(message: BilinearGroupCRSRequestMessage) {
@@ -199,7 +219,12 @@ class IPV8CommunicationProtocol(
     }
 
     private fun handleTransactionMessage(message: TransactionMessage) {
-        val bankPublicKey = addressBookManager.getAddressByName("Bank").publicKey
+        val bankPublicKey =
+            if (participant is Bank) {
+                participant.publicKey
+            } else {
+                addressBookManager.getAddressByName("Bank").publicKey
+            }
 
         val group = participant.group
         val publicKey = group.gElementFromBytes(message.publicKeyBytes)
@@ -226,6 +251,17 @@ class IPV8CommunicationProtocol(
         community.sendAddressReply(participant.name, role, participant.publicKey.toBytes(), message.requestingPeer)
     }
 
+    private fun handleFraudControlRequestMessage(message: FraudControlRequestMessage) {
+        if (getParticipantRole() != Role.TTP) {
+            return
+        }
+        val ttp = participant as TTP
+        val firstProof = GrothSahaiSerializer.deserializeProofBytes(message.firstProofBytes, participant.group)
+        val secondProof = GrothSahaiSerializer.deserializeProofBytes(message.secondProofBytes, participant.group)
+        val result = ttp.getUserFromProofs(firstProof, secondProof)
+        community.sendFraudControlReply(result, message.requestingPeer)
+    }
+
     private fun handleRequestMessage(message: ICommunityMessage) {
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
@@ -237,6 +273,7 @@ class IPV8CommunicationProtocol(
             is TransactionRandomizationElementsRequestMessage -> handleTransactionRandomizationElementsRequest(message)
             is TransactionMessage -> handleTransactionMessage(message)
             is TTPRegistrationMessage -> handleRegistrationMessage(message)
+            is FraudControlRequestMessage -> handleFraudControlRequestMessage(message)
             else -> throw Exception("Unsupported message type")
         }
         return

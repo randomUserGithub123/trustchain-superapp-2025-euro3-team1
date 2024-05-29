@@ -21,5 +21,8 @@ enum class CommunityMessageType {
     TransactionRandomnessReplyMessage,
 
     TransactionMessage,
-    TransactionResultMessage
+    TransactionResultMessage,
+
+    FraudControlRequestMessage,
+    FraudControlReplyMessage,
 }
