@@ -41,6 +41,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
                     onDataChangeCallback = onDataChangeCallBack
                 )
         }
+        onDataChangeCallBack(null)
     }
 
     private val onDataChangeCallBack: (String?) -> Unit = { message ->

@@ -62,6 +62,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
         val addresses = communicationProtocol.addressBookManager.getAllAddresses()
         TableHelpers.addAddressesToTable(addressList, addresses, user, requireContext())
+        onUserDataChangeCallBack(null)
     }
 
     private val onUserDataChangeCallBack: (String?) -> Unit = { message ->

@@ -31,6 +31,7 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
             ttp = TTP("TTP", iPV8CommunicationProtocol, context, group, onDataChangeCallback = onDataChangeCallback)
         }
+        onDataChangeCallback(null)
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->
