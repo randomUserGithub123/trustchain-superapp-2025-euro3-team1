@@ -67,6 +67,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
 
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(bank.name, Role.Bank, bank.publicKey, null))
         iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(user.name, Role.User, user.publicKey, null))
+        iPV8CommunicationProtocol.addressBookManager.insertAddress(Address(ttp.name, Role.TTP, ttp.publicKey, null))
 
         prepareButtons(view)
         setTTPAsChild()
