@@ -7,7 +7,6 @@ import nl.tudelft.offlineeuro.sqldelight.Database
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
-import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
@@ -19,27 +18,29 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
+import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
-import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import java.math.BigInteger
 import kotlin.math.floor
 
 class TransactionTest {
     // Setup the TTP
-    private val ca = CentralAuthority
-    private val group: BilinearGroup = ca.groupDescription
-    private val crs: CRS = ca.crs
-    private val ttpPK = ca.groupDescription.generateRandomElementOfG()
+    private val group: BilinearGroup = BilinearGroup(PairingTypes.A)
+    private lateinit var crs: CRS
+    private lateinit var ttp: TTP
+
     private val registrationNameCaptor = argumentCaptor<String>()
     private val publicKeyCaptor = argumentCaptor<ByteArray>()
     private val userList = hashMapOf<User, OfflineEuroCommunity>()
@@ -47,11 +48,15 @@ class TransactionTest {
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0
 
+    @Before
+    fun setup() {
+        // Initiate
+        createTTP()
+        createBank()
+    }
+
     @Test
     fun transactionWithoutProofsTest() {
-        // Initiate
-        ca.initializeRegisteredUserManager(null, createDriver())
-        createBank()
         val user = createTestUser()
         withdrawDigitalEuro(user, bank.name)
         val walletEntry = user.wallet.getWalletEntryToSpend()!!
@@ -75,9 +80,6 @@ class TransactionTest {
 
     @Test
     fun invalidProof() {
-        // Initiate
-        ca.initializeRegisteredUserManager(null, createDriver())
-        createBank()
         val user = createTestUser()
         withdrawDigitalEuro(user, bank.name)
         val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 10)
@@ -97,9 +99,102 @@ class TransactionTest {
                 randomProof.target
             )
         transactionDetails.digitalEuro.proofs[randomProofNr] = newProof
-        Assert.assertFalse("The transaction should be invalid", Transaction.validate(transactionDetails, bank.publicKey, group, crs).valid)
+        val verificationResult = Transaction.validate(transactionDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", verificationResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_PROOF_IN_CHAIN.description, verificationResult.description)
     }
 
+    @Test
+    fun invalidBankSignature() {
+        val user = createTestUser()
+        val firstEuro = withdrawDigitalEuro(user, bank.name)
+        val walletEntry = user.wallet.getWalletEntryToSpend()!!
+        val secondEuro = withdrawDigitalEuro(user, bank.name)
+
+        // Try with an invalid signature
+        val fakeSignature = SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
+        val invalidEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, fakeSignature, firstEuro.proofs)
+        val invalidWalletEntry = WalletEntry(invalidEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val invalidSignatureDetails = walletEntryToTransactionDetails(invalidWalletEntry)
+        val invalidSignatureResult = Transaction.validate(invalidSignatureDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", invalidSignatureResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, invalidSignatureResult.description)
+
+        // Try with a different signature
+        val fakeEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, secondEuro.signature, firstEuro.proofs)
+        val fakeWalletEntry = WalletEntry(fakeEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val transactionDetails = walletEntryToTransactionDetails(fakeWalletEntry)
+        val verificationResult = Transaction.validate(transactionDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", verificationResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, verificationResult.description)
+
+        // Try with a different T
+        val invalidT = group.getRandomZr()
+        val invalidTWalletEntry = WalletEntry(walletEntry.digitalEuro, invalidT, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val invalidTDetails = walletEntryToTransactionDetails(invalidTWalletEntry)
+        val invalidTResult = Transaction.validate(invalidTDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", invalidTResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_TS_RELATION_BANK_SIGNATURE.description, invalidTResult.description)
+    }
+
+    @Test
+    fun invalidBankSignature2() {
+        val user = createTestUser()
+        val firstEuro = withdrawDigitalEuro(user, bank.name)
+        val walletEntry = user.wallet.getWalletEntryToSpend()!!
+        val secondEuro = withdrawDigitalEuro(user, bank.name)
+
+        // Try with an invalid signature
+        val fakeSignature = SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
+        val invalidEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, fakeSignature, firstEuro.proofs)
+        val invalidWalletEntry = WalletEntry(invalidEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val invalidSignatureDetails = walletEntryToTransactionDetails(invalidWalletEntry)
+        val invalidSignatureResult = Transaction.validate(invalidSignatureDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", invalidSignatureResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, invalidSignatureResult.description)
+
+        // Try with a different signature
+        val fakeEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, secondEuro.signature, firstEuro.proofs)
+        val fakeWalletEntry = WalletEntry(fakeEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val transactionDetails = walletEntryToTransactionDetails(fakeWalletEntry)
+        val verificationResult = Transaction.validate(transactionDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", verificationResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, verificationResult.description)
+
+        // Try with a different T
+        val invalidT = group.getRandomZr()
+        val invalidTWalletEntry = WalletEntry(walletEntry.digitalEuro, invalidT, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val invalidTDetails = walletEntryToTransactionDetails(invalidTWalletEntry)
+        val invalidTResult = Transaction.validate(invalidTDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", invalidTResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_TS_RELATION_BANK_SIGNATURE.description, invalidTResult.description)
+    }
+
+    @Test
+    fun invalidBankSignatureMultipleProofs() {
+        val user = createTestUser()
+        val firstEuro = withdrawDigitalEuro(user, bank.name)
+        val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 2)
+        val secondEuro = withdrawDigitalEuro(user, bank.name)
+
+        // Try with an invalid signature
+        val fakeSignature = SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
+        val invalidEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, fakeSignature, firstEuro.proofs)
+        val invalidWalletEntry = WalletEntry(invalidEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val invalidSignatureDetails = walletEntryToTransactionDetails(invalidWalletEntry)
+        val invalidSignatureResult = Transaction.validate(invalidSignatureDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", invalidSignatureResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, invalidSignatureResult.description)
+
+        // Try with a different signature
+        val fakeEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, secondEuro.signature, firstEuro.proofs)
+        val fakeWalletEntry = WalletEntry(fakeEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
+        val transactionDetails = walletEntryToTransactionDetails(fakeWalletEntry)
+        val verificationResult = Transaction.validate(transactionDetails, bank.publicKey, group, crs)
+        Assert.assertFalse("The transaction should be invalid", verificationResult.valid)
+        Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, verificationResult.description)
+
+    }
     private fun walletEntryToTransactionDetails(walletEntry: WalletEntry): TransactionDetails {
         val privateKey = group.getRandomZr()
         val publicKey = group.g.powZn(privateKey)
@@ -209,9 +304,6 @@ class TransactionTest {
     }
 
     fun createTestUser(): User {
-        // Start with a random group
-        val group = BilinearGroup(PairingTypes.FromFile)
-
         val addressBookManager = createAddressManager(group)
         val walletManager = WalletManager(null, group, createDriver())
 
@@ -221,18 +313,9 @@ class TransactionTest {
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
         Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
-        val user = User(userName, group, null, walletManager, communicationProtocol)
+        val user = User(userName, group, null, walletManager, communicationProtocol, runSetup = false)
+        user.crs = ttp.crs
         userList[user] = community
-
-        // Handle registration verification
-        verify(community, times(1)).registerAtTTP(registrationNameCaptor.capture(), publicKeyCaptor.capture(), any())
-        val capturedUsername = registrationNameCaptor.lastValue
-        val publicKey = publicKeyCaptor.lastValue
-        ca.registerUser(capturedUsername, ca.groupDescription.gElementFromBytes(publicKey))
-
-        // Verification
-        Assert.assertEquals("The username should be correct", userName, capturedUsername)
-
         return user
     }
 
@@ -247,9 +330,19 @@ class TransactionTest {
         return WalletEntry(digitalEuro, t, transactionSignature)
     }
 
-    private fun createBank() {
-        val group = BilinearGroup(PairingTypes.FromFile)
+    private fun createTTP() {
+        val addressBookManager = createAddressManager(group)
+        val registeredUserManager = RegisteredUserManager(null, group, createDriver())
 
+        val ttpCommunity = prepareCommunityMock()
+        val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, ttpCommunity)
+
+        Mockito.`when`(ttpCommunity.messageList).thenReturn(communicationProtocol.messageList)
+        ttp = TTP("TTP", group, communicationProtocol, null, registeredUserManager)
+        crs = ttp.crs
+        communicationProtocol.participant = ttp
+    }
+    private fun createBank() {
         val addressBookManager = createAddressManager(group)
         val depositedEuroManager = DepositedEuroManager(null, group, createDriver())
 
@@ -257,15 +350,14 @@ class TransactionTest {
         val communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
         Mockito.`when`(community.messageList).thenReturn(communicationProtocol.messageList)
-        bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager)
+        bank = Bank("Bank", group, communicationProtocol, null, depositedEuroManager, runSetup = false)
+        bank.crs = crs
+        bank.generateKeyPair()
         bankCommunity = community
-
-        // Assert that the bank is registered
-        verify(bankCommunity, times(1)).registerAtTTP(registrationNameCaptor.capture(), publicKeyCaptor.capture(), any())
-        val bankName = registrationNameCaptor.lastValue
-        val bankPublicKey = publicKeyCaptor.lastValue
-        ca.registerUser(bankName, ca.groupDescription.gElementFromBytes(bankPublicKey))
+        communicationProtocol.participant = bank
+        ttp.registerUser(bank.name, bank.publicKey)
     }
+
 
     private fun createAddressManager(group: BilinearGroup): AddressBookManager {
         val addressBookManager = AddressBookManager(null, group, createDriver())
@@ -282,14 +374,6 @@ class TransactionTest {
 
     private fun prepareCommunityMock(): OfflineEuroCommunity {
         val community = Mockito.mock(OfflineEuroCommunity::class.java)
-        val ttpAddress = Address("TTP", Role.Bank, ttpPK, "TTPPublicKey".toByteArray())
-        val ttpAddressMessage = AddressMessage("TTP", ttpAddress.type, ttpAddress.publicKey.toBytes(), ttpAddress.peerPublicKey!!)
-
-        Mockito.`when`(community.getGroupDescriptionAndCRS()).then {
-            val message = BilinearGroupCRSReplyMessage(ca.groupDescription.toGroupElementBytes(), ca.crs.toCRSBytes(), ttpAddressMessage)
-            community.messageList.add(message)
-        }
-
         return community
     }
 

@@ -7,13 +7,22 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
+import java.io.ByteArrayOutputStream
+import java.io.ObjectOutputStream
+import java.io.Serializable
+import java.lang.Byte
+import kotlin.Any
+import kotlin.Boolean
+import kotlin.ByteArray
+import kotlin.Int
+import kotlin.String
 
 data class DigitalEuroBytes(
     val serialNumberBytes: ByteArray,
     val firstTheta1Bytes: ByteArray,
     val signatureBytes: ByteArray,
     val proofsBytes: ByteArray,
-) {
+) : Serializable {
     fun toDigitalEuro(group: BilinearGroup): DigitalEuro {
         return DigitalEuro(
             serialNumberBytes.toString(Charsets.UTF_8),
@@ -51,15 +60,23 @@ data class DigitalEuro(
         return Schnorr.verifySchnorrSignature(signature, publicKeySigner, group)
     }
 
+    fun serialize() : ByteArray {
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
+            objectOutputStream.writeObject(toDigitalEuroBytes())
+            objectOutputStream.close()
+            return byteArrayOutputStream.toByteArray()
+    }
     fun sizeInBytes(): Int {
         val serialNumberBytes = serialNumber.toByteArray()
         val firstTheta1Bytes = firstTheta1.toBytes()
+        val test = Byte.valueOf("0")
+        val thetaByteSize = firstTheta1Bytes.filter { it -> it != test }.size
         val signatureBytes = SchnorrSignatureSerializer.serializeSchnorrSignature(signature)
         val proofBytes = GrothSahaiSerializer.serializeGrothSahaiProofs(proofs)
-
         val signatureByteSize = signatureBytes?.size ?: 0
         val proofByteSize = proofBytes?.size ?: 0
-
+        val test2 = serialize().size
         return serialNumberBytes.size + firstTheta1Bytes.size + signatureByteSize + proofByteSize
     }
 

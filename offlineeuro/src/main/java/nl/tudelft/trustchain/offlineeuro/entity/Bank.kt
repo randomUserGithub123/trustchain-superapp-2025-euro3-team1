@@ -27,6 +27,8 @@ class Bank(
         this.group = group
         if (runSetup) {
             setUp()
+        } else {
+            generateKeyPair()
         }
     }
 

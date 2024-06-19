@@ -77,10 +77,6 @@ class BankTest {
         Assert.assertThrows(UninitializedPropertyAccessException::class.java) {
             bank.crs.toCRSBytes()
         }
-
-        Assert.assertThrows(UninitializedPropertyAccessException::class.java) {
-            bank.publicKey.toBytes()
-        }
     }
 
     @Test

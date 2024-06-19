@@ -6,10 +6,6 @@ enum class Role {
     User;
 
     companion object {
-        fun fromInt(value: Int): Role {
-            return entries.find { it.ordinal == value }!!
-        }
-
         fun fromLong(value: Long): Role {
             return entries.find { it.ordinal == value.toInt() }!!
         }

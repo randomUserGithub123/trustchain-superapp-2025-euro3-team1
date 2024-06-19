@@ -82,18 +82,6 @@ data class CRSBytes(
         if (!hPrime.contentEquals(other.hPrime)) return false
         return vPrime.contentEquals(other.vPrime)
     }
-
-    override fun hashCode(): Int {
-        var result = g.contentHashCode()
-        result = 31 * result + u.contentHashCode()
-        result = 31 * result + gPrime.contentHashCode()
-        result = 31 * result + uPrime.contentHashCode()
-        result = 31 * result + h.contentHashCode()
-        result = 31 * result + v.contentHashCode()
-        result = 31 * result + hPrime.contentHashCode()
-        result = 31 * result + vPrime.contentHashCode()
-        return result
-    }
 }
 
 object CRSGenerator {

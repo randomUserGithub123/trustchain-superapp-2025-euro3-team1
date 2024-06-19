@@ -266,7 +266,6 @@ class IPV8CommunicationProtocol(
         when (message) {
             is AddressMessage -> handleAddressMessage(message)
             is AddressRequestMessage -> handleAddressRequestMessage(message)
-            // is RegistrationMessage -> handleRegistrationMessage(message)
             is BilinearGroupCRSRequestMessage -> handleGetBilinearGroupAndCRSRequest(message)
             is BlindSignatureRandomnessRequestMessage -> handleBlindSignatureRandomnessRequest(message)
             is BlindSignatureRequestMessage -> handleBlindSignatureRequestMessage(message)

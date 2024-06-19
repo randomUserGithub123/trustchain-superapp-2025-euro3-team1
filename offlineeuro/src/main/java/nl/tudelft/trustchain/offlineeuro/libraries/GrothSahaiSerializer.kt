@@ -35,19 +35,6 @@ private data class GrothSahaiProofBytes(
         if (!pi2.contentEquals(other.pi2)) return false
         return target.contentEquals(other.target)
     }
-
-    override fun hashCode(): Int {
-        var result = c1.contentHashCode()
-        result = 31 * result + c2.contentHashCode()
-        result = 31 * result + d1.contentHashCode()
-        result = 31 * result + d2.contentHashCode()
-        result = 31 * result + theta1.contentHashCode()
-        result = 31 * result + theta2.contentHashCode()
-        result = 31 * result + pi1.contentHashCode()
-        result = 31 * result + pi2.contentHashCode()
-        result = 31 * result + target.contentHashCode()
-        return result
-    }
 }
 
 object GrothSahaiSerializer {

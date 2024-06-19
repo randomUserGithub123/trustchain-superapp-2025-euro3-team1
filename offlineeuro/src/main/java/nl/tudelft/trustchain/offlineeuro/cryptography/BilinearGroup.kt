@@ -32,20 +32,7 @@ data class BilinearGroupElementsBytes(
         if (!h.contentEquals(other.h)) return false
         return gt.contentEquals(other.gt)
     }
-
-    override fun hashCode(): Int {
-        var result = g.contentHashCode()
-        result = 31 * result + h.contentHashCode()
-        result = 31 * result + gt.contentHashCode()
-        return result
-    }
 }
-
-data class BilinearGroupElements(
-    val g: Element,
-    val h: Element,
-    val gt: Element,
-)
 
 class BilinearGroup(
     pairingType: PairingTypes = PairingTypes.A,
@@ -85,19 +72,17 @@ class BilinearGroup(
                         PairingFactory.getPairing("lib/params/a_181_603.properties")
                     } else {
                         // Access the assets folder
-
-                        // Access the assets folder
                         val assetManager = context.assets
                         val inputStream: InputStream = assetManager.open("params/a_181_603.properties")
 
-                        val filename = "Test.properties"
+                        val filename = "ecc.properties"
                         context.openFileOutput(filename, Context.MODE_PRIVATE).use {
                             inputStream.copyTo(it)
                         }
                         inputStream.close()
 
-                        val test = context.filesDir
-                        PairingFactory.getPairing("$test/$filename")
+                        val contextDir = context.filesDir
+                        PairingFactory.getPairing("$contextDir/$filename")
                     }
                 }
             }

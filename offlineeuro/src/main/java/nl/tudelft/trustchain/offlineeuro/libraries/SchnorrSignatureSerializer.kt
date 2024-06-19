@@ -23,13 +23,6 @@ private data class SchnorrSignatureBytes(
         if (!encryption.contentEquals(other.encryption)) return false
         return message.contentEquals(other.message)
     }
-
-    override fun hashCode(): Int {
-        var result = signature.contentHashCode()
-        result = 31 * result + encryption.contentHashCode()
-        result = 31 * result + message.contentHashCode()
-        return result
-    }
 }
 
 object SchnorrSignatureSerializer {

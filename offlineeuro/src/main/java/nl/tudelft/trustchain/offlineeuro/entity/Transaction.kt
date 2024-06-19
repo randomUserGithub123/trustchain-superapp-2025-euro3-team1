@@ -10,6 +10,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProofBytes
+import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
 
 enum class TransactionResult(val valid: Boolean, val description: String) {
@@ -90,6 +91,7 @@ object Transaction {
                 crs
             )
 
+        val transactionProofSize = GrothSahaiSerializer.serializeGrothSahaiProof(transactionProof.grothSahaiProof).size
         val theta1Signature = Schnorr.schnorrSignature(r, randomizationElements.group1TInv.toBytes(), bilinearGroup)
         val previousThetaSignature = walletEntry.transactionSignature
         return TransactionDetails(digitalEuro, transactionProof, previousThetaSignature, theta1Signature, publicKey)
@@ -103,7 +105,9 @@ object Transaction {
     ): TransactionResult {
         // Verify if the Digital euro is signed
         val digitalEuro = transaction.digitalEuro
-        if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup)) {
+        if (!digitalEuro.verifySignature(publicKeyBank, bilinearGroup) ||
+            !digitalEuro.signature.signedMessage.contentEquals(digitalEuro.serialNumber.toByteArray() + digitalEuro.firstTheta1.toBytes())
+        ) {
             return TransactionResult.INVALID_BANK_SIGNATURE
         }
 

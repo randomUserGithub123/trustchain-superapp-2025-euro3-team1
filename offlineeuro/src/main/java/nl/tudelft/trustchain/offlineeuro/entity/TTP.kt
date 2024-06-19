@@ -10,13 +10,13 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 
 class TTP(
     name: String = "TTP",
+    group: BilinearGroup,
     communicationProtocol: ICommunicationProtocol,
     context: Context?,
-    group: BilinearGroup,
+    private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
-    private val registeredUserManager: RegisteredUserManager
-    private val crsMap: Map<Element, Element>
+    val crsMap: Map<Element, Element>
 
     init {
         communicationProtocol.participant = this
@@ -24,7 +24,6 @@ class TTP(
         val generatedCRS = CRSGenerator.generateCRSMap(group)
         this.crs = generatedCRS.first
         this.crsMap = generatedCRS.second
-        registeredUserManager = RegisteredUserManager(context, group)
         generateKeyPair()
     }
 
@@ -51,6 +50,7 @@ class TTP(
 
     fun getUserFromProof(grothSahaiProof: GrothSahaiProof): RegisteredUser? {
         val crsExponent = crsMap[crs.u]
+        val test = group.g.powZn(crsExponent)
         val publicKey =
             grothSahaiProof.c1.powZn(crsExponent!!.mul(-1)).mul(grothSahaiProof.c2).immutable
 

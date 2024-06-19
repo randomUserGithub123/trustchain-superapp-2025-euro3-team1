@@ -2,8 +2,15 @@ package nl.tudelft.trustchain.offlineeuro.libraries
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import kotlin.system.measureTimeMillis
 
+/**
+ * Class to convert a list of elements to an Extended Bilinear Map. These maps are used in the
+ * Groth-Sahai proofs.
+ *
+ * @property elements the list of elements to fill the Extended Bilinear Map with.
+ * @property bilinearGroup the bilinear group description used to compute the pairings.
+ * @param computeMap flag to set the elements should be paired or not.
+ */
 class EBMap(
     private val elements: List<Element>,
     private val bilinearGroup: BilinearGroup,
@@ -13,16 +20,12 @@ class EBMap(
     private val mapSize = 2
 
     init {
-        val transactionSignatureTime =
-            measureTimeMillis {
-                ebMap =
-                    if (computeMap) {
-                        Array(mapSize) { i -> Array(mapSize) { j -> ebMapIndexToElement(i, j) } }
-                    } else {
-                        Array(mapSize) { i -> Array(mapSize) { j -> indexToElement(i, j) } }
-                    }
+        ebMap =
+            if (computeMap) {
+                Array(mapSize) { i -> Array(mapSize) { j -> ebMapIndexToElement(i, j) } }
+            } else {
+                Array(mapSize) { i -> Array(mapSize) { j -> indexToElement(i, j) } }
             }
-        // println("Creating map: $transactionSignatureTime")
     }
 
     private fun ebMapIndexToElement(

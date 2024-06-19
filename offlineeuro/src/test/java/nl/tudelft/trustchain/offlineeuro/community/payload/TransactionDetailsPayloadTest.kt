@@ -1,9 +1,9 @@
 package nl.tudelft.trustchain.offlineeuro.community.payload
 
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
-import nl.tudelft.trustchain.offlineeuro.entity.CentralAuthority
 import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import org.junit.Assert
@@ -11,7 +11,7 @@ import org.junit.Test
 import java.math.BigInteger
 
 class TransactionDetailsPayloadTest {
-    private val group = CentralAuthority.groupDescription
+    private val group = BilinearGroup()
 
     @Test
     fun serializeAndDeserializeInitialEuro() {

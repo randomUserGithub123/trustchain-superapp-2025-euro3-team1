@@ -38,13 +38,8 @@ class User(
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails = wallet.spendEuro(randomizationElements, group, crs)
+            ?: throw Exception("No euro to spend")
 
-        if (transactionDetails == null) {
-            val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
-            val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
-            onDataChangeCallback?.invoke(result)
-            return result
-        }
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails)
         onDataChangeCallback?.invoke(result)
         return result
