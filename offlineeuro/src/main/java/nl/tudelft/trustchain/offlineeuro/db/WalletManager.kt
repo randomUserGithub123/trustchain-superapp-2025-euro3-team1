@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
 import android.content.Context
-import android.database.sqlite.SQLiteException
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import nl.tudelft.offlineeuro.sqldelight.Database
@@ -56,20 +55,15 @@ class WalletManager(
     fun insertWalletEntry(walletEntry: WalletEntry): Boolean {
         val digitalEuro = walletEntry.digitalEuro
 
-        try {
-            queries.insertWalletEntry(
-                digitalEuro.serialNumber,
-                digitalEuro.firstTheta1.toBytes(),
-                serialize(digitalEuro.signature)!!,
-                serialize(digitalEuro.proofs),
-                walletEntry.t.toBytes(),
-                serialize(walletEntry.transactionSignature)
-            )
-            return true
-        } catch (e: SQLiteException) {
-            // TODO Perhaps throw specific custom exception to indicate which property was not unique
-            return false
-        }
+        queries.insertWalletEntry(
+            digitalEuro.serialNumber,
+            digitalEuro.firstTheta1.toBytes(),
+            serialize(digitalEuro.signature)!!,
+            serialize(digitalEuro.proofs),
+            walletEntry.t.toBytes(),
+            serialize(walletEntry.transactionSignature)
+        )
+        return true
     }
 
     fun getAllDigitalWalletEntries(): List<WalletEntry> {

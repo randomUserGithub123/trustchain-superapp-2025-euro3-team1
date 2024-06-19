@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.db
 
 import android.content.Context
-import android.database.sqlite.SQLiteException
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
@@ -56,16 +55,11 @@ class RegisteredUserManager(
         userName: String,
         publicKey: Element
     ): Boolean {
-        try {
-            queries.addUser(
-                userName,
-                publicKey.toBytes(),
-            )
-            return true
-        } catch (e: SQLiteException) {
-            // TODO Perhaps throw specific custom exception to indicate which property was not unique
-            return false
-        }
+        queries.addUser(
+            userName,
+            publicKey.toBytes(),
+        )
+        return true
     }
 
     /**
@@ -80,23 +74,14 @@ class RegisteredUserManager(
     }
 
     /**
-     * Gets a [RegisteredUser] by its [w].
+     * Gets a [RegisteredUser] by its [publicKey].
      *
-     * @param w the name of the [RegisteredUser]
-     * @return the [RegisteredUser] with the [w] or null if the user does not exist.
+     * @param publicKey the public key of the [RegisteredUser]
+     * @return the [RegisteredUser] with the [publicKey] or null if the user does not exist.
      */
     fun getRegisteredUserByPublicKey(publicKey: Element): RegisteredUser? {
         return queries.getUserByPublicKey(publicKey.toBytes(), registeredUserMapper)
             .executeAsOneOrNull()
-    }
-
-    /**
-     * Gets the number of [RegisteredUser]s.
-     *
-     * @return The number of [RegisteredUser]s.
-     */
-    fun getUserCount(): Long {
-        return queries.getRegisteredUserCount().executeAsOne()
     }
 
     fun getAllRegisteredUsers(): List<RegisteredUser> {

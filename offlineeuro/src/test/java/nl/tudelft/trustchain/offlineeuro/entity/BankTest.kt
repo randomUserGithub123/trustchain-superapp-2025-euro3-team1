@@ -7,6 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BilinearGroupCRSReply
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
+import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.enums.Role
@@ -18,6 +19,7 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.math.BigInteger
 
 class BankTest {
     private val ttpGroup = BilinearGroup(PairingTypes.FromFile)
@@ -93,6 +95,25 @@ class BankTest {
         val thirdRandomness = bank.getBlindSignatureRandomness(newPublicKey)
 
         Assert.assertNotEquals(firstRandomness, thirdRandomness)
+    }
+
+    @Test
+    fun getBlindSignatureTest() {
+        val bank = getBank()
+        val publicKey = ttpGroup.generateRandomElementOfG()
+        val firstRandomness = bank.getBlindSignatureRandomness(publicKey)
+        val elementToSign = ttpGroup.generateRandomElementOfG().immutable.toBytes()
+        val serialNumber = "TestSerialNumber"
+        val bytesToSign = serialNumber.toByteArray() + elementToSign
+
+        val blindedChallenge = Schnorr.createBlindedChallenge(firstRandomness, bytesToSign, bank.publicKey, ttpGroup)
+        val blindSignature = bank.createBlindSignature(blindedChallenge.blindedChallenge, publicKey)
+        val blindSchnorrSignature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
+        Assert.assertTrue(Schnorr.verifySchnorrSignature(blindSchnorrSignature, bank.publicKey, ttpGroup))
+
+        val noRandomnessRequestedKey = ttpGroup.generateRandomElementOfG()
+        val response = bank.createBlindSignature(blindedChallenge.blindedChallenge, noRandomnessRequestedKey)
+        Assert.assertEquals("There should be no randomness found", BigInteger.ZERO, response)
     }
 
     fun getBank(): Bank {

@@ -38,7 +38,6 @@ import org.mockito.kotlin.verify
 import java.math.BigInteger
 
 class GrowthTest {
-
     private val registrationNameCaptor = argumentCaptor<String>()
     private val publicKeyCaptor = argumentCaptor<ByteArray>()
     private val userList = hashMapOf<User, OfflineEuroCommunity>()
@@ -55,7 +54,6 @@ class GrowthTest {
         val user = createTestUser()
         val euro = withdrawDigitalEuro(user, bank.name)
         val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 51)
-
     }
 
     private fun addProofsToDigitalEuro(
@@ -78,7 +76,7 @@ class GrowthTest {
                     crs,
                 )
             println(transactionDetails.digitalEuro.sizeInBytes())
-            //Assert.assertTrue("The transaction should be valid", Transaction.validate(transactionDetails, bank.publicKey, group, crs).valid)
+            // Assert.assertTrue("The transaction should be valid", Transaction.validate(transactionDetails, bank.publicKey, group, crs).valid)
             entry = detailsToWalletEntry(transactionDetails, randomT)
         }
 

@@ -112,7 +112,8 @@ class TransactionTest {
         val secondEuro = withdrawDigitalEuro(user, bank.name)
 
         // Try with an invalid signature
-        val fakeSignature = SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
+        val fakeSignature =
+            SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
         val invalidEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, fakeSignature, firstEuro.proofs)
         val invalidWalletEntry = WalletEntry(invalidEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
         val invalidSignatureDetails = walletEntryToTransactionDetails(invalidWalletEntry)
@@ -145,7 +146,8 @@ class TransactionTest {
         val secondEuro = withdrawDigitalEuro(user, bank.name)
 
         // Try with an invalid signature
-        val fakeSignature = SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
+        val fakeSignature =
+            SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
         val invalidEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, fakeSignature, firstEuro.proofs)
         val invalidWalletEntry = WalletEntry(invalidEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
         val invalidSignatureDetails = walletEntryToTransactionDetails(invalidWalletEntry)
@@ -178,7 +180,8 @@ class TransactionTest {
         val secondEuro = withdrawDigitalEuro(user, bank.name)
 
         // Try with an invalid signature
-        val fakeSignature = SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
+        val fakeSignature =
+            SchnorrSignature(BigInteger("1230284023820194821"), firstEuro.signature.encryption, firstEuro.signature.signedMessage)
         val invalidEuro = DigitalEuro(firstEuro.serialNumber, firstEuro.firstTheta1, fakeSignature, firstEuro.proofs)
         val invalidWalletEntry = WalletEntry(invalidEuro, walletEntry.t, walletEntry.transactionSignature, walletEntry.timesSpent)
         val invalidSignatureDetails = walletEntryToTransactionDetails(invalidWalletEntry)
@@ -193,8 +196,8 @@ class TransactionTest {
         val verificationResult = Transaction.validate(transactionDetails, bank.publicKey, group, crs)
         Assert.assertFalse("The transaction should be invalid", verificationResult.valid)
         Assert.assertEquals(TransactionResult.INVALID_BANK_SIGNATURE.description, verificationResult.description)
-
     }
+
     private fun walletEntryToTransactionDetails(walletEntry: WalletEntry): TransactionDetails {
         val privateKey = group.getRandomZr()
         val publicKey = group.g.powZn(privateKey)
@@ -342,6 +345,7 @@ class TransactionTest {
         crs = ttp.crs
         communicationProtocol.participant = ttp
     }
+
     private fun createBank() {
         val addressBookManager = createAddressManager(group)
         val depositedEuroManager = DepositedEuroManager(null, group, createDriver())
@@ -357,7 +361,6 @@ class TransactionTest {
         communicationProtocol.participant = bank
         ttp.registerUser(bank.name, bank.publicKey)
     }
-
 
     private fun createAddressManager(group: BilinearGroup): AddressBookManager {
         val addressBookManager = AddressBookManager(null, group, createDriver())

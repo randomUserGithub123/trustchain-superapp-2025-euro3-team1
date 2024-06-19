@@ -109,7 +109,7 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         Toast.makeText(context, "Switched to TTP", Toast.LENGTH_SHORT).show()
     }
 
-    private fun setBankAsChild()  {
+    private fun setBankAsChild() {
         iPV8CommunicationProtocol.participant = bank
         val bankFragment = BankHomeFragment()
         childFragmentManager.beginTransaction()

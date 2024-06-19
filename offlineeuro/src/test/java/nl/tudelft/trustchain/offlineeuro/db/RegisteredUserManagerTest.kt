@@ -45,5 +45,8 @@ class RegisteredUserManagerTest {
 
         val notFoundByPublicKey = registeredUserManager.getRegisteredUserByPublicKey(unregisteredPublicKey)
         Assert.assertNull("No user should be found", notFoundByPublicKey)
+
+        val allUsers = registeredUserManager.getAllRegisteredUsers()
+        Assert.assertEquals("There should only be one user", 1, allUsers.size)
     }
 }

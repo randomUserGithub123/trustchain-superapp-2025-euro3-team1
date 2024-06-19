@@ -39,7 +39,6 @@ import java.math.BigInteger
 import kotlin.system.measureTimeMillis
 
 class PerformanceTest {
-
     private val registrationNameCaptor = argumentCaptor<String>()
     private val publicKeyCaptor = argumentCaptor<ByteArray>()
     private val userList = hashMapOf<User, OfflineEuroCommunity>()
@@ -58,7 +57,6 @@ class PerformanceTest {
         val user = createTestUser()
         val euro = withdrawDigitalEuro(user, bank.name)
         val walletEntry = addProofsToDigitalEuro(user.wallet.getWalletEntryToSpend()!!, 51)
-
     }
 
     private fun addProofsToDigitalEuro(
@@ -81,13 +79,13 @@ class PerformanceTest {
                     crs,
                 )
 
-
-            val timeInMillis = measureTimeMillis {
-                Assert.assertTrue(
-                    "The transaction should be valid",
-                    Transaction.validate(transactionDetails, bank.publicKey, group, crs).valid
-                )
-            }
+            val timeInMillis =
+                measureTimeMillis {
+                    Assert.assertTrue(
+                        "The transaction should be valid",
+                        Transaction.validate(transactionDetails, bank.publicKey, group, crs).valid
+                    )
+                }
             println(timeInMillis)
             entry = detailsToWalletEntry(transactionDetails, randomT)
         }

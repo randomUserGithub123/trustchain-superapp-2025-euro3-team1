@@ -67,7 +67,6 @@ class SystemTest {
         val firstProofCaptor = argumentCaptor<ByteArray>()
         val secondProofCaptor = argumentCaptor<ByteArray>()
         `when`(bankCommunity.sendFraudControlRequest(firstProofCaptor.capture(), secondProofCaptor.capture(), any())).then {
-
             val firstProofBytes = firstProofCaptor.lastValue
             val secondProofBytes = secondProofCaptor.lastValue
 
@@ -83,6 +82,7 @@ class SystemTest {
             ttpCommunity.messageList.add(fraudControlRequestMessage)
         }
     }
+
     @Test
     fun withdrawSpendDepositDoubleSpendDepositTest() {
         val user = createTestUser()
@@ -137,7 +137,6 @@ class SystemTest {
 
     @Test
     fun getManyBlindSignatures() {
-
         val user = createTestUser()
         val bankAddressMessage = AddressMessage(bank.name, Role.Bank, bank.publicKey.toBytes(), bank.name.toByteArray())
         addMessageToList(user, bankAddressMessage)
@@ -289,6 +288,7 @@ class SystemTest {
         crs = ttp.crs
         communicationProtocol.participant = ttp
     }
+
     private fun createBank() {
         val addressBookManager = createAddressManager(group)
         val depositedEuroManager = DepositedEuroManager(null, group, createDriver())

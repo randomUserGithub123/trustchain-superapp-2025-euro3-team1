@@ -60,13 +60,14 @@ data class DigitalEuro(
         return Schnorr.verifySchnorrSignature(signature, publicKeySigner, group)
     }
 
-    fun serialize() : ByteArray {
-            val byteArrayOutputStream = ByteArrayOutputStream()
-            val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
-            objectOutputStream.writeObject(toDigitalEuroBytes())
-            objectOutputStream.close()
-            return byteArrayOutputStream.toByteArray()
+    fun serialize(): ByteArray {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
+        objectOutputStream.writeObject(toDigitalEuroBytes())
+        objectOutputStream.close()
+        return byteArrayOutputStream.toByteArray()
     }
+
     fun sizeInBytes(): Int {
         val serialNumberBytes = serialNumber.toByteArray()
         val firstTheta1Bytes = firstTheta1.toBytes()
