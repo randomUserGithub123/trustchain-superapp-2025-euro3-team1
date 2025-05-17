@@ -13,6 +13,7 @@ import org.junit.Test
 import org.junit.Assert
 import org.mockito.Mockito.*
 import org.mockito.Mock
+import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 
 class BluetoothTransferTest {
@@ -34,12 +35,14 @@ class BluetoothTransferTest {
 
     @Before
     fun setUp() {
-        mockContext = mock(Context::class.java)
-        mockBluetoothAdapter = mock(BluetoothAdapter::class.java)
-        mockBluetoothDevice = mock(BluetoothDevice::class.java)
-        mockBluetoothSocket = mock(BluetoothSocket::class.java)
+        MockitoAnnotations.openMocks(this)
         
         group = BilinearGroup()
+        
+        // Setup basic mock behavior
+        `when`(mockBluetoothAdapter.isEnabled).thenReturn(true)
+        `when`(mockBluetoothAdapter.getRemoteDevice(anyString())).thenReturn(mockBluetoothDevice)
+        `when`(mockBluetoothDevice.createRfcommSocketToServiceRecord(any())).thenReturn(mockBluetoothSocket)
         
         // Initialize sender
         sender = User(
