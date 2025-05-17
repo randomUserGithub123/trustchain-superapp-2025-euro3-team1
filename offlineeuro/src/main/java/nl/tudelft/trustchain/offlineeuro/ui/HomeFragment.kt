@@ -34,6 +34,9 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         view.findViewById<Button>(R.id.JoinAsAllRolesButton).setOnClickListener {
             findNavController().navigate(R.id.nav_home_all_roles_home)
         }
+        view.findViewById<Button>(R.id.goToBluetoothButton).setOnClickListener {
+            findNavController().navigate(R.id.nav_home_to_user_bluetooth)
+        }
     }
 
     override fun onActivityResult(

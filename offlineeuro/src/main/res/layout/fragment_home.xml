@@ -51,6 +51,14 @@
                 android:layout_height="wrap_content"
                 android:text="All Roles"
                 android:id="@+id/JoinAsAllRolesButton"/>
+
+            <Button
+                android:id="@+id/goToBluetoothButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User2"
+                android:layout_marginTop="24dp" />
+            
         </LinearLayout>
         </LinearLayout>
 </LinearLayout>

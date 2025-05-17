@@ -20,6 +20,9 @@
         <action
             android:id="@+id/nav_home_all_roles_home"
             app:destination="@id/allRolesFragment" />
+        <action
+            android:id="@+id/nav_home_to_user_bluetooth"
+            app:destination="@id/userBluetoothFragment" />
     </fragment>
     <fragment
         android:id="@+id/bankHomeFragment"
@@ -52,4 +55,8 @@
         android:id="@+id/allRolesFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.AllRolesFragment"
         android:label="AllRolesFragment" />
+    <fragment
+        android:id="@+id/userBluetoothFragment"
+        android:name="nl.tudelft.trustchain.offlineeuro.ui.UserBluetoothFragment"
+        android:label="UserBluetoothFragment" />
 </navigation>

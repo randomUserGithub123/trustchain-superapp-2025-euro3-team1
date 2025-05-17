@@ -25,9 +25,10 @@ class User(
 
         if (runSetup) {
             setUp()
-        } else {
-            generateKeyPair()
-        }
+        } 
+        // else {
+        //     generateKeyPair()
+        // }
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
         }
