@@ -35,22 +35,6 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
 
             val useBluetooth = true
             communicationProtocol = if (useBluetooth) {
-
-                ActivityCompat.requestPermissions(
-                    requireActivity(),
-                    arrayOf(
-                        android.Manifest.permission.BLUETOOTH_SCAN,
-                        android.Manifest.permission.BLUETOOTH_CONNECT,
-                        android.Manifest.permission.ACCESS_FINE_LOCATION
-                    ),
-                    100
-                )
-
-                val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
-                }
-                startActivity(intent)
-
                 BluetoothCommunicationProtocol(requireContext())
             } else {
                 val community = getIpv8().getOverlay<OfflineEuroCommunity>()!!

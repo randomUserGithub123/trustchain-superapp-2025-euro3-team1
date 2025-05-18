@@ -13,28 +13,25 @@
             app:destination="@id/bankHomeFragment" />
         <action
             android:id="@+id/nav_home_userhome"
-            app:destination="@id/userHomeFragment" />
+            app:destination="@id/UserHomeFragment" />
         <action
             android:id="@+id/nav_home_ttphome"
             app:destination="@id/TTPHomeFragment" />
         <action
             android:id="@+id/nav_home_all_roles_home"
             app:destination="@id/allRolesFragment" />
-        <action
-            android:id="@+id/nav_home_to_user_bluetooth"
-            app:destination="@id/userBluetoothFragment" />
     </fragment>
     <fragment
         android:id="@+id/bankHomeFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.BankHomeFragment"
         android:label="BankHomeFragment" />
     <fragment
-        android:id="@+id/userHomeFragment"
+        android:id="@+id/UserHomeFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.UserHomeFragment"
         android:label="UserHomeFragment" >
-        <action
-            android:id="@+id/nav_userHome_bankSelected"
-            app:destination="@id/bankSelectedFragment" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
     </fragment>
     <fragment
         android:id="@+id/bankSelectedFragment"
@@ -55,8 +52,4 @@
         android:id="@+id/allRolesFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.AllRolesFragment"
         android:label="AllRolesFragment" />
-    <fragment
-        android:id="@+id/userBluetoothFragment"
-        android:name="nl.tudelft.trustchain.offlineeuro.ui.UserBluetoothFragment"
-        android:label="UserBluetoothFragment" />
 </navigation>

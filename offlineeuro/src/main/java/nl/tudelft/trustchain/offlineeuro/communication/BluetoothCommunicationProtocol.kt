@@ -56,15 +56,10 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
 
                 while (running) {
                     try {
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context.applicationContext, "Waiting for connection", Toast.LENGTH_LONG).show()
-                        }
+                        
                         val socket = serverSocket?.accept()
 
                         if (socket != null) {
-                            Handler(Looper.getMainLooper()).post {
-                                Toast.makeText(context.applicationContext, "Accepted connection", Toast.LENGTH_LONG).show()
-                            }
                             thread { handleIncomingConnection(socket) }
                         }
                     } catch (e: Exception) {
@@ -108,10 +103,6 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
 
                     "GROUP_CRS_REQUEST" -> {
 
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context.applicationContext, "GROUP_CRS_REQUEST", Toast.LENGTH_LONG).show()
-                        }
-
                         val groupBytes = participant.group.toGroupElementBytes()
                         val crsBytes = participant.crs.toCRSBytes()
                         output.writeObject(groupBytes)
@@ -120,19 +111,15 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
                     }
                     "REGISTRATION_REQUEST" -> {
 
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context.applicationContext, "REGISTRATION_REQUEST", Toast.LENGTH_LONG).show()
-                        }
-
                         val userName = input.readObject() as String
                         val publicKeyBytes = input.readObject() as ByteArray
                         if (participant is TTP) {
                             val ttp = participant as TTP
                             val publicKey = ttp.group.gElementFromBytes(publicKeyBytes)
                             ttp.registerUser(userName, publicKey)
-                            Handler(Looper.getMainLooper()).post {
-                                Toast.makeText(context.applicationContext, "Registered $userName", Toast.LENGTH_LONG).show()
-                            }
+
+                            output.writeObject("ACK")
+                            output.flush()
                         }
                     }
                 }
@@ -184,9 +171,9 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
             override fun onReceive(context: Context?, intent: Intent?) {
                 val action = intent?.action
 
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(appContext, "Broadcast: $action", Toast.LENGTH_SHORT).show()
-                }
+                // Handler(Looper.getMainLooper()).post {
+                //     Toast.makeText(appContext, "Broadcast: $action", Toast.LENGTH_SHORT).show()
+                // }
 
                 when (action) {
                     BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
@@ -285,9 +272,6 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
 
         thread {
             try {
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Scanning for peer...", Toast.LENGTH_SHORT).show()
-                }
 
                 val device = discoverNearbyDeviceBlocking() ?: run {
                     Handler(Looper.getMainLooper()).post {
@@ -313,10 +297,6 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
 
                 socket.close()
 
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "CRS updated", Toast.LENGTH_SHORT).show()
-                }
-
             } catch (e: Exception) {
                 e.printStackTrace()
                 Handler(Looper.getMainLooper()).post {
@@ -341,16 +321,25 @@ class BluetoothCommunicationProtocol(private val context: Context) : ICommunicat
                 socket.connect()
 
                 val output = ObjectOutputStream(socket.outputStream)
+                val input = ObjectInputStream(socket.inputStream)
+
                 output.writeObject("REGISTRATION_REQUEST")
                 output.writeObject(userName)
                 output.writeObject(publicKey.toBytes())
                 output.flush()
 
-                socket.close()
+                val ack = input.readObject() as? String
+                if (ack != "ACK") {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Error: no ACK", Toast.LENGTH_SHORT).show()
+                    }
+                }
 
                 Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Registered", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "You have registered with TTP!", Toast.LENGTH_SHORT).show()
                 }
+
+                socket.close()
 
                 clearPairedDevice()
 

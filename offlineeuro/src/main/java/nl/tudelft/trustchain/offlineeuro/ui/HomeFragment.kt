@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.app.AlertDialog
-import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -9,6 +8,9 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.navigation.fragment.findNavController
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
+import androidx.core.app.ActivityCompat
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 
@@ -19,6 +21,21 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
     ) {
         super.onViewCreated(view, savedInstanceState)
         activity?.title = "Home"
+
+        ActivityCompat.requestPermissions(
+            requireActivity(),
+            arrayOf(
+                android.Manifest.permission.BLUETOOTH_SCAN,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ),
+            100
+        )
+
+        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+        }
+        startActivity(intent)
 
         view.findViewById<Button>(R.id.JoinAsTTP).setOnClickListener {
             findNavController().navigate(R.id.nav_home_ttphome)
@@ -34,9 +51,7 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         view.findViewById<Button>(R.id.JoinAsAllRolesButton).setOnClickListener {
             findNavController().navigate(R.id.nav_home_all_roles_home)
         }
-        view.findViewById<Button>(R.id.goToBluetoothButton).setOnClickListener {
-            findNavController().navigate(R.id.nav_home_to_user_bluetooth)
-        }
+        
     }
 
     override fun onActivityResult(
