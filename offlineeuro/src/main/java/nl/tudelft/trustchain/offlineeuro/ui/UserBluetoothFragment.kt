@@ -5,6 +5,10 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.entity.User
@@ -20,14 +24,27 @@ class UserBluetoothFragment : OfflineEuroBaseFragment(R.layout.fragment_user_blu
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        ActivityCompat.requestPermissions(
+            requireActivity(),
+            arrayOf(
+                android.Manifest.permission.BLUETOOTH_SCAN,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ),
+            100
+        )
+
+        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+        }
+        startActivity(intent)
+
         user = ParticipantHolder.user ?: run {
 
             try {
                 val name = arguments?.getString("userName") ?: "BluetoothUser"
                 val group = BilinearGroup(PairingTypes.FromFile, context = context)
                 val protocol = BluetoothCommunicationProtocol(requireContext())
-
-                val (crs, _) = CRSGenerator.generateCRSMap(group)
 
                 val newUser = User(
                     name = name,
@@ -37,8 +54,6 @@ class UserBluetoothFragment : OfflineEuroBaseFragment(R.layout.fragment_user_blu
                     runSetup = true,
                     onDataChangeCallback = onUserDataChangeCallback
                 )
-                newUser.crs = crs
-                newUser.generateKeyPair()
 
                 ParticipantHolder.user = newUser
                 newUser
@@ -73,6 +88,15 @@ class UserBluetoothFragment : OfflineEuroBaseFragment(R.layout.fragment_user_blu
             } catch (e: Exception) {
                 Toast.makeText(context, "Send failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+
+        val protocol = user.communicationProtocol
+        if (protocol is BluetoothCommunicationProtocol) {
+            protocol.stopServer()
         }
     }
 

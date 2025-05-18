@@ -5,6 +5,7 @@ import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
 
@@ -25,10 +26,9 @@ class User(
 
         if (runSetup) {
             setUp()
-        } 
-        // else {
-        //     generateKeyPair()
-        // }
+        } else {
+            generateKeyPair()
+        }
         if (walletManager == null) {
             walletManager = WalletManager(context, group)
         }

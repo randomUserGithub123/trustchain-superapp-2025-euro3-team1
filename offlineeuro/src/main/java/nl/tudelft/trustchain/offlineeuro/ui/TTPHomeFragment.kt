@@ -2,7 +2,13 @@ package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
 import android.view.View
+import android.app.Activity
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
+import androidx.core.app.ActivityCompat
+
 import nl.tudelft.trustchain.offlineeuro.R
+import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
@@ -12,8 +18,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     private lateinit var ttp: TTP
-    private lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
-    private lateinit var community: OfflineEuroCommunity
+    private var communicationProtocol: Any? = null
 
     override fun onViewCreated(
         view: View,
@@ -25,13 +30,53 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             ttp = ParticipantHolder.ttp!!
         } else {
             activity?.title = "TTP"
-            community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
+
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
-            val addressBookManager = AddressBookManager(context, group)
-            iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onDataChangeCallback)
+
+            val useBluetooth = true
+            communicationProtocol = if (useBluetooth) {
+
+                ActivityCompat.requestPermissions(
+                    requireActivity(),
+                    arrayOf(
+                        android.Manifest.permission.BLUETOOTH_SCAN,
+                        android.Manifest.permission.BLUETOOTH_CONNECT,
+                        android.Manifest.permission.ACCESS_FINE_LOCATION
+                    ),
+                    100
+                )
+
+                val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                    putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+                }
+                startActivity(intent)
+
+                BluetoothCommunicationProtocol(requireContext())
+            } else {
+                val community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
+                val addressBookManager = AddressBookManager(context, group)
+                IPV8CommunicationProtocol(addressBookManager, community)
+            }
+
+            ttp = TTP(
+                name = "TTP",
+                group = group,
+                communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
+                context = context,
+                onDataChangeCallback = onDataChangeCallback
+            )
+
+            ParticipantHolder.ttp = ttp
         }
+
         onDataChangeCallback(null)
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        if (communicationProtocol is BluetoothCommunicationProtocol) {
+            (communicationProtocol as BluetoothCommunicationProtocol).stopServer()
+        }
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->
