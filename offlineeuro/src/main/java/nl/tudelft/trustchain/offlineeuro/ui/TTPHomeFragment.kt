@@ -19,6 +19,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     private lateinit var ttp: TTP
     private var communicationProtocol: Any? = null
+    private lateinit var community: OfflineEuroCommunity
 
     override fun onViewCreated(
         view: View,
@@ -30,17 +31,12 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             ttp = ParticipantHolder.ttp!!
         } else {
             activity?.title = "TTP"
+            community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
 
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
+            val addressBookManager = AddressBookManager(context, group)
 
-            val useBluetooth = true
-            communicationProtocol = if (useBluetooth) {
-                BluetoothCommunicationProtocol(requireContext())
-            } else {
-                val community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
-                val addressBookManager = AddressBookManager(context, group)
-                IPV8CommunicationProtocol(addressBookManager, community)
-            }
+            communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
             ttp = TTP(
                 name = "TTP",

@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
+import kotlin.concurrent.thread
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -10,21 +11,26 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
+import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 
 class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
     private lateinit var user: User
     private lateinit var balanceText: TextView
 
+    private lateinit var communicationProtocol: BluetoothCommunicationProtocol
+    private lateinit var community: OfflineEuroCommunity
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val name = arguments?.getString("userName") ?: run {
+        val userName = arguments?.getString("userName") ?: run {
             Toast.makeText(context, "Username is missing", Toast.LENGTH_LONG).show()
             return
         }
@@ -33,39 +39,66 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         val sendButton = view.findViewById<Button>(R.id.bluetooth_send_button)
         balanceText = view.findViewById(R.id.user_home_balance)
 
-        user = ParticipantHolder.user ?: run {
-            try {
+        try{
+            if (ParticipantHolder.user != null) {
+                user = ParticipantHolder.user!!
+                communicationProtocol = user.communicationProtocol as BluetoothCommunicationProtocol
+            } else {
+                
+                community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
+
                 val group = BilinearGroup(PairingTypes.FromFile, context = context)
-                val protocol = BluetoothCommunicationProtocol(requireContext())
-
-                val newUser = User(
-                    name = name,
-                    group = group,
-                    context = context,
-                    communicationProtocol = protocol,
-                    runSetup = true,
-                    onDataChangeCallback = onUserDataChangeCallback
+                val addressBookManager = AddressBookManager(context, group)
+                communicationProtocol = BluetoothCommunicationProtocol(
+                    addressBookManager, 
+                    community,
+                    requireContext()
                 )
-
-                ParticipantHolder.user = newUser
-                newUser
-            } catch (e: Exception) {
-                e.printStackTrace()
-                Toast.makeText(context, "User init failed: ${e.message}", Toast.LENGTH_LONG).show()
-                throw e
+                user = User(
+                    userName, 
+                    group, 
+                    context, 
+                    null, 
+                    communicationProtocol, 
+                    onDataChangeCallback = onUserDataChangeCallBack
+                )
+                // communicationProtocol.scopePeers()
             }
+        } catch (e: Exception) {
+            Toast.makeText(context, "User init failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
 
         updateBalance()
-        Toast.makeText(context, "Welcome, $name! Now trying to register at TTP", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Welcome, $userName! Now trying to register at TTP", Toast.LENGTH_SHORT).show()
 
         withdrawButton.setOnClickListener {
-            try {
-                user.withdrawDigitalEuro("Bank")
-                updateBalance()
-                Toast.makeText(context, "Withdraw successful", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, "Withdraw failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            thread {
+                try {
+                    
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        if (!protocol.startSession()) {
+                            throw Exception("startSession() ERROR")
+                        }
+                    }
+
+
+                    user.withdrawDigitalEuro("Bank")
+
+                    requireActivity().runOnUiThread {
+                        updateBalance()
+                        Toast.makeText(requireContext(), "Withdraw successful", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(requireContext(), "Withdraw failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        protocol.endSession()
+                    }
+                }
             }
         }
 
@@ -95,7 +128,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         balanceText.text = "Balance: $balance"
     }
 
-    private val onUserDataChangeCallback: (String?) -> Unit = { message ->
+    private val onUserDataChangeCallBack: (String?) -> Unit = { message ->
         requireActivity().runOnUiThread {
             message?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
