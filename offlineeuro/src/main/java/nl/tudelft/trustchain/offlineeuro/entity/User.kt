@@ -18,6 +18,7 @@ class User(
     runSetup: Boolean = true,
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
+
     val wallet: Wallet
 
     init {

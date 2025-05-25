@@ -188,7 +188,7 @@ class BluetoothCommunicationProtocol(
                         val publicKeyBytes = input.readObject() as ByteArray
 
                         if (participant !is User) {
-                            throw Exception("Participant is not a bank")
+                            throw Exception("Participant is not a user. Participant is: ${participant::class.qualifiedName}")
                         }
 
                         val user = participant as User
@@ -263,6 +263,15 @@ class BluetoothCommunicationProtocol(
                 Toast.makeText(appContext, "Enable location services", Toast.LENGTH_LONG).show()
             }
             return null
+        }
+
+        val bondedDevices = bluetoothAdapter.bondedDevices
+        for (device in bondedDevices) {
+            val deviceClass = device.bluetoothClass?.deviceClass
+            if (deviceClass == BluetoothClass.Device.PHONE_SMART) {
+                unpairDevice(device)
+                Log.i("BluetoothProtocol", "Unpaired device: ${device.name} [${device.address}]")
+            }
         }
 
         Handler(Looper.getMainLooper()).post {
@@ -367,6 +376,20 @@ class BluetoothCommunicationProtocol(
 
         return foundDevices.firstOrNull()
     }
+
+    @Suppress("DiscouragedPrivateApi")
+    private fun unpairDevice(device: BluetoothDevice): Boolean {
+        return try {
+            val method = device.javaClass.getMethod("removeBond")
+            method.invoke(device) as Boolean
+        } catch (e: Exception) {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, "ERROR UNPAIR", Toast.LENGTH_SHORT).show()
+            }
+            false
+        }
+    }
+
 
     fun startSession(): Boolean {
 

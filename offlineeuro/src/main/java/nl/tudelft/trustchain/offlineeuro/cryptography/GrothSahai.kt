@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.cryptography
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.libraries.EBMap
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
+import java.io.Serializable
 
 object GrothSahai {
     fun createTransactionProof(
@@ -153,7 +154,7 @@ data class RandomizationElementsBytes(
     val vT: ByteArray,
     val group1TInv: ByteArray,
     val uTInv: ByteArray
-) {
+) : Serializable {
     fun toRandomizationElements(group: BilinearGroup): RandomizationElements {
         return RandomizationElements(
             group.hElementFromBytes(group2T),
@@ -175,7 +176,7 @@ data class TransactionProofBytes(
     val grothSahaiProofBytes: ByteArray,
     val usedYBytes: ByteArray,
     val usedVSBytes: ByteArray,
-) {
+) : Serializable {
     fun toTransactionProof(group: BilinearGroup): TransactionProof {
         return TransactionProof(
             GrothSahaiSerializer.deserializeProofBytes(grothSahaiProofBytes, group),

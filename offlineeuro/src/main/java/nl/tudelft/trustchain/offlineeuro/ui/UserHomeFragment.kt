@@ -137,6 +137,8 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         if (protocol is BluetoothCommunicationProtocol) {
             protocol.stopServer()
         }
+
+        ParticipantHolder.user = null
     }
 
     private fun updateBalance() {

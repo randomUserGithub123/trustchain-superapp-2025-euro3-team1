@@ -49,6 +49,17 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         onDataChangeCallBack(null)
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+
+        val protocol = bank.communicationProtocol
+        if (protocol is BluetoothCommunicationProtocol) {
+            protocol.stopServer()
+        }
+
+        ParticipantHolder.bank = null
+    }
+
     private val onDataChangeCallBack: (String?) -> Unit = { message ->
         if (this::bank.isInitialized) {
             requireActivity().runOnUiThread {

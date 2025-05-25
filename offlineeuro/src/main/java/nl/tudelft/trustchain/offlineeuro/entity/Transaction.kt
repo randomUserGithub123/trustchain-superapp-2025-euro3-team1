@@ -12,6 +12,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProofBytes
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import nl.tudelft.trustchain.offlineeuro.libraries.SchnorrSignatureSerializer
+import java.io.Serializable
 
 enum class TransactionResult(val valid: Boolean, val description: String) {
     VALID_TRANSACTION(true, "Valid transaction"),
@@ -32,7 +33,7 @@ data class TransactionDetailsBytes(
     val previousThetaSignatureBytes: ByteArray,
     val theta1SignatureBytes: ByteArray,
     val spenderPublicKeyBytes: ByteArray,
-) {
+) : Serializable {
     fun toTransactionDetails(group: BilinearGroup): TransactionDetails {
         return TransactionDetails(
             digitalEuroBytes.toDigitalEuro(group),
