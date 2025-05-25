@@ -186,6 +186,7 @@ class BluetoothCommunicationProtocol(
                     "TRANSACTION_RANDOMNESS_REQUEST" -> {
 
                         val publicKeyBytes = input.readObject() as ByteArray
+                        val bankPublicKeyBytes = input.readObject() as ByteArray
 
                         if (participant !is User) {
                             throw Exception("Participant is not a user. Participant is: ${participant::class.qualifiedName}")
@@ -193,6 +194,8 @@ class BluetoothCommunicationProtocol(
 
                         val user = participant as User
                         val publicKey = user.group.gElementFromBytes(publicKeyBytes)
+
+                        this.bankPublicKey = user.group.gElementFromBytes(bankPublicKeyBytes)
 
                         val randomizationElements = participant.generateRandomizationElements(publicKey)
                         val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
@@ -516,6 +519,7 @@ class BluetoothCommunicationProtocol(
 
         output.writeObject("TRANSACTION_RANDOMNESS_REQUEST")
         output.writeObject(participant.publicKey.toBytes())
+        output.writeObject(this.bankPublicKey.toBytes())
         output.flush()
 
         val randBytes = input.readObject() as RandomizationElementsBytes
@@ -592,8 +596,8 @@ class BluetoothCommunicationProtocol(
 
         socket.close()
 
-        bankPublicKey = group.gElementFromBytes(publicKeyBytes)
-        return bankPublicKey
+        this.bankPublicKey = group.gElementFromBytes(publicKeyBytes)
+        return this.bankPublicKey
     }
 
 

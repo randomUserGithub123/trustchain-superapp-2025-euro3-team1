@@ -114,8 +114,10 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
                     val receiverName = "Receiver"
                     user.sendDigitalEuroTo(receiverName)
-                    updateBalance()
-                    Toast.makeText(context, "Sent 1 euro", Toast.LENGTH_SHORT).show()
+                    requireActivity().runOnUiThread {
+                        updateBalance()
+                        Toast.makeText(requireContext(), "Sent 1 euro", Toast.LENGTH_SHORT).show()
+                    }
                 } catch (e: Exception) {
                     requireActivity().runOnUiThread {
                         Toast.makeText(requireContext(), "Send failed: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -150,6 +152,9 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         requireActivity().runOnUiThread {
             message?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+            }
+            if(this::user.isInitialized) {
+                updateBalance()
             }
         }
     }
