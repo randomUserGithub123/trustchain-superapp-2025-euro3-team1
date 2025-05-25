@@ -66,7 +66,8 @@ class OfflineEuroCommunity(
     database: TrustChainStore,
     crawler: TrustChainCrawler = TrustChainCrawler()
 ) : TrustChainCommunity(settings, database, crawler) {
-    override val serviceId = "ffffd716494b474ea9f614a16a4da0aed6899aec"
+    // override val serviceId = "ffffd716494b474ea9f614a16a4da0aed6899aec"
+    override val serviceId = "ffffd716494b474ea9f614a16a4da0aed6899aea"
 
     lateinit var messageList: MessageList<ICommunityMessage>
 

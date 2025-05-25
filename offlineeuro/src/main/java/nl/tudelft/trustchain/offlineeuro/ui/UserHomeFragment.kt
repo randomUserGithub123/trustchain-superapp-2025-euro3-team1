@@ -82,7 +82,6 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                         }
                     }
 
-
                     user.withdrawDigitalEuro("Bank")
 
                     requireActivity().runOnUiThread {
@@ -103,13 +102,30 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         }
 
         sendButton.setOnClickListener {
-            try {
-                val receiverName = "Receiver"
-                user.sendDigitalEuroTo(receiverName)
-                updateBalance()
-                Toast.makeText(context, "Sent 1 euro", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, "Send failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            thread {
+                try {
+                    
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        if (!protocol.startSession()) {
+                            throw Exception("startSession() ERROR")
+                        }
+                    }
+
+                    val receiverName = "Receiver"
+                    user.sendDigitalEuroTo(receiverName)
+                    updateBalance()
+                    Toast.makeText(context, "Sent 1 euro", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(requireContext(), "Send failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        protocol.endSession()
+                    }
+                }
             }
         }
     }

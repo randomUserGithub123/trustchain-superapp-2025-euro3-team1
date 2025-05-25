@@ -22,6 +22,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.Bank
 import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
+import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
@@ -48,6 +49,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
+import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 
@@ -77,9 +79,8 @@ class BluetoothCommunicationProtocol(
 
     // Bluetooth Client
     private var activeDevice: BluetoothDevice? = null
-    private var activeSocket: BluetoothSocket? = null
-    private var input: ObjectInputStream? = null
-    private var output: ObjectOutputStream? = null
+
+    private lateinit var bankPublicKey: Element
 
     init {
         community.messageList = messageList
@@ -132,33 +133,11 @@ class BluetoothCommunicationProtocol(
     private fun handleIncomingConnection(socket: BluetoothSocket) {
         thread {
             try {
-                val input = ObjectInputStream(socket.inputStream)
+
                 val output = ObjectOutputStream(socket.outputStream)
+                val input = ObjectInputStream(socket.inputStream)
 
                 when (val requestType = input.readObject() as String) {
-
-                    "GROUP_CRS_REQUEST" -> {
-
-                        val groupBytes = participant.group.toGroupElementBytes()
-                        val crsBytes = participant.crs.toCRSBytes()
-                        output.writeObject(groupBytes)
-                        output.writeObject(crsBytes)
-                        output.flush()
-                    }
-
-                    "REGISTRATION_REQUEST" -> {
-
-                        val userName = input.readObject() as String
-                        val publicKeyBytes = input.readObject() as ByteArray
-                        if (participant is TTP) {
-                            val ttp = participant as TTP
-                            val publicKey = ttp.group.gElementFromBytes(publicKeyBytes)
-                            ttp.registerUser(userName, publicKey)
-
-                            output.writeObject("ACK")
-                            output.flush()
-                        }
-                    }
 
                     "BLIND_SIGNATURE_RANDOMNESS_REQUEST" -> {
                         
@@ -197,14 +176,59 @@ class BluetoothCommunicationProtocol(
                     }
 
                     "GET_PUBLIC_KEY" -> {
+
                         val publicKeyBytes = participant.publicKey.toBytes()
                         output.writeObject(publicKeyBytes)
                         output.flush()
+
+                    }
+
+                    "TRANSACTION_RANDOMNESS_REQUEST" -> {
+
+                        val publicKeyBytes = input.readObject() as ByteArray
+
+                        if (participant !is User) {
+                            throw Exception("Participant is not a bank")
+                        }
+
+                        val user = participant as User
+                        val publicKey = user.group.gElementFromBytes(publicKeyBytes)
+
+                        val randomizationElements = participant.generateRandomizationElements(publicKey)
+                        val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
+
+                        output.writeObject(randomizationElementBytes)
+                        output.flush()
+
+                    }
+
+                    "TRANSACTION_DETAILS" -> {
+
+                        val publicKeyBytes = input.readObject() as ByteArray
+                        val transactionDetailsBytes = input.readObject() as TransactionDetailsBytes
+
+                        val bankPublicKey =
+                            if (participant is Bank) {
+                                participant.publicKey
+                            } else {
+                                this.bankPublicKey
+                            }
+
+                        val group = participant.group
+                        val publicKey = group.gElementFromBytes(publicKeyBytes)
+                        val transactionDetails = transactionDetailsBytes.toTransactionDetails(group)
+
+                        val result = participant.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
+
+                        output.writeObject(result)
+                        output.flush()
+
                     }
 
                 }
 
                 socket.close()
+
             } catch (e: Exception) {
                 if (e.message?.contains("closed") == true) {
                     Log.i("BluetoothProtocol", "Socket closed normally.")
@@ -274,10 +298,10 @@ class BluetoothCommunicationProtocol(
                         val address = device?.address ?: "Unknown"
                         val deviceClass = device?.bluetoothClass?.deviceClass
 
-                        val info = "Found: $name [$address] | RSSI: $rssi"
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(appContext, info, Toast.LENGTH_SHORT).show()
-                        }
+                        // val info = "Found: $name [$address] | RSSI: $rssi"
+                        // Handler(Looper.getMainLooper()).post {
+                        //     Toast.makeText(appContext, info, Toast.LENGTH_SHORT).show()
+                        // }
 
                         if(
                             device != null &&
@@ -285,6 +309,11 @@ class BluetoothCommunicationProtocol(
                             deviceClass == BluetoothClass.Device.PHONE_SMART &&
                             !foundDevices.contains(device)
                         ){
+
+                            // Handler(Looper.getMainLooper()).post {
+                            //     Toast.makeText(appContext, "Found device!", Toast.LENGTH_SHORT).show()
+                            // }
+
                             foundDevices.add(device)
                             bluetoothAdapter.cancelDiscovery()
                             latch.countDown()
@@ -343,17 +372,9 @@ class BluetoothCommunicationProtocol(
 
         try {
 
-            if (activeSocket != null) return true
+            if (activeDevice != null) return true
 
             val device = discoverNearbyDeviceBlocking() ?: return false
-
-            val socket = device.createRfcommSocketToServiceRecord(SERVICE_UUID)
-            socket.connect()
-
-            output = ObjectOutputStream(socket.outputStream)
-            input = ObjectInputStream(socket.inputStream)
-
-            activeSocket = socket
             activeDevice = device
 
             return true
@@ -366,15 +387,6 @@ class BluetoothCommunicationProtocol(
     }
 
     fun endSession() {
-        try {
-            input?.close()
-            output?.close()
-            activeSocket?.close()
-        } catch (_: Exception) { }
-
-        input = null
-        output = null
-        activeSocket = null
         activeDevice = null
     }
 
@@ -417,11 +429,20 @@ class BluetoothCommunicationProtocol(
     ): Element {
         if (!startSession()) throw Exception("No peer connected")
 
-        output?.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
-        output?.writeObject(publicKey.toBytes())
-        output?.flush()
+        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+        socket.connect()
 
-        val randomnessBytes = input?.readObject() as ByteArray
+        val output = ObjectOutputStream(socket.outputStream)
+        val input = ObjectInputStream(socket.inputStream)
+
+        output.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
+        output.writeObject(publicKey.toBytes())
+        output.flush()
+
+        val randomnessBytes = input.readObject() as ByteArray
+
+        socket.close()
+
         return group.gElementFromBytes(randomnessBytes)
     }
 
@@ -432,12 +453,21 @@ class BluetoothCommunicationProtocol(
     ): BigInteger {
         if (!startSession()) throw Exception("No peer connected")
 
-        output?.writeObject("BLIND_SIGNATURE_REQUEST")
-        output?.writeObject(publicKey.toBytes())
-        output?.writeObject(challenge)
-        output?.flush()
+        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+        socket.connect()
 
-        val signature = input?.readObject() as BigInteger
+        val output = ObjectOutputStream(socket.outputStream)
+        val input = ObjectInputStream(socket.inputStream)
+
+        output.writeObject("BLIND_SIGNATURE_REQUEST")
+        output.writeObject(publicKey.toBytes())
+        output.writeObject(challenge)
+        output.flush()
+
+        val signature = input.readObject() as BigInteger
+
+        socket.close()
+
         return signature
     }
 
@@ -452,24 +482,47 @@ class BluetoothCommunicationProtocol(
         userNameReceiver: String,
         group: BilinearGroup
     ): RandomizationElements {
-        val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
-        community.getTransactionRandomizationElements(participant.publicKey.toBytes(), peerAddress.peerPublicKey!!)
-        val message = waitForMessage(CommunityMessageType.TransactionRandomnessReplyMessage) as TransactionRandomizationElementsReplyMessage
-        return message.randomizationElementsBytes.toRandomizationElements(group)
+    
+        if (!startSession()) throw Exception("No peer connected")
+
+        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+        socket.connect()
+
+        val output = ObjectOutputStream(socket.outputStream)
+        val input  = ObjectInputStream(socket.inputStream)
+
+        output.writeObject("TRANSACTION_RANDOMNESS_REQUEST")
+        output.writeObject(participant.publicKey.toBytes())
+        output.flush()
+
+        val randBytes = input.readObject() as RandomizationElementsBytes
+        socket.close()
+
+        return randBytes.toRandomizationElements(group)
     }
 
     override fun sendTransactionDetails(
         userNameReceiver: String,
         transactionDetails: TransactionDetails
     ): String {
-        val peerAddress = addressBookManager.getAddressByName(userNameReceiver)
-        community.sendTransactionDetails(
-            participant.publicKey.toBytes(),
-            peerAddress.peerPublicKey!!,
-            transactionDetails.toTransactionDetailsBytes()
-        )
-        val message = waitForMessage(CommunityMessageType.TransactionResultMessage) as TransactionResultMessage
-        return message.result
+
+        if (!startSession()) throw Exception("No peer connected")
+
+        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+        socket.connect()
+
+        val output = ObjectOutputStream(socket.outputStream)
+        val input  = ObjectInputStream(socket.inputStream)
+
+        output.writeObject("TRANSACTION_DETAILS")
+        output.writeObject(participant.publicKey.toBytes())
+        output.writeObject(transactionDetails.toTransactionDetailsBytes())
+        output.flush()
+
+        val result = input.readObject() as String
+        socket.close()
+
+        return result
     }
 
     /////////////////////////////
@@ -503,11 +556,21 @@ class BluetoothCommunicationProtocol(
     ): Element {
         if (!startSession()) throw Exception("No peer connected")
 
-        output?.writeObject("GET_PUBLIC_KEY")
-        output?.flush()
+        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+        socket.connect()
 
-        val publicKeyBytes = input?.readObject() as ByteArray
-        return group.gElementFromBytes(publicKeyBytes)
+        val output = ObjectOutputStream(socket.outputStream)
+        val input = ObjectInputStream(socket.inputStream)
+
+        output.writeObject("GET_PUBLIC_KEY")
+        output.flush()
+
+        val publicKeyBytes = input.readObject() as ByteArray
+
+        socket.close()
+
+        bankPublicKey = group.gElementFromBytes(publicKeyBytes)
+        return bankPublicKey
     }
 
 
