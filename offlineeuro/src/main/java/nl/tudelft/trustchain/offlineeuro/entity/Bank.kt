@@ -4,6 +4,7 @@ import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import java.math.BigInteger
@@ -21,6 +22,7 @@ class Bank(
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
     val depositedEuroLogger: ArrayList<Pair<String, Boolean>> = arrayListOf()
+    private val bloomFilter: BloomFilter = BloomFilter(1000)
 
     init {
         communicationProtocol.participant = this
@@ -46,9 +48,7 @@ class Bank(
         challenge: BigInteger,
         userPublicKey: Element
     ): BigInteger {
-        val k =
-            lookUp(userPublicKey)
-                ?: return BigInteger.ZERO
+        val k = lookUp(userPublicKey) ?: return BigInteger.ZERO
         remove(userPublicKey)
 
         onDataChangeCallback?.invoke("A token was withdrawn by $userPublicKey")
@@ -82,32 +82,40 @@ class Bank(
 
     private fun depositEuro(
         euro: DigitalEuro,
-        publicKeyUser: Element
+        publicKeySender: Element
     ): String {
-        val duplicateEuros = depositedEuroManager.getDigitalEurosByDescriptor(euro)
-
-        if (duplicateEuros.isEmpty()) {
-            depositedEuroLogger.add(Pair(euro.serialNumber, false))
-            depositedEuroManager.insertDigitalEuro(euro)
-            onDataChangeCallback?.invoke("An euro was deposited successfully by $publicKeyUser")
-            return "Deposit was successful!"
+        if (bloomFilter.mightContain(euro)) {
+            // If bloom filter indicates potential double spend, try to find it
+            val duplicateEuro = depositedEuros.find { it.descriptorEquals(euro) }
+            if (duplicateEuro != null) {
+                return handleDoubleSpend(euro, duplicateEuro)
+            }
+            // If no match, it is a false positive
+            println("Bloom filter false positive detected for euro ${euro.serialNumber}")
         }
 
+        bloomFilter.add(euro)
+        depositedEuros.add(euro)
+        depositedEuroLogger.add(Pair(euro.serialNumber, true))
+        depositedEuroManager.insertDigitalEuro(euro)
+        onDataChangeCallback?.invoke("Deposit was successful!")
+        return "Deposit was successful!"
+    }
+
+    private fun handleDoubleSpend(
+        euro: DigitalEuro,
+        duplicateEuro: DigitalEuro
+    ): String {
         var maxFirstDifferenceIndex = -1
         var doubleSpendEuro: DigitalEuro? = null
-        for (duplicateEuro in duplicateEuros) {
-            // Loop over the proofs to find the double spending
-            val euroProofs = euro.proofs
-            val duplicateEuroProofs = duplicateEuro.proofs
 
-            for (i in 0 until min(euroProofs.size, duplicateEuroProofs.size)) {
-                if (euroProofs[i] == duplicateEuroProofs[i]) {
-                    continue
-                } else if (i > maxFirstDifferenceIndex) {
-                    maxFirstDifferenceIndex = i
-                    doubleSpendEuro = duplicateEuro
-                    break
-                }
+        for (i in 0 until min(euro.proofs.size, duplicateEuro.proofs.size)) {
+            if (euro.proofs[i] == duplicateEuro.proofs[i]) {
+                continue
+            } else if (i > maxFirstDifferenceIndex) {
+                maxFirstDifferenceIndex = i
+                doubleSpendEuro = duplicateEuro
+                break
             }
         }
 
@@ -116,8 +124,11 @@ class Bank(
             val depositProof = doubleSpendEuro.proofs[maxFirstDifferenceIndex]
             try {
                 val dsResult =
-                    communicationProtocol.requestFraudControl(euroProof, depositProof, "TTP")
-
+                    communicationProtocol.requestFraudControl(
+                        euroProof,
+                        depositProof,
+                        "TTP"
+                    )
                 if (dsResult != "") {
                     depositedEuroLogger.add(Pair(euro.serialNumber, true))
                     // <Increase user balance here and penalize the fraudulent User>
