@@ -33,7 +33,7 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         )
 
         val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120)
+            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
         }
         startActivity(intent)
 
