@@ -11,6 +11,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.EOFException // Import EOFException
 import java.io.InputStream
+import java.io.StreamCorruptedException
 
 
 private data class GrothSahaiProofBytes(
@@ -49,6 +50,10 @@ private data class GrothSahaiProofBytes(
 }
 
 object GrothSahaiSerializer {
+
+    const val MAX_ALLOWED_PROOFS = 1000
+    const val MAX_ALLOWED_PROOF_BYTES = 10000
+
     fun serializeGrothSahaiProofs(proofs: List<GrothSahaiProof>?): ByteArray? {
         if (proofs.isNullOrEmpty()) {
             return null
@@ -107,14 +112,24 @@ object GrothSahaiSerializer {
         val list = mutableListOf<GrothSahaiProofBytes>()
 
         val count = dataInputStream.readInt()
-        if (count < 0) throw IllegalStateException("Invalid negative count for proof list size.")
+        if (count < 0) {
+            throw StreamCorruptedException("Invalid negative count for proof list size: $count")
+        }
+        if (count > MAX_ALLOWED_PROOFS) {
+            throw StreamCorruptedException("Exceeded maximum allowed proofs. Count: $count, Max: $MAX_ALLOWED_PROOFS")
+        }
 
 
         // Deserialize individual proof
         for (i in 0 until count) {
             // Read the length of the next serialized proof
             val proofLength = dataInputStream.readInt()
-            if (proofLength < 0) throw IllegalStateException("Invalid negative length for a proof in the list.")
+            if (proofLength < 0) {
+                throw StreamCorruptedException("Invalid negative length for proof item ${i + 1}: $proofLength")
+            }
+            if (proofLength > MAX_ALLOWED_PROOF_BYTES) {
+                throw StreamCorruptedException("Exceeded maximum allowed proof bytes for item ${i + 1}. Length: $proofLength, Max: $MAX_ALLOWED_PROOF_BYTES")
+            }
             val proofData = ByteArray(proofLength)
             dataInputStream.readFully(proofData)
             list.add(deserializeProofBytes(proofData))
