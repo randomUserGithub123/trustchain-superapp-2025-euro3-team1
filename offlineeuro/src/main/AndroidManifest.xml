@@ -1,21 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Legacy Bluetooth permissions -->
+    <!-- ───────── Permissions ───────── -->
+    <uses-permission android:name="android.permission.NFC" />
+
+    <!-- (Optional: Bluetooth permissions; remove if you no longer need Bluetooth) -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    
-    <!-- Android 12+ Bluetooth permissions -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
 
-    <uses-feature android:name="android.hardware.bluetooth" android:required="true"/>
+    <!-- ───────── Required Hardware Features ───────── -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+    <uses-feature android:name="android.hardware.nfc" android:required="true" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
 
+    <!-- ───────── Single Application Block ───────── -->
     <application>
-        <activity android:name=".OfflineEuroMainActivity"/>
-    </application>
 
+        <!-- Main launcher activity: android:exported must be true because of the intent-filter -->
+        <activity
+            android:name=".OfflineEuroMainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- HCE Service Registration -->
+        <service
+            android:name=".communication.NfcCardService"
+            android:exported="true"
+            android:permission="android.permission.BIND_HOST_APDU_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/apduservice" />
+        </service>
+
+        <!-- (Other components can go here) -->
+
+    </application>
 </manifest>

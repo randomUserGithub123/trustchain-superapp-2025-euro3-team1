@@ -22,20 +22,20 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         super.onViewCreated(view, savedInstanceState)
         activity?.title = "Home"
 
-        ActivityCompat.requestPermissions(
-            requireActivity(),
-            arrayOf(
-                android.Manifest.permission.BLUETOOTH_SCAN,
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            ),
-            100
-        )
+        // ActivityCompat.requestPermissions(
+        //     requireActivity(),
+        //     arrayOf(
+        //         android.Manifest.permission.BLUETOOTH_SCAN,
+        //         android.Manifest.permission.BLUETOOTH_CONNECT,
+        //         android.Manifest.permission.ACCESS_FINE_LOCATION
+        //     ),
+        //     100
+        // )
 
-        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
-        }
-        startActivity(intent)
+        // val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+        //     putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+        // }
+        // startActivity(intent)
 
         view.findViewById<Button>(R.id.JoinAsTTP).setOnClickListener {
             findNavController().navigate(R.id.nav_home_ttphome)
