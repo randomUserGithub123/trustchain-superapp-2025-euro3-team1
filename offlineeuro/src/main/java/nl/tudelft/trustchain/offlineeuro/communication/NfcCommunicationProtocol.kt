@@ -71,17 +71,59 @@ class NfcCommunicationProtocol(
      * Call this when an NFC Tag is discovered (e.g., in onTagDiscovered in your Activity/Fragment).
      * This will obtain an IsoDep instance and connect to it.
      */
+    // fun attachTag(tag: Tag) {
+    //     isoDep = IsoDep.get(tag)?.apply {
+    //         try {
+    //             if (!isConnected) {
+    //                 connect()
+    //                 // Optional: set a reasonable timeout (e.g., 5 seconds)
+    //                 timeout = 5000
+    //             }
+    //         } catch (e: Exception) {
+    //             Log.e("NfcCommProtocol", "Failed to connect IsoDep: ${e.message}", e)
+    //             isoDep = null
+    //         }
+    //     }
+    // }
+
+        /**
+    * Improved version for NfcCommunicationProtocol
+    */
     fun attachTag(tag: Tag) {
-        isoDep = IsoDep.get(tag)?.apply {
-            try {
-                if (!isConnected) {
-                    connect()
-                    // Optional: set a reasonable timeout (e.g., 5 seconds)
-                    timeout = 5000
+        try {
+            // Close any existing connection first
+            endSession()
+            
+            // Get IsoDep instance
+            val isoDepTech = IsoDep.get(tag)
+            if (isoDepTech == null) {
+                Log.e("NfcCommProtocol", "Tag does not support IsoDep")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "NFC tag doesn't support required protocol", Toast.LENGTH_LONG).show()
                 }
-            } catch (e: Exception) {
-                Log.e("NfcCommProtocol", "Failed to connect IsoDep: ${e.message}", e)
-                isoDep = null
+                return
+            }
+            
+            // Connect to the tag
+            if (!isoDepTech.isConnected) {
+                isoDepTech.connect()
+                Log.d("NfcCommProtocol", "Successfully connected to IsoDep tag")
+            }
+            
+            // Set timeout and store reference
+            isoDepTech.timeout = 5000
+            isoDep = isoDepTech
+            
+            // Notify UI of successful connection
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "NFC tag connected successfully", Toast.LENGTH_SHORT).show()
+            }
+            
+        } catch (e: Exception) {
+            Log.e("NfcCommProtocol", "Failed to attach NFC tag: ${e.message}", e)
+            isoDep = null
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "Failed to connect to NFC tag: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }

@@ -45,6 +45,10 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home),
         // Initialize NFC adapter for this activity:
         nfcAdapter = NfcAdapter.getDefaultAdapter(requireContext())
 
+        if (!checkNfcStatus()) {
+            return
+        }
+
         val userName = arguments?.getString("userName") ?: run {
             Toast.makeText(context, "Username is missing", Toast.LENGTH_LONG).show()
             return
@@ -194,6 +198,25 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home),
             }
             if (this::user.isInitialized) {
                 updateBalance()
+            }
+        }
+    }
+
+    private fun checkNfcStatus(): Boolean {
+        val nfcAdapter = NfcAdapter.getDefaultAdapter(requireContext())
+        
+        when {
+            nfcAdapter == null -> {
+                Toast.makeText(context, "NFC not supported on this device", Toast.LENGTH_LONG).show()
+                return false
+            }
+            !nfcAdapter.isEnabled -> {
+                Toast.makeText(context, "NFC is disabled. Please enable NFC in settings", Toast.LENGTH_LONG).show()
+                return false
+            }
+            else -> {
+                Toast.makeText(context, "NFC is available and enabled", Toast.LENGTH_SHORT).show()
+                return true
             }
         }
     }
