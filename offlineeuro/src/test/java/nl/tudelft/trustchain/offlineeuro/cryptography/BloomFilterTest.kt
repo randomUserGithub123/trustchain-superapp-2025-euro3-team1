@@ -21,7 +21,7 @@ class BloomFilterTest {
         mockElement = mock(Element::class.java)
         mockSignature = mock(SchnorrSignature::class.java)
         `when`(mockElement.toBytes()).thenReturn(ByteArray(32) { 1 })
-        `when`(mockSignature.toString()).thenReturn("mockSignature")
+        `when`(mockSignature.toBytes()).thenReturn(ByteArray(32) { 2 })
     }
 
     @Test

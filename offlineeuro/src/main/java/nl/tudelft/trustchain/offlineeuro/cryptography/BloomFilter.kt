@@ -1,6 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
-import java.security.MessageDigest
+import net.openhft.hashing.LongHashFunction
 import java.util.BitSet
 import kotlin.math.ln
 import kotlin.math.pow
@@ -32,6 +32,13 @@ class BloomFilter(
     }
 
     /**
+     * Returns the size of the bit array in bytes
+     */
+    fun getBitArraySize(): Int {
+        return bitSet.size() / 8
+    }
+
+    /**
      * Adds a digital euro to the bloom filter using its serial number and cryptographic properties
      */
     fun add(euro: DigitalEuro) {
@@ -58,18 +65,15 @@ class BloomFilter(
         val hashValues = mutableListOf<Int>()
         val serialNumber = euro.serialNumber
         val firstTheta = euro.firstTheta1.toBytes()
-        val signature = euro.signature.toString().toByteArray()
+        val signature = euro.signature.toBytes()
 
         val data = serialNumber.toByteArray() + firstTheta + signature
 
         for (i in 0 until numHashFunctions) {
-            val digest = MessageDigest.getInstance("SHA-256")
-            digest.update(data)
-            digest.update(i.toString().toByteArray())
-            val hash = digest.digest()
+            val xxHash = LongHashFunction.xx(i.toLong())
+            val hash = xxHash.hashBytes(data)
 
-            // Convert hash to positive integer and map to bloom filter size
-            val hashValue = Math.abs(hash.fold(0) { acc, byte -> (acc shl 8) or (byte.toInt() and 0xFF) }) % size
+            val hashValue = Math.abs(hash.toInt()) % size
             hashValues.add(hashValue)
         }
 
