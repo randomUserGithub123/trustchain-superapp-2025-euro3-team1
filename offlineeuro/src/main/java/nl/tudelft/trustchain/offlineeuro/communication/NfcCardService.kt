@@ -35,9 +35,17 @@ class NfcCardService : HostApduService() {
     }
 
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray {
-        if (ApduConstants.isSelectAidCommand(commandApdu)) {
-            return ApduConstants.SW_SUCCESS
-        }
+    Log.d(TAG, "Received APDU: ${commandApdu.joinToString(" ") { "%02X".format(it) }}")
+
+    if (commandApdu.size >= 4 &&
+        commandApdu[0] == 0x00.toByte() &&
+        commandApdu[1] == 0xA4.toByte() &&
+        commandApdu[2] == 0x04.toByte() &&
+        commandApdu[3] == 0x00.toByte()) {
+
+        Log.d(TAG, "SELECT AID command received")
+        return ApduConstants.SW_SUCCESS
+    }
 
         if (commandApdu.size < 5) {
             Log.e(TAG, "APDU too short (size=${commandApdu.size})")
