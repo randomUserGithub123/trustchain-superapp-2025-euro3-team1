@@ -7,10 +7,8 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
-import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoAnnotations
 import java.io.File
-import kotlin.system.measureTimeMillis
 import java.math.BigInteger
 
 class BloomFilterPerformanceTest {
@@ -27,21 +25,23 @@ class BloomFilterPerformanceTest {
         MockitoAnnotations.openMocks(this)
         group = BilinearGroup()
         mockElement = mock(Element::class.java)
-        signature = SchnorrSignature(
-            BigInteger("11111111111111111111111111111111"), //placeholder values
-            BigInteger("22222222222222222222222222222222"),
-            "SchnorrSignatureTest".toByteArray()
-        )
-        //depositedEuroManager = mock(DepositedEuroManager::class.java)
+        // placeholder values for signature
+        signature =
+            SchnorrSignature(
+                BigInteger("11111111111111111111111111111111"),
+                BigInteger("22222222222222222222222222222222"),
+                "SchnorrSignatureTest".toByteArray()
+            )
+        // depositedEuroManager = mock(DepositedEuroManager::class.java)
         resultsDir.mkdirs()
 
         // Setup mock behavior
         `when`(mockElement.toBytes()).thenReturn(ByteArray(32))
-        //`when`(mockSignature.toBytes()).thenReturn(ByteArray(64))
-        //`when`(mockSignature.signedMessage).thenReturn(ByteArray(32))
-        //`when`(SchnorrSignatureSerializer.serializeSchnorrSignature(any())).thenReturn(ByteArray(64))
-        //`when`(GrothSahaiSerializer.serializeGrothSahaiProofs(any())).thenReturn(ByteArray(32))
-        //`when`(depositedEuroManager.getDigitalEurosByDescriptor(any(DigitalEuro::class.java))).thenReturn(emptyList())
+        // `when`(mockSignature.toBytes()).thenReturn(ByteArray(64))
+        // `when`(mockSignature.signedMessage).thenReturn(ByteArray(32))
+        // `when`(SchnorrSignatureSerializer.serializeSchnorrSignature(any())).thenReturn(ByteArray(64))
+        // `when`(GrothSahaiSerializer.serializeGrothSahaiProofs(any())).thenReturn(ByteArray(32))
+        // `when`(depositedEuroManager.getDigitalEurosByDescriptor(any(DigitalEuro::class.java))).thenReturn(emptyList())
     }
 
     @Test
@@ -63,7 +63,6 @@ class BloomFilterPerformanceTest {
 
         writeResults("memory_usage.csv", results)
     }
-
 
     // @Test
     // fun testTransactionProcessingTime() {
@@ -151,7 +150,6 @@ class BloomFilterPerformanceTest {
     //     writeResults("double_spending_detection_time.csv", results)
     // }
 
-
     // @Test
     // fun testFalsePositiveRate() {
     //     val results = mutableListOf<String>()
@@ -209,7 +207,6 @@ class BloomFilterPerformanceTest {
 
     //     writeResults("lookup_avoidance_rate.csv", results)
     // }
-
 
     private fun createMockDigitalEuro(): DigitalEuro {
         val serialNumber = "test-${System.currentTimeMillis()}"
