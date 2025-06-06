@@ -32,9 +32,10 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
             100
         )
 
-        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-            putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
-        }
+        val intent =
+            Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
+                putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
+            }
         startActivity(intent)
 
         view.findViewById<Button>(R.id.JoinAsTTP).setOnClickListener {
@@ -51,7 +52,6 @@ class HomeFragment : OfflineEuroBaseFragment(R.layout.fragment_home) {
         view.findViewById<Button>(R.id.JoinAsAllRolesButton).setOnClickListener {
             findNavController().navigate(R.id.nav_home_all_roles_home)
         }
-        
     }
 
     override fun onActivityResult(

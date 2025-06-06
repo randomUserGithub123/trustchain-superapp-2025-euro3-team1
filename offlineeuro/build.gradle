@@ -47,17 +47,6 @@ android {
         viewBinding = true
     }
 
-    lintOptions {
-        abortOnError false
-        checkReleaseBuilds false
-    }
-
-    testOptions {
-        unitTests.all {
-            it.enabled = false
-        }
-    }
-
     namespace 'nl.tudelft.trustchain.offlineeuro'
 }
 

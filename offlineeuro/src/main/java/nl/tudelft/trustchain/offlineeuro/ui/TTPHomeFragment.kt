@@ -2,11 +2,6 @@ package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
 import android.view.View
-import android.app.Activity
-import android.bluetooth.BluetoothAdapter
-import android.content.Intent
-import androidx.core.app.ActivityCompat
-
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
@@ -38,13 +33,14 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
 
             communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
-            ttp = TTP(
-                name = "TTP",
-                group = group,
-                communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
-                context = context,
-                onDataChangeCallback = onDataChangeCallback
-            )
+            ttp =
+                TTP(
+                    name = "TTP",
+                    group = group,
+                    communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
+                    context = context,
+                    onDataChangeCallback = onDataChangeCallback
+                )
 
             ParticipantHolder.ttp = ttp
         }
