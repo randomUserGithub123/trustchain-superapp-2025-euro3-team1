@@ -4,10 +4,10 @@ import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
-import java.util.BitSet
 
 class User(
     name: String,
@@ -110,12 +110,13 @@ class User(
 
     fun updateBloomFilter(receivedBF: BloomFilter) {
         // Prepare M (Set of All Received Monies) specific to User
-        val myReceivedMoniesIds = wallet.getAllWalletEntriesToSpend().map {
-            it.digitalEuro.serialNumber.toByteArray() + it.digitalEuro.firstTheta1.toBytes() + it.digitalEuro.signature.toBytes()
-        }
+        val myReceivedMonies =
+            wallet.getAllWalletEntriesToSpend().map {
+                it.digitalEuro
+            }
 
         // Call the centralized Algorithm 2 logic in the BloomFilter class
-        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
+        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMonies)
         onDataChangeCallback?.invoke(updateMessage) // Use the message for UI/logging
     }
 }

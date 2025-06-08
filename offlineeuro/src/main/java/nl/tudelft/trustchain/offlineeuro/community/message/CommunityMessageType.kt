@@ -28,4 +28,8 @@ enum class CommunityMessageType {
 
     BloomFilterRequestMessage,
     BloomFilterReplyMessage,
+
+    BLOOM_FILTER_REPLY,
+
+    BLOOM_FILTER_REQUEST
 }

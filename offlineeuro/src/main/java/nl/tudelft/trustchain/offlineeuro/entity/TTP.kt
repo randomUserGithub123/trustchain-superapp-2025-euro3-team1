@@ -4,10 +4,10 @@ import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
-import java.util.BitSet
 
 class TTP(
     name: String = "TTP",
@@ -87,10 +87,10 @@ class TTP(
         // For TTP, 'M' would typically be the identifiers of double-spent euros it has detected and logged.
         // If you don't have an explicit list of known double-spent IDs in TTP,
         // you might pass an empty list or adapt this based on TTP's specific role in tracking 'M'.
-        val myKnownSpentMoniesIds = listOf<ByteArray>() // Placeholder: TTP might not explicitly track individual "monies" in a list for M.
+        val myKnownSpentMonies = listOf<DigitalEuro>() // Placeholder: TTP might not explicitly track individual "monies" in a list for M.
 
         // Call the centralized Algorithm 2 logic in the BloomFilter class
-        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myKnownSpentMoniesIds)
+        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myKnownSpentMonies)
         onDataChangeCallback?.invoke(updateMessage) // Use the message for UI/logging
     }
 }

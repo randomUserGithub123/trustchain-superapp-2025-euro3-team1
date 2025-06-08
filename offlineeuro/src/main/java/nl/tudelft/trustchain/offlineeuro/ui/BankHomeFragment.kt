@@ -10,7 +10,6 @@ import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
-import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 
 class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
@@ -34,8 +33,8 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
             activity?.title = "Bank"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
 
-            val group = BilinearGroup(PairingTypes.FromFile, context = context)
-            val addressBookManager = AddressBookManager(context, group)
+            val group = BilinearGroup(PairingTypes.FromFile, context = requireContext())
+            val addressBookManager = AddressBookManager(requireContext(), group)
 
             communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
@@ -44,7 +43,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
                     name = "Bank",
                     group = group,
                     communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
-                    context = context,
+                    context = requireContext(),
                     onDataChangeCallback = onDataChangeCallback
                 )
 

@@ -45,9 +45,9 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import androidx.core.app.ActivityCompat
-import com.google.common.hash.BloomFilter
 
 class BluetoothCommunicationProtocol(
     val addressBookManager: AddressBookManager,
@@ -657,7 +657,10 @@ class BluetoothCommunicationProtocol(
         }
     }
 
-    override fun sendBloomFilter(participantName: String, bloomFilter: BloomFilter) {
+    override fun sendBloomFilter(
+        participantName: String,
+        bloomFilter: BloomFilter
+    ) {
         if (!startSession()) throw Exception("No peer connected")
 
         val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
@@ -677,16 +680,21 @@ class BluetoothCommunicationProtocol(
 
     private fun handleBloomFilterRequest() {
         if (participant is User || participant is TTP) {
-            val bloomFilter = when (participant) {
-                is User -> (participant as User).getBloomFilter()
-                is TTP -> (participant as TTP).getBloomFilter()
-                else -> throw Exception("Unsupported participant type")
-            }
+            val bloomFilter =
+                when (participant) {
+                    is User -> (participant as User).getBloomFilter()
+                    is TTP -> (participant as TTP).getBloomFilter()
+                    else -> throw Exception("Unsupported participant type")
+                }
             sendBloomFilter(participant.name, bloomFilter)
         }
     }
 
-    private fun handleBloomFilterReply(bloomFilterBytes: ByteArray, expectedElements: Int, falsePositiveRate: Double) {
+    private fun handleBloomFilterReply(
+        bloomFilterBytes: ByteArray,
+        expectedElements: Int,
+        falsePositiveRate: Double
+    ) {
         val bloomFilter = BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
         when (participant) {
             is User -> (participant as User).updateBloomFilter(bloomFilter)

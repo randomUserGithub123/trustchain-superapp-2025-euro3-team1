@@ -13,7 +13,6 @@ import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
-import nl.tudelft.trustchain.offlineeuro.CallbackLibrary
 
 class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     private lateinit var user: User
@@ -53,17 +52,18 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                 updateBloomFilterStats()
             } else {
                 community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
-                val group = BilinearGroup(PairingTypes.FromFile, context = context)
-                val addressBookManager = AddressBookManager(context, group)
-                communicationProtocol = BluetoothCommunicationProtocol(addressBookManager, community, context)
+                val group = BilinearGroup(PairingTypes.FromFile, context = requireContext())
+                val addressBookManager = AddressBookManager(requireContext(), group)
+                communicationProtocol = BluetoothCommunicationProtocol(addressBookManager, community, requireContext())
 
-                user = User(
-                    userName,
-                    group,
-                    context,
-                    communicationProtocol = communicationProtocol,
-                    onDataChangeCallback = onDataChangeCallback
-                )
+                user =
+                    User(
+                        userName,
+                        group,
+                        requireContext(),
+                        communicationProtocol = communicationProtocol,
+                        onDataChangeCallback = onDataChangeCallback
+                    )
                 ParticipantHolder.user = user
                 updateBloomFilterStats()
             }
@@ -71,7 +71,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             withdrawButton.setOnClickListener {
                 thread {
                     try {
-                        user.withdrawEuro()
+                        user.withdrawDigitalEuro("Bank")
                     } catch (e: Exception) {
                         requireActivity().runOnUiThread {
                             Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()

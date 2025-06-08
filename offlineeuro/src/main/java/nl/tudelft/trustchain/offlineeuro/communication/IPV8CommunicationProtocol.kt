@@ -10,6 +10,8 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.CommunityMessageType
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
@@ -21,6 +23,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizat
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionRandomizationElementsRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.TransactionResultMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
@@ -141,6 +144,25 @@ class IPV8CommunicationProtocol(
         group: BilinearGroup
     ): Element {
         return addressBookManager.getAddressByName(name).publicKey
+    }
+
+    override fun requestBloomFilter(participantName: String): BloomFilter {
+        val peerAddress = addressBookManager.getAddressByName(participantName)
+        val message = BloomFilterRequestMessage()
+        community.addMessage(message)
+        
+        // Wait for the reply
+        val reply = waitForMessage(CommunityMessageType.BLOOM_FILTER_REPLY) as BloomFilterReplyMessage
+        return reply.bloomFilter
+    }
+
+    override fun sendBloomFilter(
+        participantName: String,
+        bloomFilter: BloomFilter
+    ) {
+        val peerAddress = addressBookManager.getAddressByName(participantName)
+        val message = BloomFilterReplyMessage(bloomFilter)
+        community.addMessage(message)
     }
 
     private fun waitForMessage(messageType: CommunityMessageType): ICommunityMessage {
@@ -285,5 +307,11 @@ class IPV8CommunicationProtocol(
             is Bank -> Role.Bank
             else -> throw Exception("Unknown role")
         }
+    }
+
+    private fun getPeer(participant: Participant): String {
+        // Implement the logic to determine the peer address based on the participant
+        // This is a placeholder and should be replaced with the actual implementation
+        return "Bank" // Placeholder, actual implementation needed
     }
 }

@@ -14,8 +14,8 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
  * @throws IllegalArgumentException if falsePositiveRate is not between 0 and 1
  */
 class BloomFilter(
-    private val expectedElements: Int,
-    private val falsePositiveRate: Double = 0.01
+    val expectedElements: Int,
+    val falsePositiveRate: Double = 0.01
 ) {
     private val bitSet: BitSet
     private val numHashFunctions: Int
@@ -135,13 +135,13 @@ class BloomFilter(
     }
 
     /**
-    * Approximates the number of elements currently in the Bloom filter.
-    * Formula: n_approx = -m / k * ln(1 - s / m)
-    * where:
-    * m = size of the filter (this.size)
-    * k = number of hash functions (this.numHashFunctions)
-    * s = number of set bits (bitSet.cardinality())
-    */
+     * Approximates the number of elements currently in the Bloom filter.
+     * Formula: n_approx = -m / k * ln(1 - s / m)
+     * where:
+     * m = size of the filter (this.size)
+     * k = number of hash functions (this.numHashFunctions)
+     * s = number of set bits (bitSet.cardinality())
+     */
     fun getApproximateElementCount(): Double {
         val s = bitSet.cardinality().toDouble()
         val m = size.toDouble()
@@ -161,22 +161,25 @@ class BloomFilter(
     }
 
     /**
-    * Applies Algorithm 2 for sharing spent monies to update this Bloom filter.
-    * This method modifies the current Bloom filter's internal state.
-    *
-    * @param receivedBF The BloomFilter received from another participant (F_R).
-    * @param myReceivedMoniesIds A list of byte arrays representing the IDs of monies received by this participant (M).
-    * @return A descriptive String message about the update outcome.
-    */
-    fun applyAlgorithm2Update(receivedBF: BloomFilter, myReceivedMoniesIds: List<ByteArray>): String {
+     * Applies Algorithm 2 for sharing spent monies to update this Bloom filter.
+     * This method modifies the current Bloom filter's internal state.
+     *
+     * @param receivedBF The BloomFilter received from another participant (F_R).
+     * @param myReceivedMoniesIds A list of byte arrays representing the IDs of monies received by this participant (M).
+     * @return A descriptive String message about the update outcome.
+     */
+    fun applyAlgorithm2Update(
+        receivedBF: BloomFilter,
+        myReceivedMonies: List<DigitalEuro>
+    ): String {
         val currentFS = this // Previously Shared BF (F_S)
         val receivedFR = receivedBF // Received BF (F_R)
         val capacity = currentFS.expectedElements // Capacity (c)
 
         // 1. Create FM (Bloom filter from own monies M)
         val fm = BloomFilter(capacity, currentFS.falsePositiveRate)
-        for (idBytes in myReceivedMoniesIds) {
-            fm.add(idBytes)
+        for (eur in myReceivedMonies) {
+            fm.add(eur)
         }
 
         // 2. Compute FS_union_FM (FS_union_FM = FS U FM) - This is conceptually 'currentFS' after adding own monies
@@ -226,7 +229,11 @@ class BloomFilter(
      * @param falsePositiveRate The false positive rate (must match the original filter)
      */
     companion object {
-        fun fromBytes(bytes: ByteArray, expectedElements: Int, falsePositiveRate: Double = 0.01): BloomFilter {
+        fun fromBytes(
+            bytes: ByteArray,
+            expectedElements: Int,
+            falsePositiveRate: Double = 0.01
+        ): BloomFilter {
             val filter = BloomFilter(expectedElements, falsePositiveRate)
             filter.bitSet.clear()
             filter.bitSet.or(BitSet.valueOf(bytes))
