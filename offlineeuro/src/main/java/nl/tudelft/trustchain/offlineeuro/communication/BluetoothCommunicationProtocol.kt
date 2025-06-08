@@ -13,8 +13,12 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import it.unisa.dia.gas.jpbc.Element
+import java.io.InputStream
+import java.io.OutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
+import java.io.FilterInputStream
+import java.io.FilterOutputStream
 import java.math.BigInteger
 import java.util.*
 import java.util.concurrent.CountDownLatch
@@ -76,6 +80,34 @@ class BluetoothCommunicationProtocol(
     private var activeDevice: BluetoothDevice? = null
 
     private lateinit var bankPublicKey: Element
+
+    @Volatile var dummySizeKb: Int = 0
+    @Volatile var bytesSent: Long = 0L
+    @Volatile var bytesReceived: Long = 0L
+
+    private class CountingOutputStream(out: OutputStream) : FilterOutputStream(out) {
+        var count = 0L
+        override fun write(b: Int) {
+            super.write(b); count++
+        }
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            super.write(b, off, len); count += len
+        }
+    }
+
+    private class CountingInputStream(`in`: InputStream) : FilterInputStream(`in`) {
+        var count = 0L
+        override fun read(): Int {
+            val r = super.read()
+            if (r >= 0) count++
+            return r
+        }
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            val r = super.read(b, off, len)
+            if (r > 0) count += r
+            return r
+        }
+    }
 
     init {
         community.messageList = messageList
@@ -154,10 +186,20 @@ class BluetoothCommunicationProtocol(
     private fun handleIncomingConnection(socket: BluetoothSocket) {
         thread {
             try {
-                val output = ObjectOutputStream(socket.outputStream)
-                val input = ObjectInputStream(socket.inputStream)
 
-                when (val requestType = input.readObject() as String) {
+                val cin  = CountingInputStream(socket.inputStream)
+                val input  = ObjectInputStream(cin)
+                val cout = CountingOutputStream(socket.outputStream)
+                val output = ObjectOutputStream(cout)
+
+                val requestType = input.readObject() as String
+
+                val dummyBytes = input.readInt()
+                if (dummyBytes > 0) {
+                    input.skipBytes(dummyBytes)
+                }
+
+                when (requestType) {
                     "BLIND_SIGNATURE_RANDOMNESS_REQUEST" -> {
                         val publicKeyBytes = input.readObject() as ByteArray
 
@@ -237,6 +279,9 @@ class BluetoothCommunicationProtocol(
                         output.flush()
                     }
                 }
+
+                bytesReceived += cin.count
+                bytesSent     += cout.count
 
                 socket.close()
             } catch (e: Exception) {
@@ -500,14 +545,30 @@ class BluetoothCommunicationProtocol(
 
         val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
         try {
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
+            
+            val cout = CountingOutputStream(socket.outputStream)
+            val output  = ObjectOutputStream(cout)
+            val cin  = CountingInputStream(socket.inputStream)
+            val input  = ObjectInputStream(cin)
 
             output.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
+
+            val dummyBytes = dummySizeKb * 1024
+            output.writeInt(dummyBytes)
+
+            if (dummyBytes > 0) {
+                val filler = ByteArray(dummyBytes)
+                output.write(filler)
+            }
+
             output.writeObject(publicKey.toBytes())
             output.flush()
 
             val randomnessBytes = input.readObject() as ByteArray
+
+            bytesSent     += cout.count
+            bytesReceived += cin.count
+
             return group.gElementFromBytes(randomnessBytes)
         } finally {
             socket.close()
@@ -523,15 +584,32 @@ class BluetoothCommunicationProtocol(
 
         val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
         try {
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
+            
+            val cout = CountingOutputStream(socket.outputStream)
+            val output  = ObjectOutputStream(cout)
+            val cin  = CountingInputStream(socket.inputStream)
+            val input  = ObjectInputStream(cin)
 
             output.writeObject("BLIND_SIGNATURE_REQUEST")
+
+            val dummyBytes = dummySizeKb * 1024
+            output.writeInt(dummyBytes)
+
+            if (dummyBytes > 0) {
+                val filler = ByteArray(dummyBytes)
+                output.write(filler)
+            }
+
             output.writeObject(publicKey.toBytes())
             output.writeObject(challenge)
             output.flush()
 
-            return input.readObject() as BigInteger
+            val bigInt = input.readObject() as BigInteger
+
+            bytesSent     += cout.count
+            bytesReceived += cin.count
+
+            return bigInt
         } finally {
             socket.close()
         }
@@ -551,15 +629,31 @@ class BluetoothCommunicationProtocol(
 
         val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
         try {
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
+            
+            val cout = CountingOutputStream(socket.outputStream)
+            val output  = ObjectOutputStream(cout)
+            val cin  = CountingInputStream(socket.inputStream)
+            val input  = ObjectInputStream(cin)
 
             output.writeObject("TRANSACTION_RANDOMNESS_REQUEST")
+
+            val dummyBytes = dummySizeKb * 1024
+            output.writeInt(dummyBytes)
+
+            if (dummyBytes > 0) {
+                val filler = ByteArray(dummyBytes)
+                output.write(filler)
+            }
+
             output.writeObject(participant.publicKey.toBytes())
             output.writeObject(this.bankPublicKey.toBytes())
             output.flush()
 
             val randBytes = input.readObject() as RandomizationElementsBytes
+
+            bytesSent     += cout.count
+            bytesReceived += cin.count
+
             return randBytes.toRandomizationElements(group)
         } finally {
             socket.close()
@@ -574,15 +668,32 @@ class BluetoothCommunicationProtocol(
 
         val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
         try {
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
+            
+            val cout = CountingOutputStream(socket.outputStream)
+            val output  = ObjectOutputStream(cout)
+            val cin  = CountingInputStream(socket.inputStream)
+            val input  = ObjectInputStream(cin)
 
             output.writeObject("TRANSACTION_DETAILS")
+
+            val dummyBytes = dummySizeKb * 1024
+            output.writeInt(dummyBytes)
+
+            if (dummyBytes > 0) {
+                val filler = ByteArray(dummyBytes)
+                output.write(filler)
+            }
+
             output.writeObject(participant.publicKey.toBytes())
             output.writeObject(transactionDetails.toTransactionDetailsBytes())
             output.flush()
 
-            return input.readObject() as String
+            val str = input.readObject() as String
+
+            bytesSent     += cout.count
+            bytesReceived += cin.count
+
+            return str
         } finally {
             socket.close()
         }
@@ -621,14 +732,30 @@ class BluetoothCommunicationProtocol(
 
         val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
         try {
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
+            
+            val cout = CountingOutputStream(socket.outputStream)
+            val output  = ObjectOutputStream(cout)
+            val cin  = CountingInputStream(socket.inputStream)
+            val input  = ObjectInputStream(cin)
 
             output.writeObject("GET_PUBLIC_KEY")
+
+            val dummyBytes = dummySizeKb * 1024
+            output.writeInt(dummyBytes)
+
+            if (dummyBytes > 0) {
+                val filler = ByteArray(dummyBytes)
+                output.write(filler)
+            }
+
             output.flush()
 
             val publicKeyBytes = input.readObject() as ByteArray
             this.bankPublicKey = group.gElementFromBytes(publicKeyBytes)
+
+            bytesSent     += cout.count
+            bytesReceived += cin.count
+
             return this.bankPublicKey
         } finally {
             socket.close()

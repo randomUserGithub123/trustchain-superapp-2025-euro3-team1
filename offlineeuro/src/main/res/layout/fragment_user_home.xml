@@ -1,30 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout 
+<ScrollView 
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="24dp">
+    android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/user_home_balance"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Balance: 0"
-        android:textSize="20sp"
-        android:layout_marginBottom="24dp"/>
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:gravity="center"
+      android:padding="24dp">
 
-    <Button
-        android:id="@+id/bluetooth_withdraw_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Withdraw"/>
+      <!-- existing -->
+      <TextView
+          android:id="@+id/user_home_balance"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="Balance: 0"
+          android:textSize="20sp"
+          android:layout_marginBottom="24dp"/>
 
-    <Button
-        android:id="@+id/bluetooth_send_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Send"
-        android:layout_marginTop="12dp"/>
-</LinearLayout>
+      <Button
+          android:id="@+id/bluetooth_withdraw_button"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="Withdraw"/>
+
+      <Button
+          android:id="@+id/bluetooth_send_button"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="Send"
+          android:layout_marginTop="12dp"/>
+
+      <!-- new: dummy‐payload controls -->
+      <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="horizontal"
+          android:layout_marginTop="24dp"
+          android:gravity="center_vertical">
+
+          <Switch
+              android:id="@+id/dummy_toggle"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:text="Inject dummy"/>
+
+          <EditText
+              android:id="@+id/dummy_size_input"
+              android:layout_width="60dp"
+              android:layout_height="wrap_content"
+              android:layout_marginStart="16dp"
+              android:hint="KB"
+              android:inputType="number"/>
+      </LinearLayout>
+
+      <!-- new: stats display -->
+      <TextView
+          android:id="@+id/stats_sent"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="Total sent: 0 B"
+          android:layout_marginTop="24dp"/>
+
+      <TextView
+          android:id="@+id/stats_received"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="Total recv: 0 B"
+          android:layout_marginTop="8dp"/>
+
+  </LinearLayout>
+</ScrollView>
