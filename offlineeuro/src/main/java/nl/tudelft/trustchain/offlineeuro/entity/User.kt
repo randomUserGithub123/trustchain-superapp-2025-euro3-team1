@@ -7,6 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
+import java.util.BitSet
 
 class User(
     name: String,
@@ -18,6 +19,7 @@ class User(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val wallet: Wallet
+    private val bloomFilter: BloomFilter = BloomFilter(1000) // Adjust size based on expected number of transactions
 
     init {
         communicationProtocol.participant = this
@@ -100,5 +102,27 @@ class User(
         randomizationElementMap.clear()
         walletManager!!.clearWalletEntries()
         setUp()
+    }
+
+    fun getBloomFilter(): BloomFilter {
+        return bloomFilter
+    }
+
+    fun updateBloomFilter(newFilter: BloomFilter) {
+        // Merge the new filter with our existing one
+        val ourBytes = bloomFilter.toBytes()
+        val theirBytes = newFilter.toBytes()
+        
+        // Create a new filter with the same parameters
+        val mergedFilter = BloomFilter(bloomFilter.expectedElements, bloomFilter.falsePositiveRate)
+        mergedFilter.bitSet.clear()
+        
+        // OR the two bit sets together
+        mergedFilter.bitSet.or(BitSet.valueOf(ourBytes))
+        mergedFilter.bitSet.or(BitSet.valueOf(theirBytes))
+        
+        // Update our filter
+        bloomFilter.bitSet.clear()
+        bloomFilter.bitSet.or(mergedFilter.bitSet)
     }
 }

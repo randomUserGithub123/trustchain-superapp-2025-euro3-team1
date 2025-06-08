@@ -25,4 +25,7 @@ enum class CommunityMessageType {
 
     FraudControlRequestMessage,
     FraudControlReplyMessage,
+
+    BloomFilterRequestMessage,
+    BloomFilterReplyMessage,
 }

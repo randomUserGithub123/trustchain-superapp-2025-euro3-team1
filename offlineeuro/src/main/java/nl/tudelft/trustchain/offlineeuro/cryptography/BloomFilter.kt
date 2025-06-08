@@ -133,4 +133,26 @@ class BloomFilter(
         val m = size.toDouble()
         return (1 - Math.exp(-k * n / m)).pow(k)
     }
+
+    /**
+     * Serializes the bloom filter to a byte array for transmission
+     */
+    fun toBytes(): ByteArray {
+        return bitSet.toByteArray()
+    }
+
+    /**
+     * Creates a bloom filter from a byte array
+     * @param bytes The serialized bloom filter
+     * @param expectedElements The expected number of elements (must match the original filter)
+     * @param falsePositiveRate The false positive rate (must match the original filter)
+     */
+    companion object {
+        fun fromBytes(bytes: ByteArray, expectedElements: Int, falsePositiveRate: Double = 0.01): BloomFilter {
+            val filter = BloomFilter(expectedElements, falsePositiveRate)
+            filter.bitSet.clear()
+            filter.bitSet.or(BitSet.valueOf(bytes))
+            return filter
+        }
+    }
 }

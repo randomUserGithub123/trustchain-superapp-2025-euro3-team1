@@ -47,6 +47,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import androidx.core.app.ActivityCompat
+import com.google.common.hash.BloomFilter
 
 class BluetoothCommunicationProtocol(
     val addressBookManager: AddressBookManager,
@@ -632,6 +633,65 @@ class BluetoothCommunicationProtocol(
             return this.bankPublicKey
         } finally {
             socket.close()
+        }
+    }
+
+    override fun requestBloomFilter(participantName: String): BloomFilter {
+        if (!startSession()) throw Exception("No peer connected")
+
+        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        try {
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
+
+            output.writeObject("BLOOM_FILTER_REQUEST")
+            output.flush()
+
+            val bloomFilterBytes = input.readObject() as ByteArray
+            val expectedElements = input.readObject() as Int
+            val falsePositiveRate = input.readObject() as Double
+
+            return BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
+        } finally {
+            socket.close()
+        }
+    }
+
+    override fun sendBloomFilter(participantName: String, bloomFilter: BloomFilter) {
+        if (!startSession()) throw Exception("No peer connected")
+
+        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        try {
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
+
+            output.writeObject("BLOOM_FILTER_REPLY")
+            output.writeObject(bloomFilter.toBytes())
+            output.writeObject(bloomFilter.expectedElements)
+            output.writeObject(bloomFilter.falsePositiveRate)
+            output.flush()
+        } finally {
+            socket.close()
+        }
+    }
+
+    private fun handleBloomFilterRequest() {
+        if (participant is User || participant is TTP) {
+            val bloomFilter = when (participant) {
+                is User -> (participant as User).getBloomFilter()
+                is TTP -> (participant as TTP).getBloomFilter()
+                else -> throw Exception("Unsupported participant type")
+            }
+            sendBloomFilter(participant.name, bloomFilter)
+        }
+    }
+
+    private fun handleBloomFilterReply(bloomFilterBytes: ByteArray, expectedElements: Int, falsePositiveRate: Double) {
+        val bloomFilter = BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
+        when (participant) {
+            is User -> (participant as User).updateBloomFilter(bloomFilter)
+            is TTP -> (participant as TTP).updateBloomFilter(bloomFilter)
+            else -> throw Exception("Unsupported participant type")
         }
     }
 

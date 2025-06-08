@@ -7,6 +7,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
+import java.util.BitSet
 
 class TTP(
     name: String = "TTP",
@@ -17,6 +18,7 @@ class TTP(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
+    private val bloomFilter: BloomFilter = BloomFilter(10000) // TTPs handle more transactions
 
     init {
         communicationProtocol.participant = this
@@ -75,5 +77,27 @@ class TTP(
 
     override fun reset() {
         registeredUserManager.clearAllRegisteredUsers()
+    }
+
+    fun getBloomFilter(): BloomFilter {
+        return bloomFilter
+    }
+
+    fun updateBloomFilter(newFilter: BloomFilter) {
+        // Merge the new filter with our existing one
+        val ourBytes = bloomFilter.toBytes()
+        val theirBytes = newFilter.toBytes()
+        
+        // Create a new filter with the same parameters
+        val mergedFilter = BloomFilter(bloomFilter.expectedElements, bloomFilter.falsePositiveRate)
+        mergedFilter.bitSet.clear()
+        
+        // OR the two bit sets together
+        mergedFilter.bitSet.or(BitSet.valueOf(ourBytes))
+        mergedFilter.bitSet.or(BitSet.valueOf(theirBytes))
+        
+        // Update our filter
+        bloomFilter.bitSet.clear()
+        bloomFilter.bitSet.or(mergedFilter.bitSet)
     }
 }

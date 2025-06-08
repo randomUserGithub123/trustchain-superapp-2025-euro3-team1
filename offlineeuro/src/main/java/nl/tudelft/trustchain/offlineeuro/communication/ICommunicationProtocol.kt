@@ -51,4 +51,18 @@ interface ICommunicationProtocol {
         name: String,
         group: BilinearGroup
     ): Element
+
+    /**
+     * Requests a bloom filter from another participant
+     * @param participantName The name of the participant to request the bloom filter from
+     * @return The received bloom filter
+     */
+    fun requestBloomFilter(participantName: String): BloomFilter
+
+    /**
+     * Sends a bloom filter to another participant
+     * @param participantName The name of the participant to send the bloom filter to
+     * @param bloomFilter The bloom filter to send
+     */
+    fun sendBloomFilter(participantName: String, bloomFilter: BloomFilter)
 }
