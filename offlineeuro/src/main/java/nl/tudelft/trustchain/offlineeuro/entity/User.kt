@@ -108,21 +108,14 @@ class User(
         return bloomFilter
     }
 
-    fun updateBloomFilter(newFilter: BloomFilter) {
-        // Merge the new filter with our existing one
-        val ourBytes = bloomFilter.toBytes()
-        val theirBytes = newFilter.toBytes()
-        
-        // Create a new filter with the same parameters
-        val mergedFilter = BloomFilter(bloomFilter.expectedElements, bloomFilter.falsePositiveRate)
-        mergedFilter.bitSet.clear()
-        
-        // OR the two bit sets together
-        mergedFilter.bitSet.or(BitSet.valueOf(ourBytes))
-        mergedFilter.bitSet.or(BitSet.valueOf(theirBytes))
-        
-        // Update our filter
-        bloomFilter.bitSet.clear()
-        bloomFilter.bitSet.or(mergedFilter.bitSet)
+    fun updateBloomFilter(receivedBF: BloomFilter) {
+        // Prepare M (Set of All Received Monies) specific to User
+        val myReceivedMoniesIds = wallet.getAllWalletEntriesToSpend().map {
+            it.digitalEuro.serialNumber.toByteArray() + it.digitalEuro.firstTheta1.toBytes() + it.digitalEuro.signature.toBytes()
+        }
+
+        // Call the centralized Algorithm 2 logic in the BloomFilter class
+        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
+        onDataChangeCallback?.invoke(updateMessage) // Use the message for UI/logging
     }
 }

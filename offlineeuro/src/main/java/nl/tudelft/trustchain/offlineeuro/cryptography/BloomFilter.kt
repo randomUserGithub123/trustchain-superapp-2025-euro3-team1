@@ -135,10 +135,88 @@ class BloomFilter(
     }
 
     /**
+    * Approximates the number of elements currently in the Bloom filter.
+    * Formula: n_approx = -m / k * ln(1 - s / m)
+    * where:
+    * m = size of the filter (this.size)
+    * k = number of hash functions (this.numHashFunctions)
+    * s = number of set bits (bitSet.cardinality())
+    */
+    fun getApproximateElementCount(): Double {
+        val s = bitSet.cardinality().toDouble()
+        val m = size.toDouble()
+        val k = numHashFunctions.toDouble()
+
+        if (s == m) return expectedElements.toDouble() // Filter is full, assume max elements
+        if (s == 0.0) return 0.0 // Filter is empty
+
+        return -m / k * ln(1.0 - s / m)
+    }
+
+    /**
      * Serializes the bloom filter to a byte array for transmission
      */
     fun toBytes(): ByteArray {
         return bitSet.toByteArray()
+    }
+
+    /**
+    * Applies Algorithm 2 for sharing spent monies to update this Bloom filter.
+    * This method modifies the current Bloom filter's internal state.
+    *
+    * @param receivedBF The BloomFilter received from another participant (F_R).
+    * @param myReceivedMoniesIds A list of byte arrays representing the IDs of monies received by this participant (M).
+    * @return A descriptive String message about the update outcome.
+    */
+    fun applyAlgorithm2Update(receivedBF: BloomFilter, myReceivedMoniesIds: List<ByteArray>): String {
+        val currentFS = this // Previously Shared BF (F_S)
+        val receivedFR = receivedBF // Received BF (F_R)
+        val capacity = currentFS.expectedElements // Capacity (c)
+
+        // 1. Create FM (Bloom filter from own monies M)
+        val fm = BloomFilter(capacity, currentFS.falsePositiveRate)
+        for (idBytes in myReceivedMoniesIds) {
+            fm.add(idBytes)
+        }
+
+        // 2. Compute FS_union_FM (FS_union_FM = FS U FM) - This is conceptually 'currentFS' after adding own monies
+        val fsUnionFm = BloomFilter(capacity, currentFS.falsePositiveRate)
+        fsUnionFm.bitSet.or(currentFS.bitSet)
+        fsUnionFm.bitSet.or(fm.bitSet) // Union current FS with FM (user's own monies)
+
+        // 3. Implement Algorithm 2's conditional logic (steps 7-14)
+        val nextSharedBF: BloomFilter
+        var updateMessage: String = ""
+
+        // Calculate F_S_union_F_R: Union of (FS U FM) and FR
+        val fsUnionFmUnionFr = BloomFilter(capacity, currentFS.falsePositiveRate)
+        fsUnionFmUnionFr.bitSet.or(fsUnionFm.bitSet)
+        fsUnionFmUnionFr.bitSet.or(receivedFR.bitSet)
+
+        // Calculate F_M_union_F_R: Union of FM and FR
+        val fmUnionFr = BloomFilter(capacity, currentFS.falsePositiveRate)
+        fmUnionFr.bitSet.or(fm.bitSet)
+        fmUnionFr.bitSet.or(receivedFR.bitSet)
+
+        if (fsUnionFmUnionFr.getApproximateElementCount() <= capacity) { // Corresponds to `if |(FS U FM) U FR| <= c`
+            nextSharedBF = fsUnionFmUnionFr
+            updateMessage = "Bloom filter updated (Merged own knowledge, previous shared, and received filter)"
+        } else if (fmUnionFr.getApproximateElementCount() <= capacity) { // Corresponds to `else if |FM U FR| <= c`
+            nextSharedBF = fmUnionFr
+            updateMessage = "Bloom filter updated (Reset to own knowledge and received filter)"
+        } else if (currentFS.getApproximateElementCount() <= capacity) { // Corresponds to `else if |FS| <= c`
+            nextSharedBF = currentFS // Keep current FS
+            updateMessage = "Bloom filter updated (Kept previous shared filter, no merge possible)"
+        } else { // Corresponds to `else` block
+            nextSharedBF = fm // Share only own received monies (FM)
+            updateMessage = "Bloom filter updated (Only sharing own monies, others too large)"
+        }
+
+        // Update the current Bloom filter's bitSet with the chosen nextSharedBF
+        this.bitSet.clear()
+        this.bitSet.or(nextSharedBF.bitSet)
+
+        return updateMessage
     }
 
     /**

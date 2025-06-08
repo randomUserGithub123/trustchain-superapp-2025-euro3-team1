@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
 import android.view.View
+import android.widget.TextView
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
@@ -13,6 +14,10 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     private lateinit var ttp: TTP
+    private lateinit var bloomFilterSizeText: TextView
+    private lateinit var bloomFilterElementsText: TextView
+    private lateinit var bloomFilterFalsePositiveText: TextView
+    private lateinit var bloomFilterCurrentFalsePositiveText: TextView
     private var communicationProtocol: Any? = null
     private lateinit var community: OfflineEuroCommunity
 
@@ -45,6 +50,12 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             ParticipantHolder.ttp = ttp
         }
 
+        bloomFilterSizeText = view.findViewById(R.id.bloom_filter_size)
+        bloomFilterElementsText = view.findViewById(R.id.bloom_filter_elements)
+        bloomFilterFalsePositiveText = view.findViewById(R.id.bloom_filter_false_positive)
+        bloomFilterCurrentFalsePositiveText = view.findViewById(R.id.bloom_filter_current_false_positive)
+
+        updateBloomFilterStats()
         onDataChangeCallback(null)
     }
 
@@ -55,11 +66,20 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         }
     }
 
+    private fun updateBloomFilterStats() {
+        val bloomFilter = ttp.getBloomFilter()
+        bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
+        bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
+        bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100).toInt()}%"
+        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${(bloomFilter.getCurrentFalsePositiveRate() * 100).toInt()}%"
+    }
+
     private val onDataChangeCallback: (String?) -> Unit = { message ->
         if (this::ttp.isInitialized) {
             requireActivity().runOnUiThread {
                 val context = requireContext()
                 CallbackLibrary.ttpCallback(context, message, requireView(), ttp)
+                updateBloomFilterStats()
             }
         }
     }

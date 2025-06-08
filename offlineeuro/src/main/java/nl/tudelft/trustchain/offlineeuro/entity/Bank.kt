@@ -169,6 +169,17 @@ class Bank(
         return transactionResult.description
     }
 
+    fun updateBloomFilter(receivedBF: BloomFilter) {
+        // Prepare M (Set of All Received Monies) specific to Bank
+        val myReceivedMoniesIds = depositedEuros.map {
+            it.serialNumber.toByteArray() + it.firstTheta1.toBytes() + it.signature.toBytes()
+        }
+
+        // Call the centralized Algorithm 2 logic in the BloomFilter class
+        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
+        onDataChangeCallback?.invoke(updateMessage) // Use the message for UI/logging
+    }
+
     override fun reset() {
         randomizationElementMap.clear()
         withdrawUserRandomness.clear()
