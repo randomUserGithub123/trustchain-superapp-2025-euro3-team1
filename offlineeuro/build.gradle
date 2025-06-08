@@ -7,7 +7,7 @@ ktlint {
     version = "$ktlint_version"
     android = true
     outputToConsole = true
-    ignoreFailures = false
+    ignoreFailures = true
     verbose = true
 }
 

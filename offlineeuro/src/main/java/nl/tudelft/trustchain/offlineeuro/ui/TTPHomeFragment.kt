@@ -3,6 +3,7 @@ package nl.tudelft.trustchain.offlineeuro.ui
 import android.os.Bundle
 import android.view.View
 import nl.tudelft.trustchain.offlineeuro.R
+import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
@@ -12,7 +13,7 @@ import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     private lateinit var ttp: TTP
-    private lateinit var iPV8CommunicationProtocol: IPV8CommunicationProtocol
+    private var communicationProtocol: Any? = null
     private lateinit var community: OfflineEuroCommunity
 
     override fun onViewCreated(
@@ -26,12 +27,32 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         } else {
             activity?.title = "TTP"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
+
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
-            iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-            ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onDataChangeCallback)
+
+            communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+
+            ttp =
+                TTP(
+                    name = "TTP",
+                    group = group,
+                    communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
+                    context = context,
+                    onDataChangeCallback = onDataChangeCallback
+                )
+
+            ParticipantHolder.ttp = ttp
         }
+
         onDataChangeCallback(null)
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        if (communicationProtocol is BluetoothCommunicationProtocol) {
+            (communicationProtocol as BluetoothCommunicationProtocol).stopServer()
+        }
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->
