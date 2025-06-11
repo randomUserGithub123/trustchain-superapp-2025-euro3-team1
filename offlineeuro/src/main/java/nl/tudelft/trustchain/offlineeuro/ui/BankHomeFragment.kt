@@ -5,11 +5,11 @@ import android.view.View
 import android.widget.TextView
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
-import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.entity.Bank
 
 class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
@@ -18,7 +18,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
     private lateinit var bloomFilterElementsText: TextView
     private lateinit var bloomFilterFalsePositiveText: TextView
     private lateinit var bloomFilterCurrentFalsePositiveText: TextView
-    private var communicationProtocol: Any? = null
+    private lateinit var communicationProtocol: BluetoothCommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
 
     override fun onViewCreated(
@@ -33,21 +33,24 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
             activity?.title = "Bank"
             community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
 
-            val group = BilinearGroup(PairingTypes.FromFile, context = requireContext())
-            val addressBookManager = AddressBookManager(requireContext(), group)
-
-            communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-
+            val group = BilinearGroup(PairingTypes.FromFile, context = context)
+            val addressBookManager = AddressBookManager(context, group)
+            val depositedEuroManager = DepositedEuroManager(context, group)
+            communicationProtocol =
+                BluetoothCommunicationProtocol(
+                    addressBookManager,
+                    community,
+                    requireContext()
+                )
             bank =
                 Bank(
-                    name = "Bank",
-                    group = group,
-                    communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
-                    context = requireContext(),
+                    "Bank",
+                    group,
+                    communicationProtocol,
+                    context,
+                    depositedEuroManager,
                     onDataChangeCallback = onDataChangeCallback
                 )
-
-            ParticipantHolder.bank = bank
         }
 
         bloomFilterSizeText = view.findViewById(R.id.bloom_filter_size)

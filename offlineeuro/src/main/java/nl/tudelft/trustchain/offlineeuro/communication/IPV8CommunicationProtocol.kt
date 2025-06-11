@@ -150,7 +150,7 @@ class IPV8CommunicationProtocol(
         val peerAddress = addressBookManager.getAddressByName(participantName)
         val message = BloomFilterRequestMessage()
         community.addMessage(message)
-        
+
         // Wait for the reply
         val reply = waitForMessage(CommunityMessageType.BLOOM_FILTER_REPLY) as BloomFilterReplyMessage
         return reply.bloomFilter
@@ -307,11 +307,5 @@ class IPV8CommunicationProtocol(
             is Bank -> Role.Bank
             else -> throw Exception("Unknown role")
         }
-    }
-
-    private fun getPeer(participant: Participant): String {
-        // Implement the logic to determine the peer address based on the participant
-        // This is a placeholder and should be replaced with the actual implementation
-        return "Bank" // Placeholder, actual implementation needed
     }
 }

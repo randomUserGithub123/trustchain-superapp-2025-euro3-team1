@@ -19,7 +19,7 @@ class User(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val wallet: Wallet
-    private val bloomFilter: BloomFilter = BloomFilter(1000) // Adjust size based on expected number of transactions
+    private val bloomFilter: BloomFilter = BloomFilter(1000)
 
     init {
         communicationProtocol.participant = this
@@ -73,6 +73,23 @@ class User(
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
         wallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
+        /*
+        try {
+            communicationProtocol.sendBloomFilter(bank, getBloomFilter())
+            onDataChangeCallback?.invoke("Successfully withdrawn and sent bloom filter to $bank!")
+        } catch (e: Exception) {
+            onDataChangeCallback?.invoke("Withdrawn, but failed to send bloom filter: ${e.message}")
+        }
+
+        try {
+            val bankBloomFilter = communicationProtocol.requestBloomFilter(bank)
+            updateBloomFilter(bankBloomFilter) // Update your own bloom filter with the bank's
+            onDataChangeCallback?.invoke("Received bank's bloom filter and updated local filter!")
+        } catch (e: Exception) {
+            onDataChangeCallback?.invoke("Withdrawn, but failed to request bank's bloom filter: ${e.message}")
+        }
+         */
+
         return digitalEuro
     }
 

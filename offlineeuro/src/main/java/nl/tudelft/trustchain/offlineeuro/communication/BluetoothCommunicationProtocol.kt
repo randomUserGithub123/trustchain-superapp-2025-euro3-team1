@@ -237,6 +237,24 @@ class BluetoothCommunicationProtocol(
                         output.writeObject(result)
                         output.flush()
                     }
+
+                    "BLOOM_FILTER_REQUEST" -> {
+                        // handleBloomFilterRequest()
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(context.applicationContext, "Got request", Toast.LENGTH_LONG).show()
+                        }
+                    }
+
+                    "BLOOM_FILTER_REPLY" -> {
+                        // This block handles an incoming reply containing a bloom filter from a peer.
+                        // val bloomFilterBytes = input.readObject() as ByteArray
+                        // val expectedElements = input.readObject() as Int
+                        // val falsePositiveRate = input.readObject() as Double
+                        // handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(context.applicationContext, "Got Reply", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
 
                 socket.close()

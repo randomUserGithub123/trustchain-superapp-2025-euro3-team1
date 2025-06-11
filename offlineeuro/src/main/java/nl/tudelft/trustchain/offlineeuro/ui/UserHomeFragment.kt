@@ -52,47 +52,88 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                 updateBloomFilterStats()
             } else {
                 community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
-                val group = BilinearGroup(PairingTypes.FromFile, context = requireContext())
-                val addressBookManager = AddressBookManager(requireContext(), group)
-                communicationProtocol = BluetoothCommunicationProtocol(addressBookManager, community, requireContext())
-
+                val group = BilinearGroup(PairingTypes.FromFile, context = context)
+                val addressBookManager = AddressBookManager(context, group)
+                communicationProtocol =
+                    BluetoothCommunicationProtocol(
+                        addressBookManager,
+                        community,
+                        requireContext()
+                    )
                 user =
                     User(
                         userName,
                         group,
-                        requireContext(),
-                        communicationProtocol = communicationProtocol,
-                        onDataChangeCallback = onDataChangeCallback
+                        context,
+                        null,
+                        communicationProtocol,
+                        onDataChangeCallback = onUserDataChangeCallBack
                     )
-                ParticipantHolder.user = user
                 updateBloomFilterStats()
             }
-
-            withdrawButton.setOnClickListener {
-                thread {
-                    try {
-                        user.withdrawDigitalEuro("Bank")
-                    } catch (e: Exception) {
-                        requireActivity().runOnUiThread {
-                            Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            }
-
-            sendButton.setOnClickListener {
-                thread {
-                    try {
-                        user.sendDigitalEuroTo(userName)
-                    } catch (e: Exception) {
-                        requireActivity().runOnUiThread {
-                            Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            }
         } catch (e: Exception) {
-            Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "User init failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+
+        updateBalance()
+        Toast.makeText(context, "Welcome, $userName! Now trying to register at TTP", Toast.LENGTH_SHORT).show()
+
+        withdrawButton.setOnClickListener {
+            thread {
+                try {
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        if (!protocol.startSession()) {
+                            throw Exception("startSession() ERROR")
+                        }
+                    }
+
+                    user.withdrawDigitalEuro("Bank")
+
+                    requireActivity().runOnUiThread {
+                        updateBalance()
+                        Toast.makeText(requireContext(), "Withdraw successful", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(requireContext(), "Withdraw failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        protocol.endSession()
+                    }
+                }
+            }
+        }
+
+        sendButton.setOnClickListener {
+            thread {
+                try {
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        if (!protocol.startSession()) {
+                            throw Exception("startSession() ERROR")
+                        }
+                    }
+
+                    val receiverName = "Receiver"
+                    user.sendDigitalEuroTo(receiverName)
+                    requireActivity().runOnUiThread {
+                        updateBalance()
+                        Toast.makeText(requireContext(), "Sent 1 euro", Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(requireContext(), "Send failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                } finally {
+                    val protocol = user.communicationProtocol
+                    if (protocol is BluetoothCommunicationProtocol) {
+                        protocol.endSession()
+                    }
+                }
+            }
         }
     }
 
@@ -120,13 +161,14 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${(bloomFilter.getCurrentFalsePositiveRate() * 100).toInt()}%"
     }
 
-    private val onDataChangeCallback: (String?) -> Unit = { message ->
+    private val onUserDataChangeCallBack: (String?) -> Unit = { message ->
         if (this::user.isInitialized) {
             requireActivity().runOnUiThread {
                 message?.let {
                     Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
                 }
                 updateBloomFilterStats()
+                updateBalance()
             }
         }
     }
