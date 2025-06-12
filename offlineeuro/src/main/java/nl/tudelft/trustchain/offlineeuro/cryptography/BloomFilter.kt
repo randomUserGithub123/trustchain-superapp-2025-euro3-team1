@@ -159,6 +159,14 @@ class BloomFilter(
     fun toBytes(): ByteArray {
         return bitSet.toByteArray()
     }
+    
+    /**
+     * Returns a hexadecimal string representation of the underlying BitSet for visualization.
+     * Each byte of the BitSet's backing array is represented by two hexadecimal characters.
+     */
+    fun toHexString(): String {
+        return bitSet.toByteArray().joinToString("") { "%02x".format(it) }
+    }
 
     /**
      * Applies Algorithm 2 for sharing spent monies to update this Bloom filter.

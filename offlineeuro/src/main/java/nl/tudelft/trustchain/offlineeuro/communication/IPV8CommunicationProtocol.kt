@@ -148,10 +148,8 @@ class IPV8CommunicationProtocol(
 
     override fun requestBloomFilter(participantName: String): BloomFilter {
         val peerAddress = addressBookManager.getAddressByName(participantName)
-        val message = BloomFilterRequestMessage()
-        community.addMessage(message)
+        community.sendBloomFilterRequest(peerAddress.peerPublicKey!!)
 
-        // Wait for the reply
         val reply = waitForMessage(CommunityMessageType.BLOOM_FILTER_REPLY) as BloomFilterReplyMessage
         return reply.bloomFilter
     }

@@ -73,7 +73,7 @@ class User(
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
         wallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
-        /*
+
         try {
             communicationProtocol.sendBloomFilter(bank, getBloomFilter())
             onDataChangeCallback?.invoke("Successfully withdrawn and sent bloom filter to $bank!")
@@ -88,7 +88,6 @@ class User(
         } catch (e: Exception) {
             onDataChangeCallback?.invoke("Withdrawn, but failed to request bank's bloom filter: ${e.message}")
         }
-         */
 
         return digitalEuro
     }

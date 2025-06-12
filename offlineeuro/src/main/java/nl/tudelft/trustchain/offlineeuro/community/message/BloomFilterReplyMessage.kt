@@ -6,4 +6,4 @@ class BloomFilterReplyMessage(
     val bloomFilter: BloomFilter
 ) : ICommunityMessage {
     override val messageType: CommunityMessageType = CommunityMessageType.BLOOM_FILTER_REPLY
-} 
+}

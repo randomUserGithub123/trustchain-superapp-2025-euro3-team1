@@ -15,6 +15,8 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomnessRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
@@ -28,11 +30,14 @@ import nl.tudelft.trustchain.offlineeuro.community.payload.AddressPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BilinearGroupCRSPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.BlindSignatureRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.ByteArrayPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.BloomFilterReplyPayload
+import nl.tudelft.trustchain.offlineeuro.community.payload.BloomFilterRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.FraudControlRequestPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TTPRegistrationPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionDetailsPayload
 import nl.tudelft.trustchain.offlineeuro.community.payload.TransactionRandomizationElementsPayload
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElementsBytes
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
@@ -59,6 +64,9 @@ object MessageID {
 
     const val FRAUD_CONTROL_REQUEST = 22
     const val FRAUD_CONTROL_REPLY = 23
+
+    const val BLOOM_FILTER_REQUEST = 24
+    const val BLOOM_FILTER_REPLY = 25
 }
 
 class OfflineEuroCommunity(
@@ -95,6 +103,9 @@ class OfflineEuroCommunity(
 
         messageHandlers[MessageID.FRAUD_CONTROL_REQUEST] = ::onFraudControlRequestPacket
         messageHandlers[MessageID.FRAUD_CONTROL_REPLY] = ::onFraudControlReplyPacket
+
+        messageHandlers[MessageID.BLOOM_FILTER_REQUEST] = ::onBloomFilterRequestPacket
+        messageHandlers[MessageID.BLOOM_FILTER_REPLY] = ::onBloomFilterReplyPacket
     }
 
     fun getGroupDescriptionAndCRS() {
@@ -565,6 +576,44 @@ class OfflineEuroCommunity(
         if (this::messageList.isInitialized) {
             messageList.add(message)
         }
+    }
+
+    fun sendBloomFilterRequest(targetPeerPublicKeyBytes: ByteArray) {
+        val targetPeer = getPeerByPublicKeyBytes(targetPeerPublicKeyBytes)
+        targetPeer ?: throw Exception("Peer not found")
+
+        val packet =
+            serializePacket(
+                MessageID.BLOOM_FILTER_REQUEST,
+                BloomFilterRequestPayload()
+            )
+
+        send(targetPeer, packet)
+    }
+
+    private fun onBloomFilterRequestPacket(packet: Packet) {
+        val (requestingPeer, _) = packet.getAuthPayload(BloomFilterRequestPayload)
+        addMessage(BloomFilterRequestMessage(requestingPeer))
+    }
+
+    fun sendBloomFilterReply(
+        targetPeer: Peer,
+        bloomFilterBytes: ByteArray,
+        expectedElements: Int,
+        falsePositiveRate: Double
+    ) {
+        val packet =
+            serializePacket(
+                MessageID.BLOOM_FILTER_REPLY,
+                BloomFilterReplyPayload(bloomFilterBytes, expectedElements, falsePositiveRate)
+            )
+        send(targetPeer, packet)
+    }
+
+    private fun onBloomFilterReplyPacket(packet: Packet) {
+        val (_, payload) = packet.getAuthPayload(BloomFilterReplyPayload)
+        val bloomFilter = BloomFilter.fromBytes(payload.bloomFilterBytes, payload.expectedElements, payload.falsePositiveRate)
+        addMessage(BloomFilterReplyMessage(bloomFilter))
     }
 
     class Factory(

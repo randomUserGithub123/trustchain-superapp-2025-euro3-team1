@@ -239,21 +239,14 @@ class BluetoothCommunicationProtocol(
                     }
 
                     "BLOOM_FILTER_REQUEST" -> {
-                        // handleBloomFilterRequest()
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context.applicationContext, "Got request", Toast.LENGTH_LONG).show()
-                        }
+                        handleBloomFilterRequest(output)
                     }
 
                     "BLOOM_FILTER_REPLY" -> {
-                        // This block handles an incoming reply containing a bloom filter from a peer.
-                        // val bloomFilterBytes = input.readObject() as ByteArray
-                        // val expectedElements = input.readObject() as Int
-                        // val falsePositiveRate = input.readObject() as Double
-                        // handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context.applicationContext, "Got Reply", Toast.LENGTH_LONG).show()
-                        }
+                        val bloomFilterBytes = input.readObject() as ByteArray
+                        val expectedElements = input.readObject() as Int
+                        val falsePositiveRate = input.readObject() as Double
+                        handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
                     }
                 }
 
@@ -665,6 +658,11 @@ class BluetoothCommunicationProtocol(
             output.writeObject("BLOOM_FILTER_REQUEST")
             output.flush()
 
+            val replyType = input.readObject() as String
+            if (replyType != "BLOOM_FILTER_REPLY") {
+                throw Exception("Unexpected reply type: $replyType")
+            }
+            
             val bloomFilterBytes = input.readObject() as ByteArray
             val expectedElements = input.readObject() as Int
             val falsePositiveRate = input.readObject() as Double
@@ -696,15 +694,19 @@ class BluetoothCommunicationProtocol(
         }
     }
 
-    private fun handleBloomFilterRequest() {
-        if (participant is User || participant is TTP) {
-            val bloomFilter =
-                when (participant) {
-                    is User -> (participant as User).getBloomFilter()
-                    is TTP -> (participant as TTP).getBloomFilter()
-                    else -> throw Exception("Unsupported participant type")
-                }
-            sendBloomFilter(participant.name, bloomFilter)
+    private fun handleBloomFilterRequest(output: ObjectOutputStream) {
+        if (participant is User || participant is Bank || participant is TTP) {
+            val bloomFilter = when (participant) {
+                is User -> (participant as User).getBloomFilter()
+                is Bank -> (participant as Bank).getBloomFilter()
+                is TTP -> (participant as TTP).getBloomFilter()
+                else -> throw Exception("Unsupported participant type")
+            }
+            output.writeObject("BLOOM_FILTER_REPLY")
+            output.writeObject(bloomFilter.toBytes())
+            output.writeObject(bloomFilter.expectedElements)
+            output.writeObject(bloomFilter.falsePositiveRate)
+            output.flush()
         }
     }
 
@@ -716,6 +718,7 @@ class BluetoothCommunicationProtocol(
         val bloomFilter = BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
         when (participant) {
             is User -> (participant as User).updateBloomFilter(bloomFilter)
+            is Bank -> (participant as Bank).updateBloomFilter(bloomFilter)
             is TTP -> (participant as TTP).updateBloomFilter(bloomFilter)
             else -> throw Exception("Unsupported participant type")
         }
