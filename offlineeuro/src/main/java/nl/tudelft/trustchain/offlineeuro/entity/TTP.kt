@@ -18,7 +18,7 @@ class TTP(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
-    private val bloomFilter: BloomFilter = BloomFilter(10000) // TTPs handle more transactions
+    private val bloomFilter: BloomFilter = BloomFilter(1_000_000)
 
     init {
         communicationProtocol.participant = this

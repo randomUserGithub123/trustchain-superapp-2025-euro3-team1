@@ -22,7 +22,7 @@ class Bank(
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
     val depositedEuroLogger: ArrayList<Pair<String, Boolean>> = arrayListOf()
-    private val bloomFilter: BloomFilter = BloomFilter(1000)
+    private val bloomFilter: BloomFilter = BloomFilter(1_000_000)
 
     init {
         communicationProtocol.participant = this
@@ -169,7 +169,6 @@ class Bank(
             digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
             return depositEuro(transactionDetails.digitalEuro, publicKeySender)
         }
-
         return transactionResult.description
     }
 

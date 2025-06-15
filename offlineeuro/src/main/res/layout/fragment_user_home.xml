@@ -75,6 +75,13 @@
                 android:layout_height="wrap_content"
                 android:text="Current False Positive Rate: 0%"/>
 
+            <TextView
+                android:id="@+id/bloom_filter_estimated_elements"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Estimated Elements: 0.00"
+                android:layout_marginBottom="4dp"/>
+
         </LinearLayout>
 
     </androidx.cardview.widget.CardView>

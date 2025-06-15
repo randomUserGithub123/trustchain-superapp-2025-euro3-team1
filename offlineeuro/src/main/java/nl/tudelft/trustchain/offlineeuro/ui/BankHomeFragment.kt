@@ -18,6 +18,8 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
     private lateinit var bloomFilterElementsText: TextView
     private lateinit var bloomFilterFalsePositiveText: TextView
     private lateinit var bloomFilterCurrentFalsePositiveText: TextView
+    private lateinit var bloomFilterEstimatedElementsText: TextView
+    private lateinit var bloomFilterRawStateText: TextView
     private lateinit var communicationProtocol: BluetoothCommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
 
@@ -57,9 +59,11 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         bloomFilterElementsText = view.findViewById(R.id.bloom_filter_elements)
         bloomFilterFalsePositiveText = view.findViewById(R.id.bloom_filter_false_positive)
         bloomFilterCurrentFalsePositiveText = view.findViewById(R.id.bloom_filter_current_false_positive)
+        bloomFilterEstimatedElementsText = view.findViewById(R.id.bloom_filter_estimated_elements)
+        bloomFilterRawStateText = view.findViewById(R.id.bloom_filter_raw_state)
 
-        updateBloomFilterStats()
         onDataChangeCallback(null)
+        updateBloomFilterStats()
     }
 
     override fun onDestroyView() {
@@ -73,12 +77,14 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         ParticipantHolder.bank = null
     }
 
-    private fun updateBloomFilterStats() {
+    fun updateBloomFilterStats() {
         val bloomFilter = bank.getBloomFilter()
         bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
         bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
         bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100).toInt()}%"
         bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${(bloomFilter.getCurrentFalsePositiveRate() * 100).toInt()}%"
+        bloomFilterRawStateText.text = "Raw Bloom Filter: ${bloomFilter.toHexString()}"
+        bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->

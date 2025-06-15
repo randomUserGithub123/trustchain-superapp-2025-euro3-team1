@@ -11,7 +11,6 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterReplyMessage
-import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.CommunityMessageType
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage

@@ -18,6 +18,8 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     private lateinit var bloomFilterElementsText: TextView
     private lateinit var bloomFilterFalsePositiveText: TextView
     private lateinit var bloomFilterCurrentFalsePositiveText: TextView
+    private lateinit var bloomFilterEstimatedElementsText: TextView
+    private lateinit var bloomFilterRawStateText: TextView
     private var communicationProtocol: Any? = null
     private lateinit var community: OfflineEuroCommunity
 
@@ -54,6 +56,8 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         bloomFilterElementsText = view.findViewById(R.id.bloom_filter_elements)
         bloomFilterFalsePositiveText = view.findViewById(R.id.bloom_filter_false_positive)
         bloomFilterCurrentFalsePositiveText = view.findViewById(R.id.bloom_filter_current_false_positive)
+        bloomFilterEstimatedElementsText = view.findViewById(R.id.bloom_filter_estimated_elements)
+        bloomFilterRawStateText = view.findViewById(R.id.bloom_filter_raw_state)
 
         updateBloomFilterStats()
         onDataChangeCallback(null)
@@ -72,6 +76,8 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
         bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100).toInt()}%"
         bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${(bloomFilter.getCurrentFalsePositiveRate() * 100).toInt()}%"
+        bloomFilterRawStateText.text = "Raw Bloom Filter: ${bloomFilter.toHexString()}"
+        bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->

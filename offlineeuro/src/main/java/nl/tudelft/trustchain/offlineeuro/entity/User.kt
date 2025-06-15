@@ -19,7 +19,7 @@ class User(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val wallet: Wallet
-    private val bloomFilter: BloomFilter = BloomFilter(1000)
+    private val bloomFilter: BloomFilter = BloomFilter(1_000_000)
 
     init {
         communicationProtocol.participant = this

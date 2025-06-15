@@ -159,7 +159,7 @@ class BloomFilter(
     fun toBytes(): ByteArray {
         return bitSet.toByteArray()
     }
-    
+
     /**
      * Returns a hexadecimal string representation of the underlying BitSet for visualization.
      * Each byte of the BitSet's backing array is represented by two hexadecimal characters.
