@@ -4,6 +4,7 @@ import android.content.Context
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
@@ -18,6 +19,7 @@ class User(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val wallet: Wallet
+    private val bloomFilter: BloomFilter = BloomFilter(1000)
 
     init {
         communicationProtocol.participant = this
@@ -71,6 +73,22 @@ class User(
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
         wallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
+
+        try {
+            communicationProtocol.sendBloomFilter(bank, getBloomFilter())
+            onDataChangeCallback?.invoke("Successfully withdrawn and sent bloom filter to $bank!")
+        } catch (e: Exception) {
+            onDataChangeCallback?.invoke("Withdrawn, but failed to send bloom filter: ${e.message}")
+        }
+
+        try {
+            val bankBloomFilter = communicationProtocol.requestBloomFilter(bank)
+            updateBloomFilter(bankBloomFilter) // Update your own bloom filter with the bank's
+            onDataChangeCallback?.invoke("Received bank's bloom filter and updated local filter!")
+        } catch (e: Exception) {
+            onDataChangeCallback?.invoke("Withdrawn, but failed to request bank's bloom filter: ${e.message}")
+        }
+
         return digitalEuro
     }
 
@@ -100,5 +118,21 @@ class User(
         randomizationElementMap.clear()
         walletManager!!.clearWalletEntries()
         setUp()
+    }
+
+    fun getBloomFilter(): BloomFilter {
+        return bloomFilter
+    }
+
+    fun updateBloomFilter(receivedBF: BloomFilter) {
+        // Prepare M (Set of All Received Monies) specific to User
+        val myReceivedMonies =
+            wallet.getAllWalletEntriesToSpend().map {
+                it.digitalEuro
+            }
+
+        // Call the centralized Algorithm 2 logic in the BloomFilter class
+        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMonies)
+        onDataChangeCallback?.invoke(updateMessage) // Use the message for UI/logging
     }
 }

@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
+import java.io.Serializable
 
 data class CRS(
     val g: Element,
@@ -53,7 +54,7 @@ data class CRSBytes(
     val v: ByteArray,
     val hPrime: ByteArray,
     val vPrime: ByteArray,
-) {
+) : Serializable {
     fun toCRS(group: BilinearGroup): CRS {
         return CRS(
             group.gElementFromBytes(g),

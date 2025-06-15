@@ -9,6 +9,7 @@ import it.unisa.dia.gas.plaf.jpbc.pairing.e.TypeECurveGenerator
 import it.unisa.dia.gas.plaf.jpbc.pairing.f.TypeFCurveGenerator
 import java.io.InputStream
 import java.math.BigInteger
+import java.io.Serializable
 
 enum class PairingTypes {
     A,
@@ -21,7 +22,7 @@ data class BilinearGroupElementsBytes(
     val g: ByteArray,
     val h: ByteArray,
     val gt: ByteArray
-) {
+) : Serializable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

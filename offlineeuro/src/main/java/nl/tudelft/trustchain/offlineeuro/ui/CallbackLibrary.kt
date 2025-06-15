@@ -60,9 +60,9 @@ object CallbackLibrary {
         }
         val balanceField = view.findViewById<TextView>(R.id.user_home_balance)
         balanceField.text = user.getBalance().toString()
-        val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
-        val addresses = communicationProtocol.addressBookManager.getAllAddresses()
-        TableHelpers.addAddressesToTable(addressList, addresses, user, context)
+        // val addressList = view.findViewById<LinearLayout>(R.id.user_home_addresslist)
+        // val addresses = communicationProtocol.addressBookManager.getAllAddresses()
+        // TableHelpers.addAddressesToTable(addressList, addresses, user, context)
         view.refreshDrawableState()
     }
 }

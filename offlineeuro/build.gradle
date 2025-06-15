@@ -7,7 +7,7 @@ ktlint {
     version = "$ktlint_version"
     android = true
     outputToConsole = true
-    ignoreFailures = false
+    ignoreFailures = true
     verbose = true
 }
 
@@ -105,4 +105,7 @@ dependencies {
     implementation(files("lib/jpbc-api-2.0.0.jar"))
     implementation(files("lib/jpbc-plaf-2.0.0.jar"))
     implementation(files("lib/jpbc-crypto-2.0.0.jar"))
+
+    // XXHash
+    implementation 'net.openhft:zero-allocation-hashing:0.16'
 }

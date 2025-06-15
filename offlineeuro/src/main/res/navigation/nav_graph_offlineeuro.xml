@@ -13,7 +13,7 @@
             app:destination="@id/bankHomeFragment" />
         <action
             android:id="@+id/nav_home_userhome"
-            app:destination="@id/userHomeFragment" />
+            app:destination="@id/UserHomeFragment" />
         <action
             android:id="@+id/nav_home_ttphome"
             app:destination="@id/TTPHomeFragment" />
@@ -26,12 +26,12 @@
         android:name="nl.tudelft.trustchain.offlineeuro.ui.BankHomeFragment"
         android:label="BankHomeFragment" />
     <fragment
-        android:id="@+id/userHomeFragment"
+        android:id="@+id/UserHomeFragment"
         android:name="nl.tudelft.trustchain.offlineeuro.ui.UserHomeFragment"
         android:label="UserHomeFragment" >
-        <action
-            android:id="@+id/nav_userHome_bankSelected"
-            app:destination="@id/bankSelectedFragment" />
+        <argument
+            android:name="userName"
+            app:argType="string" />
     </fragment>
     <fragment
         android:id="@+id/bankSelectedFragment"

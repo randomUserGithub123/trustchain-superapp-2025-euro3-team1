@@ -46,42 +46,57 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center"
-            >
+            android:layout_marginTop="24dp"/>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:padding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:background="@color/colorPrimary"
-                >
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:text="UserID"
-                    android:gravity="center"
-                    android:layout_weight="0.2"
-                    android:textColor="@color/white"/>
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Bloom Filter Statistics"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_marginBottom="12dp"/>
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:text="Name"
-                    android:gravity="center"
-                    android:layout_weight="0.2"
-                    android:textColor="@color/white"/>
+                    android:id="@+id/bloom_filter_size"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Size: 0 bytes"
+                    android:layout_marginBottom="4dp"/>
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:text="Public Key"
-                    android:gravity="center"
-                    android:layout_weight="0.7"
-                    android:textColor="@color/white"/>
+                    android:id="@+id/bloom_filter_elements"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Expected Elements: 0"
+                    android:layout_marginBottom="4dp"/>
+
+                <TextView
+                    android:id="@+id/bloom_filter_false_positive"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="False Positive Rate: 0%"
+                    android:layout_marginBottom="4dp"/>
+
+                <TextView
+                    android:id="@+id/bloom_filter_current_false_positive"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Current False Positive Rate: 0%"/>
+
             </LinearLayout>
-        </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
     </LinearLayout>
     </ScrollView>
     <LinearLayout

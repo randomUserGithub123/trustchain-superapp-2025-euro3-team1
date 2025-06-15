@@ -51,6 +51,7 @@
                 android:layout_height="wrap_content"
                 android:text="All Roles"
                 android:id="@+id/JoinAsAllRolesButton"/>
+            
         </LinearLayout>
         </LinearLayout>
 </LinearLayout>
