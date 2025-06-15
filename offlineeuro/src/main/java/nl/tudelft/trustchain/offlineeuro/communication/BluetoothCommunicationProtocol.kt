@@ -25,6 +25,8 @@ import nl.tudelft.trustchain.offlineeuro.entity.Participant
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetailsBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroupElementsBytes
+import nl.tudelft.trustchain.offlineeuro.cryptography.CRSBytes
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.enums.Role
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
@@ -248,6 +250,46 @@ class BluetoothCommunicationProtocol(
                         val falsePositiveRate = input.readObject() as Double
                         handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
                     }
+
+                    "GET_BILINEAR_GROUP_AND_CRS_REQUEST" -> {
+
+                        // TODO: 
+                        if (participant !is TTP) {
+                            throw Exception("Only TTP can provide group description and CRS")
+                        }
+
+                        val ttp = participant as TTP
+                        val groupBytes = ttp.group.toGroupElementBytes()
+                        val crsBytes = ttp.crs.toCRSBytes()
+                        val ttpPublicKeyBytes = ttp.publicKey.toBytes()
+
+                        output.writeObject(groupBytes)
+                        output.writeObject(crsBytes)
+                        output.writeObject(ttpPublicKeyBytes)
+                        output.flush()
+
+                    }
+
+                    "REGISTER_AT_TTP" -> {
+
+                        val userName = input.readObject() as String
+                        val publicKeyBytes = input.readObject() as ByteArray
+                        val ttpPublicKeyBytes = input.readObject() as ByteArray
+
+                        if (participant !is TTP) {
+                            throw Exception("Only TTP can handle registrations")
+                        }
+
+                        val ttp = participant as TTP
+                        val publicKey = ttp.group.gElementFromBytes(publicKeyBytes)
+                        
+                        ttp.registerUser(userName, publicKey)
+
+                        output.writeObject("SUCCESS")
+                        output.flush()
+
+                    }
+
                 }
 
                 socket.close()
@@ -478,14 +520,31 @@ class BluetoothCommunicationProtocol(
     // ///////////////////////////
 
     override fun getGroupDescriptionAndCRS() {
-        community.getGroupDescriptionAndCRS()
-        val message =
-            waitForMessage(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
 
-        participant.group.updateGroupElements(message.groupDescription)
-        val crs = message.crs.toCRS(participant.group)
-        participant.crs = crs
-        messageList.add(message.addressMessage)
+        // TODO: handleGetBilinearGroupAndCRSRequest
+
+        if (!startSession()) throw Exception("No peer connected")
+
+        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        try {
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
+
+            output.writeObject("GET_BILINEAR_GROUP_AND_CRS_REQUEST")
+            output.flush()
+
+            val groupBytes = input.readObject() as BilinearGroupElementsBytes
+            val crsBytes = input.readObject() as CRSBytes
+            val ttpPublicKeyBytes = input.readObject() as ByteArray
+
+            participant.group.updateGroupElements(groupBytes)
+            participant.crs = crsBytes.toCRS(participant.group)
+
+            val ttpAddressMessage = AddressMessage("TTP", Role.TTP, ttpPublicKeyBytes, activeDevice?.address?.toByteArray() ?: byteArrayOf())
+            messageList.add(ttpAddressMessage)
+        } finally {
+            socket.close()
+        }
     }
 
     override fun register(
@@ -493,8 +552,32 @@ class BluetoothCommunicationProtocol(
         publicKey: Element,
         nameTTP: String
     ) {
-        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+
+        if (!startSession()) throw Exception("No peer connected")
+
+        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        try {
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
+
+            val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+            val ttpPublicKeyBytes = ttpAddress.publicKey.toBytes()
+
+            output.writeObject("REGISTER_AT_TTP")
+            output.writeObject(userName)
+            output.writeObject(publicKey.toBytes())
+            output.writeObject(ttpPublicKeyBytes)
+            output.flush()
+
+            val result = input.readObject() as String
+            if (result != "SUCCESS") {
+                throw Exception("Registration failed: $result")
+            }
+
+        } finally {
+            socket.close()
+        }
+
     }
 
     // ///////////////////////////
