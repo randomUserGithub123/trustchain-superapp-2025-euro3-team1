@@ -68,7 +68,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             Toast.makeText(context, "User init failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
 
-        updateBalance()
+        balanceText.text = "Balance: 0"
         Toast.makeText(context, "Welcome, $userName! Now trying to register at TTP", Toast.LENGTH_SHORT).show()
 
         withdrawButton.setOnClickListener {

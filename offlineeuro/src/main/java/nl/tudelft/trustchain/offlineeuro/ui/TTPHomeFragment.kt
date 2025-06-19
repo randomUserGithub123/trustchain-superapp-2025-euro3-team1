@@ -36,7 +36,11 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
 
-            communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+            communicationProtocol = BluetoothCommunicationProtocol(
+                addressBookManager, 
+                community,
+                requireContext()
+            )
 
             ttp = TTP(
                 name = "TTP",
@@ -53,10 +57,13 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     }
 
     override fun onDestroyView() {
+
         super.onDestroyView()
         if (communicationProtocol is BluetoothCommunicationProtocol) {
             (communicationProtocol as BluetoothCommunicationProtocol).stopServer()
         }
+        ParticipantHolder.ttp = null
+        
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->

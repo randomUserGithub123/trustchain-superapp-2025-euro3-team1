@@ -19,7 +19,7 @@ class User(
     onDataChangeCallback: ((String?) -> Unit)? = null
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
 
-    val wallet: Wallet
+    private var wallet: Wallet? = null
 
     init {
         communicationProtocol.participant = this
@@ -30,17 +30,27 @@ class User(
         } else {
             generateKeyPair()
         }
-        if (walletManager == null) {
+
+        if(
+            walletManager == null
+        ){
             walletManager = WalletManager(context, group)
         }
-
-        wallet = Wallet(privateKey, publicKey, walletManager!!)
     }
 
     fun sendDigitalEuroTo(nameReceiver: String): String {
+
+        // walletManager = walletManager ?: WalletManager(
+        //     context ?: throw IllegalStateException("Context is null"), 
+        //     group
+        // )
+        // val wallet = Wallet(privateKey, publicKey, walletManager!!)
+
+        val currentWallet = wallet ?: Wallet(privateKey, publicKey, walletManager!!).also { wallet = it }
+
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails =
-            wallet.spendEuro(randomizationElements, group, crs)
+            currentWallet.spendEuro(randomizationElements, group, crs)
                 ?: throw Exception("No euro to spend")
 
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails)
@@ -49,14 +59,32 @@ class User(
     }
 
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
+
+        // walletManager = walletManager ?: WalletManager(
+        //     context ?: throw IllegalStateException("Context is null"), 
+        //     group
+        // )
+        // val wallet = Wallet(privateKey, publicKey, walletManager!!)
+
+        val currentWallet = wallet ?: Wallet(privateKey, publicKey, walletManager!!).also { wallet = it }
+
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
-        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
+        val transactionDetails = currentWallet.doubleSpendEuro(randomizationElements, group, crs)
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
         onDataChangeCallback?.invoke(result)
         return result
     }
 
     fun withdrawDigitalEuro(bank: String): DigitalEuro {
+
+        // walletManager = walletManager ?: WalletManager(
+        //     context ?: throw IllegalStateException("Context is null"), 
+        //     group
+        // )
+        // val wallet = Wallet(privateKey, publicKey, walletManager!!)
+
+        val currentWallet = wallet ?: Wallet(privateKey, publicKey, walletManager!!).also { wallet = it }
+
         val serialNumber = UUID.randomUUID().toString()
         val firstT = group.getRandomZr()
         val tInv = firstT.mul(-1)
@@ -71,12 +99,16 @@ class User(
         val blindSignature = communicationProtocol.requestBlindSignature(publicKey, bank, blindedChallenge.blindedChallenge)
         val signature = Schnorr.unblindSignature(blindedChallenge, blindSignature)
         val digitalEuro = DigitalEuro(serialNumber, initialTheta, signature, arrayListOf())
-        wallet.addToWallet(digitalEuro, firstT)
+        currentWallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
         return digitalEuro
     }
 
     fun getBalance(): Int {
+        // walletManager = walletManager ?: WalletManager(
+        //     context ?: throw IllegalStateException("Context is null"), 
+        //     group
+        // )
         return walletManager!!.getWalletEntriesToSpend().count()
     }
 
@@ -85,12 +117,21 @@ class User(
         publicKeyBank: Element,
         publicKeySender: Element
     ): String {
+
+        // walletManager = walletManager ?: WalletManager(
+        //     context ?: throw IllegalStateException("Context is null"), 
+        //     group
+        // )
+        // val wallet = Wallet(privateKey, publicKey, walletManager!!)
+
+        val currentWallet = wallet ?: Wallet(privateKey, publicKey, walletManager!!).also { wallet = it }
+
         val usedRandomness = lookUpRandomness(publicKeySender) ?: return "Randomness Not found!"
         removeRandomness(publicKeySender)
         val transactionResult = Transaction.validate(transactionDetails, publicKeyBank, group, crs)
 
         if (transactionResult.valid) {
-            wallet.addToWallet(transactionDetails, usedRandomness)
+            currentWallet.addToWallet(transactionDetails, usedRandomness)
             onDataChangeCallback?.invoke("Received an euro from $publicKeySender")
             return transactionResult.description
         }
@@ -99,6 +140,10 @@ class User(
     }
 
     override fun reset() {
+        // walletManager = walletManager ?: WalletManager(
+        //     context ?: throw IllegalStateException("Context is null"), 
+        //     group
+        // )
         randomizationElementMap.clear()
         walletManager!!.clearWalletEntries()
         setUp()

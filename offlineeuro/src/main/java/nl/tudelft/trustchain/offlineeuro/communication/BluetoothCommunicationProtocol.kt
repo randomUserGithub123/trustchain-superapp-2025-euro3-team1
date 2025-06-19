@@ -139,6 +139,44 @@ class BluetoothCommunicationProtocol(
 
                 when (val requestType = input.readObject() as String) {
 
+                    "GET_GROUP_DESCRIPTION_AND_CRS" -> {
+
+                        if (participant !is TTP) {
+                            throw Exception("Only TTP can provide group description and CRS")
+                        }
+
+                        val ttp = participant as TTP
+
+                        val groupBytes = ttp.group.toGroupElementBytes()
+                        val crsBytes = ttp.crs.toCRSBytes()
+
+                        output.writeObject(groupBytes)
+                        output.writeObject(crsBytes)
+                        output.writeObject(ttp.publicKey.toBytes())
+                        output.flush()
+
+                    }
+
+                    "REGISTER_AT_TTP" -> {
+
+                        val userName = input.readObject() as String
+                        val publicKeyBytes = input.readObject() as ByteArray
+                        val ttpPublicKeyBytes = input.readObject() as ByteArray
+
+                        if (participant !is TTP) {
+                            throw Exception("Only TTP can handle registrations")
+                        }
+
+                        val ttp = participant as TTP
+                        val publicKey = ttp.group.gElementFromBytes(publicKeyBytes)
+                        
+                        ttp.registerUser(userName, publicKey)
+
+                        output.writeObject("SUCCESS")
+                        output.flush()
+
+                    }
+
                     "BLIND_SIGNATURE_RANDOMNESS_REQUEST" -> {
                         
                         val publicKeyBytes = input.readObject() as ByteArray
@@ -317,7 +355,7 @@ class BluetoothCommunicationProtocol(
 
                         if(
                             device != null &&
-                            rssi >= -40 &&
+                            rssi >= -30 &&
                             deviceClass == BluetoothClass.Device.PHONE_SMART &&
                             !foundDevices.contains(device)
                         ){
@@ -422,24 +460,105 @@ class BluetoothCommunicationProtocol(
     //
     /////////////////////////////
 
-    override fun getGroupDescriptionAndCRS() {
-        community.getGroupDescriptionAndCRS()
-        val message =
-            waitForMessage(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
+    // override fun getGroupDescriptionAndCRS() {
+    //     community.getGroupDescriptionAndCRS()
+    //     val message =
+    //         waitForMessage(CommunityMessageType.GroupDescriptionCRSReplyMessage) as BilinearGroupCRSReplyMessage
 
-        participant.group.updateGroupElements(message.groupDescription)
-        val crs = message.crs.toCRS(participant.group)
-        participant.crs = crs
-        messageList.add(message.addressMessage)
+    //     participant.group.updateGroupElements(message.groupDescription)
+    //     val crs = message.crs.toCRS(participant.group)
+    //     participant.crs = crs
+    //     messageList.add(message.addressMessage)
+    // }
+
+    override fun getGroupDescriptionAndCRS() {
+        if (!startSession()) throw Exception("No peer connected")
+
+        try{
+            val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+            socket.connect()
+
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
+
+            output.writeObject("GET_GROUP_DESCRIPTION_AND_CRS")
+            output.flush()
+
+            val groupElementBytes = input.readObject() as BilinearGroupElementsBytes
+            val crsBytes = input.readObject() as CRSBytes
+            val ttpPublicKeyBytes = input.readObject() as ByteArray
+
+            participant.group.updateGroupElements(groupElementBytes)
+            val crs = crsBytes.toCRS(participant.group)
+            participant.crs = crs
+
+            messageList.add(
+                AddressMessage("TTP", Role.TTP, ttpPublicKeyBytes, community.myPeer.publicKey.keyToBin())
+            )
+
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, "getGroupDescriptionAndCRS() SUCCESS", Toast.LENGTH_LONG).show()
+            }
+
+            socket.close()
+
+        } catch(e: Exception){
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, "getGroupDescriptionAndCRS() FAIL: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+
     }
+
+    // override fun register(
+    //     userName: String,
+    //     publicKey: Element,
+    //     nameTTP: String
+    // ) {
+    //     val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+    //     community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+    // }
 
     override fun register(
         userName: String,
         publicKey: Element,
         nameTTP: String
     ) {
-        val ttpAddress = addressBookManager.getAddressByName(nameTTP)
-        community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
+        if (!startSession()) throw Exception("No peer connected")
+
+        try{
+            val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+            socket.connect()
+
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
+            
+            val ttpAddress = addressBookManager.getAddressByName(nameTTP)
+            val ttpPublicKeyBytes = ttpAddress.publicKey.toBytes()
+
+            output.writeObject("REGISTER_AT_TTP")
+            output.writeObject(userName)
+            output.writeObject(publicKey.toBytes())
+            output.writeObject(ttpPublicKeyBytes)
+            output.flush()
+
+            val result = input.readObject() as String
+            if (result != "SUCCESS") {
+                throw Exception("Registration failed: $result")
+            }
+
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, "register() SUCCESS", Toast.LENGTH_LONG).show()
+            }
+
+            socket.close()
+
+        } catch(e: Exception){
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, "register() FAIL: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+
     }
 
     /////////////////////////////

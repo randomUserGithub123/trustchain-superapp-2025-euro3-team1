@@ -1,7 +1,10 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import kotlin.concurrent.thread
+
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
+import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
@@ -19,9 +22,27 @@ abstract class Participant(
     lateinit var crs: CRS
 
     fun setUp() {
-        getGroupDescriptionAndCRS()
-        generateKeyPair()
-        registerAtTTP()
+        thread {
+            try {
+                
+                if (communicationProtocol is BluetoothCommunicationProtocol) {
+                    if (!communicationProtocol.startSession()) {
+                        throw Exception("startSession() ERROR")
+                    }
+                }
+
+                getGroupDescriptionAndCRS()
+                generateKeyPair()
+                registerAtTTP()
+                
+            } catch (e: Exception) {
+                
+            } finally {
+                if (communicationProtocol is BluetoothCommunicationProtocol) {
+                    communicationProtocol.endSession()
+                }
+            }
+        }
     }
 
     fun getGroupDescriptionAndCRS() {
