@@ -8,27 +8,49 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import java.math.BigInteger
 import kotlin.math.min
+import kotlin.concurrent.thread
 
 class Bank(
     name: String,
     group: BilinearGroup,
-    communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val depositedEuroManager: DepositedEuroManager = DepositedEuroManager(context, group),
     runSetup: Boolean = true,
     onDataChangeCallback: ((String?) -> Unit)? = null
-) : Participant(communicationProtocol, name, onDataChangeCallback) {
+) : Participant( name, onDataChangeCallback) {
     private val depositedEuros: ArrayList<DigitalEuro> = arrayListOf()
     val withdrawUserRandomness: HashMap<Element, Element> = hashMapOf()
     val depositedEuroLogger: ArrayList<Pair<String, Boolean>> = arrayListOf()
 
     init {
-        communicationProtocol.participant = this
         this.group = group
-        if (runSetup) {
-            setUp()
-        } else {
-            generateKeyPair()
+//        if (runSetup) {
+//            initializeBank()
+//        } else {
+//            generateKeyPair()
+//        }
+    }
+
+    /**
+     * This new private function defines the correct setup sequence for a Bank.
+     */
+    fun runBankSetup() {
+        // The body of the function is the same as your old initializeBank()
+        thread {
+            try {
+                onDataChangeCallback?.invoke("Setting up Bank: Getting system parameters...")
+                communicationProtocol.getGroupDescriptionAndCRS()
+
+                onDataChangeCallback?.invoke("Setting up Bank: Creating keys...")
+                generateKeyPair()
+
+                onDataChangeCallback?.invoke("Setting up Bank: Registering with TTP...")
+                communicationProtocol.register(name, publicKey, "TTP")
+
+                onDataChangeCallback?.invoke("Bank setup complete!")
+            } catch (e: Exception) {
+                onDataChangeCallback?.invoke("Bank setup failed: ${e.message}")
+            }
         }
     }
 
@@ -162,6 +184,6 @@ class Bank(
         randomizationElementMap.clear()
         withdrawUserRandomness.clear()
         depositedEuroManager.clearDepositedEuros()
-        setUp()
+        runBankSetup()
     }
 }

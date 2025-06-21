@@ -11,39 +11,15 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 
 abstract class Participant(
-    val communicationProtocol: ICommunicationProtocol,
     val name: String,
     val onDataChangeCallback: ((String?) -> Unit)? = null
 ) {
+    lateinit var communicationProtocol: ICommunicationProtocol
     protected lateinit var privateKey: Element
     lateinit var publicKey: Element
     lateinit var group: BilinearGroup
     val randomizationElementMap: HashMap<Element, Element> = hashMapOf()
     lateinit var crs: CRS
-
-    fun setUp() {
-        thread {
-            try {
-                
-                if (communicationProtocol is BluetoothCommunicationProtocol) {
-                    if (!communicationProtocol.startSession()) {
-                        throw Exception("startSession() ERROR")
-                    }
-                }
-
-                getGroupDescriptionAndCRS()
-                generateKeyPair()
-                registerAtTTP()
-                
-            } catch (e: Exception) {
-                
-            } finally {
-                if (communicationProtocol is BluetoothCommunicationProtocol) {
-                    communicationProtocol.endSession()
-                }
-            }
-        }
-    }
 
     fun getGroupDescriptionAndCRS() {
         communicationProtocol.getGroupDescriptionAndCRS()

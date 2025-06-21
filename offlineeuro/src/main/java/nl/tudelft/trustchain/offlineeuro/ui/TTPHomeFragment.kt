@@ -36,19 +36,23 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
 
-            communicationProtocol = BluetoothCommunicationProtocol(
-                addressBookManager, 
-                community,
-                requireContext()
-            )
-
             ttp = TTP(
                 name = "TTP",
                 group = group,
-                communicationProtocol = communicationProtocol as nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol,
                 context = context,
                 onDataChangeCallback = onDataChangeCallback
             )
+
+            val communicationProtocol = BluetoothCommunicationProtocol(
+                addressBookManager,
+                community,
+                requireContext(),
+                ttp
+            )
+
+            ttp.communicationProtocol = communicationProtocol
+
+            this.communicationProtocol = communicationProtocol
 
             ParticipantHolder.ttp = ttp
         }
@@ -63,7 +67,7 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             (communicationProtocol as BluetoothCommunicationProtocol).stopServer()
         }
         ParticipantHolder.ttp = null
-        
+
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->

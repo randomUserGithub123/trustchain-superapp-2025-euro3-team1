@@ -31,20 +31,28 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
             val depositedEuroManager = DepositedEuroManager(context, group)
-            communicationProtocol = BluetoothCommunicationProtocol(
-                addressBookManager, 
-                community,
-                requireContext()
-            )
+
             bank =
                 Bank(
                     "Bank",
                     group,
-                    communicationProtocol,
                     context,
                     depositedEuroManager,
                     onDataChangeCallback = onDataChangeCallBack
                 )
+
+            val communicationProtocol = BluetoothCommunicationProtocol(
+                addressBookManager,
+                community,
+                requireContext(),
+                bank
+            )
+
+            bank.communicationProtocol = communicationProtocol
+
+            this.communicationProtocol = communicationProtocol
+
+            bank.runBankSetup()
         }
         onDataChangeCallBack(null)
     }

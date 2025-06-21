@@ -35,19 +35,22 @@ class AllRolesFragment : OfflineEuroBaseFragment(R.layout.fragment_all_roles_hom
         val group = BilinearGroup(PairingTypes.FromFile, context = context)
         val addressBookManager = AddressBookManager(context, group)
         iPV8CommunicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
-        ttp = TTP("TTP", group, iPV8CommunicationProtocol, context, onDataChangeCallback = onTTPDataChangeCallback)
+        ttp = TTP("TTP", group, context, onDataChangeCallback = onTTPDataChangeCallback)
 
-        bank = Bank("Bank", group, iPV8CommunicationProtocol, context, runSetup = false, onDataChangeCallback = onBankDataChangeCallBack)
+        bank = Bank("Bank", group, context, runSetup = false, onDataChangeCallback = onBankDataChangeCallBack)
         user =
             User(
                 "TestUser",
                 group,
                 context,
                 null,
-                iPV8CommunicationProtocol,
                 runSetup = false,
                 onDataChangeCallback = onUserDataChangeCallBack
             )
+
+        ttp.communicationProtocol = iPV8CommunicationProtocol
+        bank.communicationProtocol = iPV8CommunicationProtocol
+        user.communicationProtocol = iPV8CommunicationProtocol
 
         bank.group = ttp.group
         bank.crs = ttp.crs

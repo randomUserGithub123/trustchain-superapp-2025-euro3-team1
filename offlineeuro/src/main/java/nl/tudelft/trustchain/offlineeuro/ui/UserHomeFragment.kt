@@ -44,24 +44,33 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
                 user = ParticipantHolder.user!!
                 communicationProtocol = user.communicationProtocol as BluetoothCommunicationProtocol
             } else {
-                
+
                 community = getIpv8().getOverlay<OfflineEuroCommunity>()!!
 
                 val group = BilinearGroup(PairingTypes.FromFile, context = context)
                 val addressBookManager = AddressBookManager(context, group)
-                communicationProtocol = BluetoothCommunicationProtocol(
-                    addressBookManager, 
-                    community,
-                    requireContext()
-                )
+
                 user = User(
-                    userName, 
-                    group, 
-                    context, 
-                    null, 
-                    communicationProtocol, 
+                    userName,
+                    group,
+                    context,
+                    null,
                     onDataChangeCallback = onUserDataChangeCallBack
                 )
+
+                val communicationProtocol = BluetoothCommunicationProtocol(
+                    addressBookManager,
+                    community,
+                    requireContext(),
+                    user
+                )
+
+                user.communicationProtocol = communicationProtocol
+
+                this.communicationProtocol = communicationProtocol
+
+                user.runUserSetup()
+
                 // communicationProtocol.scopePeers()
             }
         } catch (e: Exception) {
@@ -74,7 +83,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         withdrawButton.setOnClickListener {
             thread {
                 try {
-                    
+
                     val protocol = user.communicationProtocol
                     if (protocol is BluetoothCommunicationProtocol) {
                         if (!protocol.startSession()) {
@@ -104,7 +113,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
         sendButton.setOnClickListener {
             thread {
                 try {
-                    
+
                     val protocol = user.communicationProtocol
                     if (protocol is BluetoothCommunicationProtocol) {
                         if (!protocol.startSession()) {

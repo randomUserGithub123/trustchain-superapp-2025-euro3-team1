@@ -8,40 +8,58 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import java.util.UUID
+import kotlin.concurrent.thread
 
 class User(
     name: String,
     group: BilinearGroup,
     context: Context?,
     private var walletManager: WalletManager? = null,
-    communicationProtocol: ICommunicationProtocol,
     runSetup: Boolean = true,
     onDataChangeCallback: ((String?) -> Unit)? = null
-) : Participant(communicationProtocol, name, onDataChangeCallback) {
+) : Participant(name, onDataChangeCallback) {
 
     private var wallet: Wallet? = null
 
     init {
-        communicationProtocol.participant = this
         this.group = group
 
-        if (runSetup) {
-            setUp()
-        } else {
-            generateKeyPair()
-        }
+//        if (runSetup) {
+//            initializeUser()
+//        } else {
+//            // This is for cases where you load a user that is already set up
+//            generateKeyPair()
+//        }
 
-        if(
-            walletManager == null
-        ){
+        if (walletManager == null) {
             walletManager = WalletManager(context, group)
+        }
+    }
+
+    fun runUserSetup() {
+        // The body is the same as your old initializeUser()
+        thread {
+            try {
+                onDataChangeCallback?.invoke("Setting up User: Getting system parameters...")
+                communicationProtocol.getGroupDescriptionAndCRS()
+
+                onDataChangeCallback?.invoke("Setting up User: Creating keys...")
+                generateKeyPair()
+
+                onDataChangeCallback?.invoke("Setting up User: Registering with TTP...")
+                communicationProtocol.register(name, publicKey, "TTP")
+
+                onDataChangeCallback?.invoke("User setup complete!")
+            } catch (e: Exception) {
+                onDataChangeCallback?.invoke("User setup failed: ${e.message}")
+            }
         }
     }
 
     fun sendDigitalEuroTo(nameReceiver: String): String {
 
         // walletManager = walletManager ?: WalletManager(
-        //     context ?: throw IllegalStateException("Context is null"), 
+        //     context ?: throw IllegalStateException("Context is null"),
         //     group
         // )
         // val wallet = Wallet(privateKey, publicKey, walletManager!!)
@@ -61,7 +79,7 @@ class User(
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
 
         // walletManager = walletManager ?: WalletManager(
-        //     context ?: throw IllegalStateException("Context is null"), 
+        //     context ?: throw IllegalStateException("Context is null"),
         //     group
         // )
         // val wallet = Wallet(privateKey, publicKey, walletManager!!)
@@ -78,7 +96,7 @@ class User(
     fun withdrawDigitalEuro(bank: String): DigitalEuro {
 
         // walletManager = walletManager ?: WalletManager(
-        //     context ?: throw IllegalStateException("Context is null"), 
+        //     context ?: throw IllegalStateException("Context is null"),
         //     group
         // )
         // val wallet = Wallet(privateKey, publicKey, walletManager!!)
@@ -106,7 +124,7 @@ class User(
 
     fun getBalance(): Int {
         // walletManager = walletManager ?: WalletManager(
-        //     context ?: throw IllegalStateException("Context is null"), 
+        //     context ?: throw IllegalStateException("Context is null"),
         //     group
         // )
         return walletManager!!.getWalletEntriesToSpend().count()
@@ -119,7 +137,7 @@ class User(
     ): String {
 
         // walletManager = walletManager ?: WalletManager(
-        //     context ?: throw IllegalStateException("Context is null"), 
+        //     context ?: throw IllegalStateException("Context is null"),
         //     group
         // )
         // val wallet = Wallet(privateKey, publicKey, walletManager!!)
@@ -141,11 +159,11 @@ class User(
 
     override fun reset() {
         // walletManager = walletManager ?: WalletManager(
-        //     context ?: throw IllegalStateException("Context is null"), 
+        //     context ?: throw IllegalStateException("Context is null"),
         //     group
         // )
         randomizationElementMap.clear()
         walletManager!!.clearWalletEntries()
-        setUp()
+        runUserSetup()
     }
 }

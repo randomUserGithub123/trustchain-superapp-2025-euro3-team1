@@ -56,20 +56,27 @@ import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 class BluetoothCommunicationProtocol(
     val addressBookManager: AddressBookManager,
     val community: OfflineEuroCommunity,
-    private val context: Context
+    private val context: Context,
+    override var participant: Participant
 ) : ICommunicationProtocol {
+
+    private val TAG = "BluetoothProtocol"
 
     val messageList = MessageList(this::handleRequestMessage)
 
     private val sleepDuration: Long = 100
     private val timeOutInMS = 10000
 
-    override lateinit var participant: Participant
-
     private val bluetoothAdapter: BluetoothAdapter =
         BluetoothAdapter.getDefaultAdapter() ?: throw IllegalStateException("Bluetooth not supported")
 
     private val SERVICE_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+    private val TTP_SERVICE_UUID: UUID = UUID.fromString("a8a2f32c-5321-4a24-8272-52465e17e39a")
+    private val BANK_SERVICE_UUID: UUID = UUID.fromString("b3e65e6b-42f4-4a27-89b5-4b9a91d2d3a3")
+    private val USER_SERVICE_UUID: UUID = UUID.fromString("c8d348a6-5e58-4e18-842b-56e6d1e4e6f4")
+
+
     private val SERVICE_NAME = "OfflineEuroTransfer"
 
     // Bluetooth Server
@@ -88,33 +95,51 @@ class BluetoothCommunicationProtocol(
     }
 
     private fun startServer() {
+        Log.d(TAG, "startServer: Initializing Bluetooth server...")
+
+        // Determine which UUID to use based on the participant's role
+        val serviceUuid = when (participant) {
+            is TTP -> {
+                Log.d(TAG, "startServer: Participant is a TTP, using TTP_SERVICE_UUID")
+                TTP_SERVICE_UUID
+            }
+            is Bank -> {
+                Log.d(TAG, "startServer: Participant is a Bank, using BANK_SERVICE_UUID")
+                BANK_SERVICE_UUID
+            }
+            is User -> {
+                Log.d(TAG, "startServer: Participant is a User, using USER_SERVICE_UUID")
+                USER_SERVICE_UUID
+            }
+            else -> {
+                Log.e(TAG, "startServer: Participant has an unknown role. Cannot start server.")
+                return // Or throw an exception
+            }
+        }
+
         serverThread = thread(start = true) {
             try {
-                
-                serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(SERVICE_NAME, SERVICE_UUID)
+                // Use the determined role-specific UUID here
+                serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(SERVICE_NAME, serviceUuid)
+                Log.d(TAG, "startServer: Server socket listening on UUID $serviceUuid. Waiting for connections...")
 
                 while (running) {
                     try {
-                        
                         val socket = serverSocket?.accept()
                         if (socket != null) {
+                            Log.i(TAG, "startServer: Incoming connection from ${socket.remoteDevice.name} [${socket.remoteDevice.address}]")
                             thread { handleIncomingConnection(socket) }
                         }
-
                     } catch (e: Exception) {
                         if (running) {
-                            Handler(Looper.getMainLooper()).post {
-                                Toast.makeText(context.applicationContext, "Server error: ${e.message}", Toast.LENGTH_LONG).show()
-                            }
+                            Log.e(TAG, "startServer: Error while accepting connection", e)
                         }
                     }
                 }
             } catch (e: Exception) {
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context.applicationContext, "Server init failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
+                Log.e(TAG, "startServer: Server thread initialization failed", e)
             } finally {
-                Log.d("BluetoothProtocol", "Bluetooth server thread exiting.")
+                Log.d(TAG, "startServer: Bluetooth server thread exiting.")
             }
         }
     }
@@ -133,20 +158,22 @@ class BluetoothCommunicationProtocol(
     private fun handleIncomingConnection(socket: BluetoothSocket) {
         thread {
             try {
-
+                Log.d(TAG, "handleIncomingConnection: Handling connection from ${socket.remoteDevice.name} [${socket.remoteDevice.address}]")
+                // It's crucial to initialize the ObjectOutputStream BEFORE the ObjectInputStream to avoid a deadlock.
                 val output = ObjectOutputStream(socket.outputStream)
                 val input = ObjectInputStream(socket.inputStream)
 
-                when (val requestType = input.readObject() as String) {
+                val requestType = input.readObject() as String
+                Log.d(TAG, "handleIncomingConnection: Received request type: '$requestType'")
+
+                when (requestType) {
 
                     "GET_GROUP_DESCRIPTION_AND_CRS" -> {
-
                         if (participant !is TTP) {
                             throw Exception("Only TTP can provide group description and CRS")
                         }
 
                         val ttp = participant as TTP
-
                         val groupBytes = ttp.group.toGroupElementBytes()
                         val crsBytes = ttp.crs.toCRSBytes()
 
@@ -154,127 +181,108 @@ class BluetoothCommunicationProtocol(
                         output.writeObject(crsBytes)
                         output.writeObject(ttp.publicKey.toBytes())
                         output.flush()
-
                     }
 
                     "REGISTER_AT_TTP" -> {
+                        Log.d(TAG, "handleIncomingConnection: Handling REGISTER_AT_TTP request.")
 
                         val userName = input.readObject() as String
                         val publicKeyBytes = input.readObject() as ByteArray
                         val ttpPublicKeyBytes = input.readObject() as ByteArray
+                        Log.d(TAG, "handleIncomingConnection: Received registration for user '$userName', pk size: ${publicKeyBytes.size}, ttp pk size: ${ttpPublicKeyBytes.size}")
 
                         if (participant !is TTP) {
-                            throw Exception("Only TTP can handle registrations")
+                            val errorMsg = "This device is not a TTP. It is a ${participant::class.simpleName}."
+                            Log.e(TAG, "handleIncomingConnection: $errorMsg")
+                            output.writeObject("ERROR: $errorMsg")
+                            output.flush()
+                            throw Exception(errorMsg)
                         }
 
                         val ttp = participant as TTP
                         val publicKey = ttp.group.gElementFromBytes(publicKeyBytes)
-                        
-                        ttp.registerUser(userName, publicKey)
 
+                        Log.d(TAG, "handleIncomingConnection: Calling ttp.registerUser...")
+                        ttp.registerUser(userName, publicKey)
+                        Log.i(TAG, "handleIncomingConnection: Successfully registered user '$userName'.")
+
+                        Log.d(TAG, "handleIncomingConnection: Sending 'SUCCESS' response.")
                         output.writeObject("SUCCESS")
                         output.flush()
-
+                        Log.d(TAG, "handleIncomingConnection: 'SUCCESS' response sent.")
                     }
 
                     "BLIND_SIGNATURE_RANDOMNESS_REQUEST" -> {
-                        
                         val publicKeyBytes = input.readObject() as ByteArray
-
                         if (participant !is Bank) {
                             throw Exception("Not a bank")
                         }
-
                         val bank = participant as Bank
                         val publicKey = bank.group.gElementFromBytes(publicKeyBytes)
                         val randomness = bank.getBlindSignatureRandomness(publicKey)
-
                         output.writeObject(randomness.toBytes())
                         output.flush()
-                    
                     }
 
                     "BLIND_SIGNATURE_REQUEST" -> {
-
                         val publicKeyBytes = input.readObject() as ByteArray
                         val challenge = input.readObject() as BigInteger
-
                         if (participant !is Bank) {
                             throw Exception("Participant is not a bank")
                         }
-
                         val bank = participant as Bank
                         val publicKey = bank.group.gElementFromBytes(publicKeyBytes)
-
                         val signature = bank.createBlindSignature(challenge, publicKey)
-
                         output.writeObject(signature)
                         output.flush()
-
                     }
 
                     "GET_PUBLIC_KEY" -> {
-
                         val publicKeyBytes = participant.publicKey.toBytes()
                         output.writeObject(publicKeyBytes)
                         output.flush()
-
                     }
 
                     "TRANSACTION_RANDOMNESS_REQUEST" -> {
-
                         val publicKeyBytes = input.readObject() as ByteArray
                         val bankPublicKeyBytes = input.readObject() as ByteArray
-
                         if (participant !is User) {
                             throw Exception("Participant is not a user. Participant is: ${participant::class.qualifiedName}")
                         }
-
                         val user = participant as User
                         val publicKey = user.group.gElementFromBytes(publicKeyBytes)
-
                         this.bankPublicKey = user.group.gElementFromBytes(bankPublicKeyBytes)
-
                         val randomizationElements = participant.generateRandomizationElements(publicKey)
                         val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
-
                         output.writeObject(randomizationElementBytes)
                         output.flush()
-
                     }
 
                     "TRANSACTION_DETAILS" -> {
-
                         val publicKeyBytes = input.readObject() as ByteArray
                         val transactionDetailsBytes = input.readObject() as TransactionDetailsBytes
-
-                        val bankPublicKey =
-                            if (participant is Bank) {
-                                participant.publicKey
-                            } else {
-                                this.bankPublicKey
-                            }
-
+                        val bankPublicKey = if (participant is Bank) {
+                            participant.publicKey
+                        } else {
+                            this.bankPublicKey
+                        }
                         val group = participant.group
                         val publicKey = group.gElementFromBytes(publicKeyBytes)
                         val transactionDetails = transactionDetailsBytes.toTransactionDetails(group)
-
                         val result = participant.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
-
                         output.writeObject(result)
                         output.flush()
-
                     }
-
                 }
 
                 socket.close()
+                Log.d(TAG, "handleIncomingConnection: Socket closed for ${socket.remoteDevice.address}")
 
             } catch (e: Exception) {
-                if (e.message?.contains("closed") == true) {
-                    Log.i("BluetoothProtocol", "Socket closed normally.")
+                if (e.message?.contains("closed") == true || e is java.io.EOFException) {
+                    Log.i(TAG, "handleIncomingConnection: Socket closed normally by the other device.")
                 } else {
-                    Log.e("BluetoothProtocol", "Exception during connection", e)
+                    Log.e(TAG, "handleIncomingConnection: Exception during connection", e)
                     Handler(Looper.getMainLooper()).post {
                         Toast.makeText(context.applicationContext, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                     }
@@ -283,14 +291,99 @@ class BluetoothCommunicationProtocol(
         }
     }
 
-    private fun discoverNearbyDeviceBlocking(): BluetoothDevice? {
+    private fun discoverDeviceWithRoleBlocking(targetRole: Role): BluetoothDevice? {
+        Log.d(TAG, "discoverDeviceWithRoleBlocking: Looking for a device with role: $targetRole")
+        val latch = CountDownLatch(1)
+        var foundDevice: BluetoothDevice? = null
+        val appContext = context.applicationContext
 
+        // 1. Get the target UUID for the role we are looking for
+        val targetUuid = when (targetRole) {
+            Role.TTP -> TTP_SERVICE_UUID
+            Role.Bank -> BANK_SERVICE_UUID
+            Role.User -> USER_SERVICE_UUID
+        }
+        Log.d(TAG, "discoverDeviceWithRoleBlocking: Target Service UUID: $targetUuid")
+
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                // FIX: Use the safe call operator '?.' because 'intent' can be null.
+                val action = intent?.action
+                val deviceFromIntent: BluetoothDevice? = intent?.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+
+                when (action) {
+                    BluetoothDevice.ACTION_FOUND -> {
+                        val device = deviceFromIntent ?: return
+
+                        // FIX: Also apply the safe call here and provide a default value if the intent is null.
+                        // Using '?: return' ensures we don't proceed with a null RSSI value.
+                        val rssi = intent?.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE) ?: return
+
+                        Log.d(TAG, "onReceive: ACTION_FOUND: ${device.name} [${device.address}] | RSSI: $rssi")
+
+                        if (rssi >= -100) {
+                            Log.d(TAG, "onReceive: Device is close enough. Fetching its services (SDP query)...")
+                            device.fetchUuidsWithSdp()
+                        }
+                    }
+
+                    BluetoothDevice.ACTION_UUID -> {
+                        val device = deviceFromIntent ?: return
+                        val uuids = device.uuids
+                        Log.d(TAG, "onReceive: ACTION_UUID for ${device.name}. Found UUIDs: ${uuids?.joinToString()}")
+
+                        if (uuids?.any { it.uuid == targetUuid } == true) {
+                            Log.i(TAG, "onReceive: SUCCESS! Found device ${device.name} with target role $targetRole.")
+                            foundDevice = device
+                            bluetoothAdapter.cancelDiscovery()
+                            latch.countDown()
+                        }
+                    }
+
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                        Log.i(TAG, "onReceive: ACTION_DISCOVERY_FINISHED. Releasing latch if not already done.")
+                        // latch.countDown()
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothDevice.ACTION_UUID)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        }
+        context.registerReceiver(receiver, filter)
+
+        if (bluetoothAdapter.isDiscovering) {
+            bluetoothAdapter.cancelDiscovery()
+        }
+
+        Log.d(TAG, "discoverDeviceWithRoleBlocking: Starting discovery...")
+        bluetoothAdapter.startDiscovery()
+
+        // Wait for a result or timeout
+        latch.await(30, java.util.concurrent.TimeUnit.SECONDS)
+
+        // Cleanup
+        bluetoothAdapter.cancelDiscovery()
+        context.unregisterReceiver(receiver)
+
+        if (foundDevice == null) {
+            Log.w(TAG, "discoverDeviceWithRoleBlocking: Could not find any device with role $targetRole.")
+        }
+
+        return foundDevice
+    }
+
+    private fun discoverNearbyDeviceBlocking(): BluetoothDevice? {
+        Log.d(TAG, "discoverNearbyDeviceBlocking: Starting device discovery process...")
         val foundDevices = mutableListOf<BluetoothDevice>()
         val latch = CountDownLatch(1)
-
         val appContext = context.applicationContext
 
         if (!bluetoothAdapter.isEnabled) {
+            Log.e(TAG, "discoverNearbyDeviceBlocking: Bluetooth is not enabled.")
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(appContext, "Enable Bluetooth first", Toast.LENGTH_LONG).show()
             }
@@ -300,12 +393,14 @@ class BluetoothCommunicationProtocol(
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
         val locationEnabled = locationManager?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true
         if (!locationEnabled) {
+            Log.e(TAG, "discoverNearbyDeviceBlocking: Location services are not enabled.")
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(appContext, "Enable location services", Toast.LENGTH_LONG).show()
+                Toast.makeText(appContext, "Enable location services for Bluetooth discovery", Toast.LENGTH_LONG).show()
             }
             return null
         }
 
+        Log.d(TAG, "discoverNearbyDeviceBlocking: Unpairing previously bonded phones to ensure fresh discovery.")
         val bondedDevices = bluetoothAdapter.bondedDevices
         for (device in bondedDevices) {
             val deviceClass = device.bluetoothClass?.deviceClass
@@ -322,22 +417,13 @@ class BluetoothCommunicationProtocol(
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 val action = intent?.action
-
-                // Handler(Looper.getMainLooper()).post {
-                //     Toast.makeText(appContext, "Broadcast: $action", Toast.LENGTH_SHORT).show()
-                // }
-
                 when (action) {
                     BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(appContext, "Discovery started", Toast.LENGTH_SHORT).show()
-                        }
+                        Log.i(TAG, "onReceive: ACTION_DISCOVERY_STARTED")
                     }
 
                     BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(appContext, "Discovery finished", Toast.LENGTH_SHORT).show()
-                        }
+                        Log.i(TAG, "onReceive: ACTION_DISCOVERY_FINISHED")
                         latch.countDown()
                     }
 
@@ -348,25 +434,20 @@ class BluetoothCommunicationProtocol(
                         val address = device?.address ?: "Unknown"
                         val deviceClass = device?.bluetoothClass?.deviceClass
 
-                        // val info = "Found: $name [$address] | RSSI: $rssi"
-                        // Handler(Looper.getMainLooper()).post {
-                        //     Toast.makeText(appContext, info, Toast.LENGTH_SHORT).show()
-                        // }
+                        Log.d(TAG, "onReceive: ACTION_FOUND: $name [$address] | RSSI: $rssi | Class: $deviceClass")
 
-                        if(
-                            device != null &&
-                            rssi >= -30 &&
-                            deviceClass == BluetoothClass.Device.PHONE_SMART &&
-                            !foundDevices.contains(device)
-                        ){
+                        if (device != null && !foundDevices.contains(device)) {
+                            val isPhone = deviceClass == BluetoothClass.Device.PHONE_SMART
+                            val isCloseEnough = rssi >= -65
 
-                            // Handler(Looper.getMainLooper()).post {
-                            //     Toast.makeText(appContext, "Found device!", Toast.LENGTH_SHORT).show()
-                            // }
+                            Log.d(TAG, "onReceive: Checking device '$name'. Is phone? $isPhone. Is close enough? $isCloseEnough (RSSI: $rssi)")
 
-                            foundDevices.add(device)
-                            bluetoothAdapter.cancelDiscovery()
-                            latch.countDown()
+                            if (isPhone && isCloseEnough) {
+                                Log.i(TAG, "onReceive: Found suitable target device: $name. Stopping discovery.")
+                                foundDevices.add(device)
+                                bluetoothAdapter.cancelDiscovery()
+                                latch.countDown()
+                            }
                         }
                     }
                 }
@@ -381,25 +462,25 @@ class BluetoothCommunicationProtocol(
         context.registerReceiver(receiver, filter)
 
         if (bluetoothAdapter.isDiscovering) {
+            Log.d(TAG, "discoverNearbyDeviceBlocking: Already discovering, cancelling previous one.")
             bluetoothAdapter.cancelDiscovery()
         }
 
-        val started = bluetoothAdapter.startDiscovery()
-        if (!started) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(appContext, "startDiscovery() failed", Toast.LENGTH_LONG).show()
-            }
+        if (!bluetoothAdapter.startDiscovery()) {
+            Log.e(TAG, "discoverNearbyDeviceBlocking: startDiscovery() returned false. Discovery could not be started.")
             try {
                 context.unregisterReceiver(receiver)
             } catch (_: Exception) {}
             return null
         }
+        Log.d(TAG, "discoverNearbyDeviceBlocking: startDiscovery() successful.")
 
         Handler(Looper.getMainLooper()).postDelayed({
             if (latch.count > 0) {
+                Log.w(TAG, "discoverNearbyDeviceBlocking: Discovery timed out after 40 seconds.")
                 bluetoothAdapter.cancelDiscovery()
                 Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(appContext, "TIMEOUT", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(appContext, "Discovery Timeout", Toast.LENGTH_SHORT).show()
                 }
                 latch.countDown()
             }
@@ -409,14 +490,21 @@ class BluetoothCommunicationProtocol(
 
         try {
             context.unregisterReceiver(receiver)
-        } catch (_: Exception) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(appContext, "Receiver already unregistered", Toast.LENGTH_SHORT).show()
-            }
+            Log.d(TAG, "discoverNearbyDeviceBlocking: BroadcastReceiver unregistered.")
+        } catch (e: Exception) {
+            Log.w(TAG, "discoverNearbyDeviceBlocking: Receiver already unregistered.", e)
         }
 
-        return foundDevices.firstOrNull()
+        val resultDevice = foundDevices.firstOrNull()
+        if (resultDevice == null) {
+            Log.w(TAG, "discoverNearbyDeviceBlocking: Discovery finished, but no suitable device was found.")
+        } else {
+            Log.i(TAG, "discoverNearbyDeviceBlocking: Discovery finished. Selected device: ${resultDevice.name}")
+        }
+        return resultDevice
     }
+
+
 
     @Suppress("DiscouragedPrivateApi")
     private fun unpairDevice(device: BluetoothDevice): Boolean {
@@ -433,16 +521,23 @@ class BluetoothCommunicationProtocol(
 
 
     fun startSession(): Boolean {
-
+        Log.d(TAG, "startSession: Attempting to start a new session.")
         try {
+            if (activeDevice != null) {
+                Log.d(TAG, "startSession: Session already active with device ${activeDevice?.name}")
+                return true
+            }
 
-            if (activeDevice != null) return true
-
-            val device = discoverNearbyDeviceBlocking() ?: return false
+            val device = discoverNearbyDeviceBlocking()
+            if (device == null) {
+                Log.e(TAG, "startSession: discoverNearbyDeviceBlocking failed to find a device.")
+                return false
+            }
             activeDevice = device
-
+            Log.i(TAG, "startSession: Session started successfully with device ${activeDevice?.name}")
             return true
         } catch (e: Exception) {
+            Log.e(TAG, "startSession: startSession() failed", e)
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context.applicationContext, "startSession() failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -472,10 +567,19 @@ class BluetoothCommunicationProtocol(
     // }
 
     override fun getGroupDescriptionAndCRS() {
-        if (!startSession()) throw Exception("No peer connected")
+        Log.d(TAG, "getGroupDescriptionAndCRS: Looking for a TTP device.")
+        activeDevice = discoverDeviceWithRoleBlocking(Role.TTP)
 
+        if (activeDevice == null) {
+            val errorMsg = "Could not find a TTP device to get group description."
+            Log.e(TAG, "getGroupDescriptionAndCRS: $errorMsg")
+            throw TimeoutException(errorMsg)
+        }
+
+        Log.d(TAG, "getGroupDescriptionAndCRS: Found TTP device ${activeDevice?.name}. Connecting...")
+        var socket: BluetoothSocket? = null
         try{
-            val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+            socket = activeDevice!!.createRfcommSocketToServiceRecord(TTP_SERVICE_UUID)
             socket.connect()
 
             val output = ObjectOutputStream(socket.outputStream)
@@ -500,14 +604,14 @@ class BluetoothCommunicationProtocol(
                 Toast.makeText(context.applicationContext, "getGroupDescriptionAndCRS() SUCCESS", Toast.LENGTH_LONG).show()
             }
 
-            socket.close()
-
         } catch(e: Exception){
+            Log.e(TAG, "getGroupDescriptionAndCRS: FAILED", e)
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context.applicationContext, "getGroupDescriptionAndCRS() FAIL: ${e.message}", Toast.LENGTH_LONG).show()
             }
+        } finally {
+            socket?.close()
         }
-
     }
 
     // override fun register(
@@ -524,41 +628,69 @@ class BluetoothCommunicationProtocol(
         publicKey: Element,
         nameTTP: String
     ) {
-        if (!startSession()) throw Exception("No peer connected")
+        Log.d(TAG, "register: Called for user '$userName' to register at TTP '$nameTTP'")
 
-        try{
-            val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
+        // Use the new role-based discovery function
+        activeDevice = discoverDeviceWithRoleBlocking(Role.TTP)
+
+        if (activeDevice == null) {
+            Log.e(TAG, "register: Could not find a TTP device. Aborting registration.")
+            throw Exception("No TTP peer found")
+        }
+
+        Log.d(TAG, "register: Found TTP device ${activeDevice?.name}. Proceeding with registration.")
+
+        // The call to startSession() has been removed. This is the fix.
+
+        var socket: BluetoothSocket? = null
+        try {
+            // Now this will correctly use the TTP device you discovered.
+            socket = activeDevice!!.createRfcommSocketToServiceRecord(TTP_SERVICE_UUID)
+            Log.d(TAG, "register: RFCOMM socket created. Attempting to connect...")
             socket.connect()
+            Log.i(TAG, "register: Socket connected successfully to ${activeDevice?.address}")
 
+            // ... a lot of code from the original function
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
-            
+
             val ttpAddress = addressBookManager.getAddressByName(nameTTP)
             val ttpPublicKeyBytes = ttpAddress.publicKey.toBytes()
 
+            Log.d(TAG, "register: Sending request type 'REGISTER_AT_TTP'")
             output.writeObject("REGISTER_AT_TTP")
+            Log.d(TAG, "register: Sending userName '$userName'")
             output.writeObject(userName)
+            Log.d(TAG, "register: Sending public key (size: ${publicKey.toBytes().size})")
             output.writeObject(publicKey.toBytes())
+            Log.d(TAG, "register: Sending TTP public key (size: ${ttpPublicKeyBytes.size})")
             output.writeObject(ttpPublicKeyBytes)
             output.flush()
+            Log.d(TAG, "register: All data sent and flushed. Waiting for response...")
 
             val result = input.readObject() as String
+            Log.i(TAG, "register: Received response from TTP: '$result'")
             if (result != "SUCCESS") {
-                throw Exception("Registration failed: $result")
+                throw Exception("Registration failed with response: $result")
             }
 
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context.applicationContext, "register() SUCCESS", Toast.LENGTH_LONG).show()
             }
 
-            socket.close()
-
-        } catch(e: Exception){
+        } catch(e: Exception) {
+            Log.e(TAG, "register: Registration FAILED", e)
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context.applicationContext, "register() FAIL: ${e.message}", Toast.LENGTH_LONG).show()
             }
+        } finally {
+            try {
+                socket?.close()
+                Log.d(TAG, "register: Socket closed.")
+            } catch (e: Exception) {
+                Log.e(TAG, "register: Error closing socket", e)
+            }
         }
-
     }
 
     /////////////////////////////
@@ -572,23 +704,37 @@ class BluetoothCommunicationProtocol(
         bankName: String,
         group: BilinearGroup
     ): Element {
-        if (!startSession()) throw Exception("No peer connected")
+        Log.d(TAG, "getBlindSignatureRandomness: Looking for a Bank device.")
+        activeDevice = discoverDeviceWithRoleBlocking(Role.Bank) // 1. Look for a BANK
 
-        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
-        socket.connect()
+        if (activeDevice == null) {
+            Log.e(TAG, "getBlindSignatureRandomness: Could not find a Bank device.")
+            throw Exception("No Bank peer found")
+        }
 
-        val output = ObjectOutputStream(socket.outputStream)
-        val input = ObjectInputStream(socket.inputStream)
+        Log.d(TAG, "getBlindSignatureRandomness: Found Bank device ${activeDevice?.name}. Connecting...")
+        var socket: BluetoothSocket? = null
+        try {
+            // 2. Connect using the BANK_SERVICE_UUID
+            socket = activeDevice!!.createRfcommSocketToServiceRecord(BANK_SERVICE_UUID)
+            socket.connect()
 
-        output.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
-        output.writeObject(publicKey.toBytes())
-        output.flush()
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
 
-        val randomnessBytes = input.readObject() as ByteArray
+            output.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
+            output.writeObject(publicKey.toBytes())
+            output.flush()
 
-        socket.close()
+            val randomnessBytes = input.readObject() as ByteArray
+            return group.gElementFromBytes(randomnessBytes)
 
-        return group.gElementFromBytes(randomnessBytes)
+        } catch(e: Exception) {
+            Log.e(TAG, "getBlindSignatureRandomness: FAILED", e)
+            throw e // Re-throw the exception
+        } finally {
+            socket?.close()
+        }
     }
 
     override fun requestBlindSignature(
@@ -596,24 +742,40 @@ class BluetoothCommunicationProtocol(
         bankName: String,
         challenge: BigInteger
     ): BigInteger {
-        if (!startSession()) throw Exception("No peer connected")
+        Log.d(TAG, "requestBlindSignature: Looking for a Bank device.")
+        activeDevice = discoverDeviceWithRoleBlocking(Role.Bank)
 
-        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
-        socket.connect()
+        if (activeDevice == null) {
+            val errorMsg = "Could not find a Bank device."
+            Log.e(TAG, "requestBlindSignature: $errorMsg")
+            throw TimeoutException(errorMsg)
+        }
 
-        val output = ObjectOutputStream(socket.outputStream)
-        val input = ObjectInputStream(socket.inputStream)
+        Log.d(TAG, "requestBlindSignature: Found Bank device ${activeDevice?.name}. Connecting...")
+        var socket: BluetoothSocket? = null
+        try {
+            // Connect using the BANK_SERVICE_UUID
+            socket = activeDevice!!.createRfcommSocketToServiceRecord(BANK_SERVICE_UUID)
+            socket.connect()
 
-        output.writeObject("BLIND_SIGNATURE_REQUEST")
-        output.writeObject(publicKey.toBytes())
-        output.writeObject(challenge)
-        output.flush()
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
 
-        val signature = input.readObject() as BigInteger
+            output.writeObject("BLIND_SIGNATURE_REQUEST")
+            output.writeObject(publicKey.toBytes())
+            output.writeObject(challenge)
+            output.flush()
 
-        socket.close()
+            val signature = input.readObject() as BigInteger
+            Log.i(TAG, "requestBlindSignature: Successfully received blind signature from Bank.")
+            return signature
 
-        return signature
+        } catch (e: Exception) {
+            Log.e(TAG, "requestBlindSignature: FAILED", e)
+            throw e
+        } finally {
+            socket?.close()
+        }
     }
 
 
@@ -627,48 +789,78 @@ class BluetoothCommunicationProtocol(
         userNameReceiver: String,
         group: BilinearGroup
     ): RandomizationElements {
-    
-        if (!startSession()) throw Exception("No peer connected")
+        Log.d(TAG, "requestTransactionRandomness: Looking for a User device.")
+        activeDevice = discoverDeviceWithRoleBlocking(Role.User)
 
-        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
-        socket.connect()
+        if (activeDevice == null) {
+            val errorMsg = "Could not find another User device for transaction."
+            Log.e(TAG, "requestTransactionRandomness: $errorMsg")
+            throw TimeoutException(errorMsg)
+        }
 
-        val output = ObjectOutputStream(socket.outputStream)
-        val input  = ObjectInputStream(socket.inputStream)
+        Log.d(TAG, "requestTransactionRandomness: Found User device ${activeDevice?.name}. Connecting...")
+        var socket: BluetoothSocket? = null
+        try {
+            // Connect using the USER_SERVICE_UUID
+            socket = activeDevice!!.createRfcommSocketToServiceRecord(USER_SERVICE_UUID)
+            socket.connect()
 
-        output.writeObject("TRANSACTION_RANDOMNESS_REQUEST")
-        output.writeObject(participant.publicKey.toBytes())
-        output.writeObject(this.bankPublicKey.toBytes())
-        output.flush()
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
 
-        val randBytes = input.readObject() as RandomizationElementsBytes
-        socket.close()
+            output.writeObject("TRANSACTION_RANDOMNESS_REQUEST")
+            output.writeObject(participant.publicKey.toBytes())
+            output.writeObject(this.bankPublicKey.toBytes())
+            output.flush()
 
-        return randBytes.toRandomizationElements(group)
+            val randBytes = input.readObject() as RandomizationElementsBytes
+            Log.i(TAG, "requestTransactionRandomness: Successfully received transaction randomness.")
+            return randBytes.toRandomizationElements(group)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "requestTransactionRandomness: FAILED", e)
+            throw e
+        } finally {
+            socket?.close()
+        }
     }
 
     override fun sendTransactionDetails(
         userNameReceiver: String,
         transactionDetails: TransactionDetails
     ): String {
+        // Note: This function assumes a session is already active from requestTransactionRandomness
+        if (activeDevice == null) {
+            val errorMsg = "No active device session for sending transaction details. Must request randomness first."
+            Log.e(TAG, "sendTransactionDetails: $errorMsg")
+            throw IllegalStateException(errorMsg)
+        }
 
-        if (!startSession()) throw Exception("No peer connected")
+        Log.d(TAG, "sendTransactionDetails: Sending details to User device ${activeDevice?.name}...")
+        var socket: BluetoothSocket? = null
+        try {
+            // Connect using the USER_SERVICE_UUID
+            socket = activeDevice!!.createRfcommSocketToServiceRecord(USER_SERVICE_UUID)
+            socket.connect()
 
-        val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
-        socket.connect()
+            val output = ObjectOutputStream(socket.outputStream)
+            val input = ObjectInputStream(socket.inputStream)
 
-        val output = ObjectOutputStream(socket.outputStream)
-        val input  = ObjectInputStream(socket.inputStream)
+            output.writeObject("TRANSACTION_DETAILS")
+            output.writeObject(participant.publicKey.toBytes())
+            output.writeObject(transactionDetails.toTransactionDetailsBytes())
+            output.flush()
 
-        output.writeObject("TRANSACTION_DETAILS")
-        output.writeObject(participant.publicKey.toBytes())
-        output.writeObject(transactionDetails.toTransactionDetailsBytes())
-        output.flush()
+            val result = input.readObject() as String
+            Log.i(TAG, "sendTransactionDetails: Successfully received transaction result: $result")
+            return result
 
-        val result = input.readObject() as String
-        socket.close()
-
-        return result
+        } catch (e: Exception) {
+            Log.e(TAG, "sendTransactionDetails: FAILED", e)
+            throw e
+        } finally {
+            socket?.close()
+        }
     }
 
     /////////////////////////////

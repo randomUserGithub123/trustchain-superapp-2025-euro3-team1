@@ -11,15 +11,13 @@ import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 class TTP(
     name: String = "TTP",
     group: BilinearGroup,
-    communicationProtocol: ICommunicationProtocol,
     context: Context?,
     private val registeredUserManager: RegisteredUserManager = RegisteredUserManager(context, group),
     onDataChangeCallback: ((String?) -> Unit)? = null
-) : Participant(communicationProtocol, name, onDataChangeCallback) {
+) : Participant(name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
 
     init {
-        communicationProtocol.participant = this
         this.group = group
         val generatedCRS = CRSGenerator.generateCRSMap(group)
         this.crs = generatedCRS.first
