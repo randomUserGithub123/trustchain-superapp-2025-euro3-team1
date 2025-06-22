@@ -238,10 +238,10 @@ class TrustChainApplication : Application() {
                 periodicSimilarity,
                 nsd
             )
-        if (bluetoothManager.adapter != null) {
-            val ble = BluetoothLeDiscovery.Factory()
-            strategies += ble
-        }
+//        if (bluetoothManager.adapter != null) {
+//            val ble = BluetoothLeDiscovery.Factory()
+//            strategies += ble
+//        }
 
         return OverlayConfiguration(
             DiscoveryCommunity.Factory(),
