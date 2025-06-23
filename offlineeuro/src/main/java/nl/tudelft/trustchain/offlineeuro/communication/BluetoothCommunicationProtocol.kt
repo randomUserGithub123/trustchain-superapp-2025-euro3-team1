@@ -240,6 +240,8 @@ class BluetoothCommunicationProtocol(
         }
     }
 
+    // In BluetoothCommunicationProtocol.kt
+
     private fun discoverDeviceWithRoleBlocking(targetRole: Role): BluetoothDevice? {
         Log.d(TAG, "discoverDeviceWithRoleBlocking: Looking for a device with role: $targetRole")
         val latch = CountDownLatch(1)
@@ -266,23 +268,39 @@ class BluetoothCommunicationProtocol(
                         val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE)
                         if (device != null && device.name != null && rssi > -80) {
                             Log.d(TAG, "onReceive(ACTION_FOUND): Found nearby device '${device.name}'. Fetching services (SDP)...")
+                            // This initiates the service discovery
                             device.fetchUuidsWithSdp()
                         }
                     }
                     BluetoothDevice.ACTION_UUID -> {
                         val deviceWithUuid = device ?: return
-                        if (deviceWithUuid.uuids?.any { it.uuid == targetUuid } == true) {
+                        val receivedUuids = deviceWithUuid.uuids
+
+                        // --- START OF CRITICAL DEBUGGING LOGS ---
+                        if (receivedUuids != null) {
+                            Log.i(TAG, "onReceive(ACTION_UUID): Received UUIDs for device '${deviceWithUuid.name}':")
+                            for (uuid in receivedUuids) {
+                                Log.i(TAG, "  - Found Service: ${uuid.uuid}")
+                            }
+                        } else {
+                            Log.w(TAG, "onReceive(ACTION_UUID): Received NULL UUIDs for device '${deviceWithUuid.name}'. This often indicates a caching issue.")
+                        }
+                        // --- END OF CRITICAL DEBUGGING LOGS ---
+
+                        if (receivedUuids?.any { it.uuid == targetUuid } == true) {
                             Log.i(TAG, "onReceive(ACTION_UUID): SUCCESS! Found device '${deviceWithUuid.name}' with target role $targetRole.")
                             foundDevice = deviceWithUuid
-                            bluetoothAdapter.cancelDiscovery()
+                            if (bluetoothAdapter.isDiscovering) {
+                                bluetoothAdapter.cancelDiscovery()
+                            }
                             latch.countDown()
                         }
                     }
                     BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
                         if (foundDevice == null) {
-                            Log.i(TAG, "onReceive(ACTION_DISCOVERY_FINISHED): Discovery finished before finding a suitable device.")
-                            latch.countDown()
+                            Log.d(TAG, "onReceive(ACTION_DISCOVERY_FINISHED): Discovery timed out without finding the target service.")
                         }
+                        latch.countDown()
                     }
                 }
             }
@@ -399,14 +417,16 @@ class BluetoothCommunicationProtocol(
         }
     }
 
-    private fun discoverNearbyUsersAndPrompt(): BluetoothDevice? {
-        Log.d(TAG, "discoverNearbyUsersAndPrompt: Starting user discovery process...")
+    private fun discoverAndSelectUser(): BluetoothDevice? {
+        Log.d(TAG, "discoverAndSelectUser: Starting discovery to find nearby users.")
         val foundDevices = mutableListOf<BluetoothDevice>()
-        val latch = CountDownLatch(1)
+        val discoveryLatch = CountDownLatch(1)
+        val selectionLatch = CountDownLatch(1)
+        var selectedDevice: BluetoothDevice? = null
+
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
-                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> latch.countDown()
                     BluetoothDevice.ACTION_FOUND -> {
                         val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
@@ -414,17 +434,22 @@ class BluetoothCommunicationProtocol(
                             @Suppress("DEPRECATION")
                             intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                         }
-                        val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE)
-                        if (device != null && device.name != null && rssi > -80 &&
+                        // Simple filter for phones with a name
+                        if (device != null && device.name != null &&
                             device.bluetoothClass?.deviceClass == BluetoothClass.Device.PHONE_SMART &&
                             foundDevices.none { it.address == device.address }) {
-                            Log.i(TAG, "onReceive: Found suitable nearby user: ${device.name}. Adding to list.")
+                            Log.i(TAG, "discoverAndSelectUser: Found potential user: ${device.name}")
                             foundDevices.add(device)
                         }
+                    }
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                        Log.d(TAG, "discoverAndSelectUser: Discovery finished.")
+                        discoveryLatch.countDown()
                     }
                 }
             }
         }
+
         val filter = IntentFilter().apply {
             addAction(BluetoothDevice.ACTION_FOUND)
             addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
@@ -432,42 +457,47 @@ class BluetoothCommunicationProtocol(
         context.registerReceiver(receiver, filter)
         if (bluetoothAdapter.isDiscovering) bluetoothAdapter.cancelDiscovery()
         bluetoothAdapter.startDiscovery()
-        latch.await(DISCOVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+
+        // Wait for discovery to finish
+        discoveryLatch.await(DISCOVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         if (bluetoothAdapter.isDiscovering) bluetoothAdapter.cancelDiscovery()
         try { context.unregisterReceiver(receiver) } catch (e: Exception) {}
-        return promptUserToSelectDevice(foundDevices)
-    }
 
-    private fun promptUserToSelectDevice(devices: List<BluetoothDevice>): BluetoothDevice? {
-        if (devices.isEmpty()) return null
-        if (devices.size == 1) {
-            Log.d(TAG, "promptUserToSelectDevice: Only one device found, selecting automatically: ${devices[0].name}")
-            return devices[0]
-        }
-        val latch = CountDownLatch(1)
-        var selectedDevice: BluetoothDevice? = null
-        val deviceNames = devices.map { it.name ?: "Unnamed Device" }.toTypedArray()
+        // --- Now, prompt the user on the main thread ---
         Handler(Looper.getMainLooper()).post {
+            if (foundDevices.isEmpty()) {
+                Toast.makeText(context, "No nearby users found", Toast.LENGTH_SHORT).show()
+                selectionLatch.countDown()
+                return@post
+            }
+
+            val deviceNames = foundDevices.map { it.name ?: "Unnamed Device" }.toTypedArray()
             AlertDialog.Builder(context)
                 .setTitle("Choose a User to Pay")
                 .setItems(deviceNames) { _, which ->
-                    selectedDevice = devices[which]
-                    latch.countDown()
+                    selectedDevice = foundDevices[which]
+                    selectionLatch.countDown()
                 }
-                .setOnCancelListener { latch.countDown() }
-                .setNegativeButton("Cancel") { _, _ -> latch.countDown() }
+                .setOnCancelListener { selectionLatch.countDown() }
+                .setNegativeButton("Cancel") { _, _ -> selectionLatch.countDown() }
                 .create()
                 .show()
         }
-        latch.await()
+
+        selectionLatch.await() // Wait for the user to make a choice
         return selectedDevice
     }
 
+
     fun startSession(): Boolean {
         return try {
-            if (activeDevice != null) return true
-            val selectedDevice = discoverNearbyUsersAndPrompt() ?: run {
-                Log.e(TAG, "startSession: No user selected or found.")
+            if (activeDevice != null) {
+                Log.d(TAG, "startSession: Session already active with ${activeDevice?.name}")
+                return true
+            }
+            // Use the new, direct discovery and selection method
+            val selectedDevice = discoverAndSelectUser() ?: run {
+                Log.e(TAG, "startSession: No user was selected or found.")
                 return false
             }
             activeDevice = selectedDevice
