@@ -1,7 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.community.payload
 
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.SchnorrSignature
 import nl.tudelft.trustchain.offlineeuro.cryptography.TransactionProof
@@ -66,8 +65,7 @@ class TransactionDetailsPayloadTest {
             transactionProof,
             previousSignature,
             generateSignature(),
-            group.generateRandomElementOfG(),
-            BloomFilter()
+            group.generateRandomElementOfG()
         )
     }
 
