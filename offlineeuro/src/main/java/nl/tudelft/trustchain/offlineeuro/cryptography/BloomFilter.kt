@@ -10,12 +10,12 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
  * A secure bloom filter implementation for double-spending detection in the offline euro system.
  *
  * @property expectedElements The expected number of elements to be stored in the filter
- * @property falsePositiveRate The desired false positive rate (between 0 and 1). Default is 0.01 (1%)
+ * @property falsePositiveRate The desired false positive rate (between 0 and 1). Default is 0.001 (1%)
  * @throws IllegalArgumentException if falsePositiveRate is not between 0 and 1
  */
 class BloomFilter(
     val expectedElements: Int,
-    val falsePositiveRate: Double = 0.01
+    val falsePositiveRate: Double = 0.001
 ) {
     private val bitSet: BitSet
     private val numHashFunctions: Int
