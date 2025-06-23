@@ -13,6 +13,7 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMe
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRSGenerator
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
@@ -74,6 +75,7 @@ class GrowthTest {
                     randomizationElements,
                     group,
                     crs,
+                    BloomFilter()
                 )
             println(transactionDetails.digitalEuro.sizeInBytes())
             // Assert.assertTrue("The transaction should be valid", Transaction.validate(transactionDetails, bank.publicKey, group, crs).valid)

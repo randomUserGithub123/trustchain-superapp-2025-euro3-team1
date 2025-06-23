@@ -40,7 +40,7 @@ class User(
     fun sendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails =
-            wallet.spendEuro(randomizationElements, group, crs)
+            wallet.spendEuro(randomizationElements, group, crs, getBloomFilter())
                 ?: throw Exception("No euro to spend")
 
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails)
@@ -50,7 +50,7 @@ class User(
 
     fun doubleSpendDigitalEuroTo(nameReceiver: String): String {
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
-        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
+        val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs, getBloomFilter())
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
         onDataChangeCallback?.invoke(result)
         return result
@@ -107,6 +107,12 @@ class User(
 
         if (transactionResult.valid) {
             wallet.addToWallet(transactionDetails, usedRandomness)
+            val updateMessage =
+                this.bloomFilter.applyAlgorithm2Update(
+                    transactionDetails.bloomFilter,
+                    wallet.getAllWalletEntriesToSpend().map { it.digitalEuro }
+                )
+            onDataChangeCallback?.invoke(updateMessage)
             onDataChangeCallback?.invoke("Received an euro from $publicKeySender")
             return transactionResult.description
         }

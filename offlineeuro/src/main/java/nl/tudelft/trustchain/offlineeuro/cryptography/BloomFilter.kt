@@ -14,10 +14,10 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
  * @throws IllegalArgumentException if falsePositiveRate is not between 0 and 1
  */
 class BloomFilter(
-    val expectedElements: Int,
+    val expectedElements: Int = 1000,
     val falsePositiveRate: Double = 0.001
 ) {
-    private val bitSet: BitSet
+    private var bitSet: BitSet
     private val numHashFunctions: Int
     private val size: Int
 
@@ -224,8 +224,7 @@ class BloomFilter(
         }
 
         // Update the current Bloom filter's bitSet with the chosen nextSharedBF
-        this.bitSet.clear()
-        this.bitSet.or(nextSharedBF.bitSet)
+        this.bitSet = nextSharedBF.bitSet.clone() as BitSet
 
         return updateMessage
     }
@@ -240,7 +239,7 @@ class BloomFilter(
         fun fromBytes(
             bytes: ByteArray,
             expectedElements: Int,
-            falsePositiveRate: Double = 0.01
+            falsePositiveRate: Double = 0.001
         ): BloomFilter {
             val filter = BloomFilter(expectedElements, falsePositiveRate)
             filter.bitSet.clear()

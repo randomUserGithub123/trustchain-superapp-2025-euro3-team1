@@ -82,7 +82,9 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
         bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
         bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100)}%"
-        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${(bloomFilter.getCurrentFalsePositiveRate() * 100)}%"
+        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
+            bloomFilter.getCurrentFalsePositiveRate() * 100
+        )}%"
         bloomFilterRawStateText.text = "Raw Bloom Filter: ${bloomFilter.toHexString()}"
         bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }

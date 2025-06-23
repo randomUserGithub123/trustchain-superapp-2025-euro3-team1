@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.entity
 
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
@@ -33,6 +34,7 @@ data class TransactionDetailsBytes(
     val previousThetaSignatureBytes: ByteArray,
     val theta1SignatureBytes: ByteArray,
     val spenderPublicKeyBytes: ByteArray,
+    val bloomFilterBytes: ByteArray
 ) : Serializable {
     fun toTransactionDetails(group: BilinearGroup): TransactionDetails {
         return TransactionDetails(
@@ -40,7 +42,8 @@ data class TransactionDetailsBytes(
             currentTransactionProofBytes.toTransactionProof(group),
             SchnorrSignatureSerializer.deserializeSchnorrSignatureBytes(previousThetaSignatureBytes),
             SchnorrSignatureSerializer.deserializeSchnorrSignatureBytes(theta1SignatureBytes)!!,
-            group.gElementFromBytes(spenderPublicKeyBytes)
+            group.gElementFromBytes(spenderPublicKeyBytes),
+            BloomFilter.fromBytes(bloomFilterBytes, 1000)
         )
     }
 }
@@ -51,6 +54,7 @@ data class TransactionDetails(
     val previousThetaSignature: SchnorrSignature?,
     val theta1Signature: SchnorrSignature,
     val spenderPublicKey: Element,
+    val bloomFilter: BloomFilter
 ) {
     fun toTransactionDetailsBytes(): TransactionDetailsBytes {
         return TransactionDetailsBytes(
@@ -58,7 +62,8 @@ data class TransactionDetails(
             currentTransactionProof.toTransactionProofBytes(),
             SchnorrSignatureSerializer.serializeSchnorrSignature(previousThetaSignature),
             SchnorrSignatureSerializer.serializeSchnorrSignature(theta1Signature),
-            spenderPublicKey.toBytes()
+            spenderPublicKey.toBytes(),
+            bloomFilter.toBytes()
         )
     }
 }
@@ -70,7 +75,8 @@ object Transaction {
         walletEntry: WalletEntry,
         randomizationElements: RandomizationElements,
         bilinearGroup: BilinearGroup,
-        crs: CRS
+        crs: CRS,
+        bloomFilter: BloomFilter
     ): TransactionDetails {
         val digitalEuro = walletEntry.digitalEuro
 
@@ -95,7 +101,7 @@ object Transaction {
         val transactionProofSize = GrothSahaiSerializer.serializeGrothSahaiProof(transactionProof.grothSahaiProof).size
         val theta1Signature = Schnorr.schnorrSignature(r, randomizationElements.group1TInv.toBytes(), bilinearGroup)
         val previousThetaSignature = walletEntry.transactionSignature
-        return TransactionDetails(digitalEuro, transactionProof, previousThetaSignature, theta1Signature, publicKey)
+        return TransactionDetails(digitalEuro, transactionProof, previousThetaSignature, theta1Signature, publicKey, bloomFilter)
     }
 
     fun validate(
