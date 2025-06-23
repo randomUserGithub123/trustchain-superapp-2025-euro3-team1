@@ -44,6 +44,7 @@ class User(
                 ?: throw Exception("No euro to spend")
 
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails)
+        communicationProtocol.sendBloomFilter(nameReceiver, getBloomFilter())
         onDataChangeCallback?.invoke(result)
         return result
     }
@@ -52,6 +53,7 @@ class User(
         val randomizationElements = communicationProtocol.requestTransactionRandomness(nameReceiver, group)
         val transactionDetails = wallet.doubleSpendEuro(randomizationElements, group, crs)
         val result = communicationProtocol.sendTransactionDetails(nameReceiver, transactionDetails!!)
+        communicationProtocol.sendBloomFilter(nameReceiver, getBloomFilter())
         onDataChangeCallback?.invoke(result)
         return result
     }

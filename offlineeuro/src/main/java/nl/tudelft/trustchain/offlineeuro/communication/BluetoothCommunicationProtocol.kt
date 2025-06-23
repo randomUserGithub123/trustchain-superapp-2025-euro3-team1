@@ -57,7 +57,7 @@ class BluetoothCommunicationProtocol(
     val messageList = MessageList(this::handleRequestMessage)
 
     private val sleepDuration: Long = 100
-    private val timeOutInMS = 10000
+    private val timeOutInMS = 20000
 
     override lateinit var participant: Participant
 
@@ -662,7 +662,7 @@ class BluetoothCommunicationProtocol(
             if (replyType != "BLOOM_FILTER_REPLY") {
                 throw Exception("Unexpected reply type: $replyType")
             }
-            
+
             val bloomFilterBytes = input.readObject() as ByteArray
             val expectedElements = input.readObject() as Int
             val falsePositiveRate = input.readObject() as Double
@@ -696,12 +696,13 @@ class BluetoothCommunicationProtocol(
 
     private fun handleBloomFilterRequest(output: ObjectOutputStream) {
         if (participant is User || participant is Bank || participant is TTP) {
-            val bloomFilter = when (participant) {
-                is User -> (participant as User).getBloomFilter()
-                is Bank -> (participant as Bank).getBloomFilter()
-                is TTP -> (participant as TTP).getBloomFilter()
-                else -> throw Exception("Unsupported participant type")
-            }
+            val bloomFilter =
+                when (participant) {
+                    is User -> (participant as User).getBloomFilter()
+                    is Bank -> (participant as Bank).getBloomFilter()
+                    is TTP -> (participant as TTP).getBloomFilter()
+                    else -> throw Exception("Unsupported participant type")
+                }
             output.writeObject("BLOOM_FILTER_REPLY")
             output.writeObject(bloomFilter.toBytes())
             output.writeObject(bloomFilter.expectedElements)

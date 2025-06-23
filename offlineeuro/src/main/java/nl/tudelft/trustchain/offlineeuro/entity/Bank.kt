@@ -169,7 +169,6 @@ class Bank(
             digitalEuro.proofs.add(transactionDetails.currentTransactionProof.grothSahaiProof)
             return depositEuro(transactionDetails.digitalEuro, publicKeySender)
         }
-
         return transactionResult.description
     }
 
