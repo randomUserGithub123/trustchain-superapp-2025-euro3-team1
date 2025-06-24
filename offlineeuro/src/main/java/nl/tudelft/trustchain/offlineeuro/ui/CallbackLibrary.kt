@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.content.Context
+import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -38,14 +39,26 @@ object CallbackLibrary {
         updateUserList(view, ttp)
     }
 
+    // In CallbackLibrary.kt
+
     private fun updateUserList(
         view: View,
         ttp: TTP
     ) {
         val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
+        Log.d("UI_DEBUG", "1. Before clearing, the table has ${table.childCount} children.")
+
+        // This is the function you suspect is failing
+        TableHelpers.removeAllRows(table)
+
+        Log.d("UI_DEBUG", "2. After clearing, the table should have 1 child (the header). It has: ${table.childCount}")
+
         val users = ttp.getRegisteredUsers()
-        TableHelpers.removeAllButFirstRow(table)
+        Log.d("UI_DEBUG", "3. Database has ${users.size} users. Adding them now.")
+
         TableHelpers.addRegisteredUsersToTable(table, users)
+
+        Log.d("UI_DEBUG", "4. After adding, the table has ${table.childCount} children.")
     }
 
     fun userCallback(

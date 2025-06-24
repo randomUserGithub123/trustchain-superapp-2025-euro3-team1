@@ -25,6 +25,10 @@ object TableHelpers {
         }
     }
 
+    fun removeAllRows(layout: LinearLayout) {
+        layout.removeAllViews()
+    }
+
     fun addRegisteredUsersToTable(
         table: LinearLayout,
         users: List<RegisteredUser>

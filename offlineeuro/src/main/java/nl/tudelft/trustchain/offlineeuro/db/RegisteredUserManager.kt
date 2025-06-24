@@ -55,6 +55,7 @@ class RegisteredUserManager(
         userName: String,
         publicKey: Element
     ): Boolean {
+
         queries.addUser(
             userName,
             publicKey.toBytes(),
