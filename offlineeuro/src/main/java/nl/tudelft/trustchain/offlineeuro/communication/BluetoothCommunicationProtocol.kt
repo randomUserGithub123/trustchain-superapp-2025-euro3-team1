@@ -48,6 +48,7 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahaiProof
 import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import androidx.core.app.ActivityCompat
+import java.io.IOException
 
 class BluetoothCommunicationProtocol(
     val addressBookManager: AddressBookManager,
@@ -274,6 +275,7 @@ class BluetoothCommunicationProtocol(
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(appContext, "Enable Bluetooth first", Toast.LENGTH_LONG).show()
             }
+            Log.w("BluetoothDiscovery", "Bluetooth is not enabled.")
             return null
         }
 
@@ -283,6 +285,7 @@ class BluetoothCommunicationProtocol(
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(appContext, "Enable location services", Toast.LENGTH_LONG).show()
             }
+            Log.w("BluetoothDiscovery", "Location services are not enabled.")
             return null
         }
 
@@ -290,28 +293,33 @@ class BluetoothCommunicationProtocol(
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(appContext, "Bluetooth permissions are required", Toast.LENGTH_LONG).show()
             }
+            Log.e("BluetoothDiscovery", "Missing required Bluetooth permissions.")
             return null
         }
 
+        // Unpairing existing smart phones can help with fresh discovery sessions
         try {
+            Log.i("BluetoothDiscovery", "Checking bonded devices to unpair existing phones...")
             val bondedDevices = bluetoothAdapter.bondedDevices
             for (device in bondedDevices) {
                 val deviceClass = device.bluetoothClass?.deviceClass
                 if (deviceClass == BluetoothClass.Device.PHONE_SMART) {
                     unpairDevice(device)
-                    Log.i("BluetoothProtocol", "Unpaired device: ${device.name} [${device.address}]")
+                    Log.i("BluetoothDiscovery", "Unpaired previously bonded phone: ${device.name} [${device.address}]")
                 }
             }
         } catch (e: SecurityException) {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(appContext, "Bluetooth permission denied: ${e.message}", Toast.LENGTH_LONG).show()
             }
+            Log.e("BluetoothDiscovery", "SecurityException while unpairing devices.", e)
             return null
         }
 
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(appContext, "Starting Bluetooth discovery...", Toast.LENGTH_SHORT).show()
         }
+        Log.i("BluetoothDiscovery", "Setting up BroadcastReceiver and starting discovery.")
 
         val receiver =
             object : BroadcastReceiver() {
@@ -323,12 +331,14 @@ class BluetoothCommunicationProtocol(
 
                     when (action) {
                         BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                            Log.i("BluetoothDiscovery", "Discovery process has started.")
                             Handler(Looper.getMainLooper()).post {
                                 Toast.makeText(appContext, "Discovery started", Toast.LENGTH_SHORT).show()
                             }
                         }
 
                         BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                            Log.i("BluetoothDiscovery", "Discovery process has finished.")
                             Handler(Looper.getMainLooper()).post {
                                 Toast.makeText(appContext, "Discovery finished", Toast.LENGTH_SHORT).show()
                             }
@@ -339,35 +349,58 @@ class BluetoothCommunicationProtocol(
                             val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                             val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE)
 
-                            var name = "Unnamed"
-                            var address = "Unknown"
-                            var deviceClass: Int? = null
+                            // --- Start of Detailed Logging ---
+                            if (device == null) {
+                                Log.w("BluetoothDiscovery", "Found a device but it was null in the intent.")
+                                return
+                            }
 
+                            var deviceName = "Unknown Name"
+                            var deviceAddress = "Unknown Address"
+                            var deviceClass = "Unknown Class"
                             try {
                                 if (checkBluetoothPermissions()) {
-                                    name = device?.name ?: "Unnamed"
-                                    address = device?.address ?: "Unknown"
-                                    deviceClass = device?.bluetoothClass?.deviceClass
+                                    deviceName = device.name ?: "Unnamed"
+                                    deviceAddress = device.address
+                                    deviceClass = when(device.bluetoothClass?.deviceClass) {
+                                        BluetoothClass.Device.PHONE_SMART -> "PHONE_SMART"
+                                        BluetoothClass.Device.COMPUTER_LAPTOP -> "COMPUTER_LAPTOP"
+                                        else -> "OTHER (${device.bluetoothClass?.deviceClass})"
+                                    }
                                 }
                             } catch (e: SecurityException) {
-                                Log.e("BluetoothProtocol", "Failed to access device properties: ${e.message}")
+                                Log.e("BluetoothDiscovery", "Permission error getting device details.", e)
                             }
 
-                            if (device != null && rssi >= -40 && deviceClass == BluetoothClass.Device.PHONE_SMART &&
-                                !foundDevices.contains(
-                                    device
-                                )
-                            ) {
-                                foundDevices.add(device)
-                                try {
-                                    if (checkBluetoothPermissions()) {
-                                        bluetoothAdapter.cancelDiscovery()
-                                    }
-                                } catch (e: SecurityException) {
-                                    Log.e("BluetoothProtocol", "Failed to cancel discovery: ${e.message}")
-                                }
-                                latch.countDown()
+                            Log.d("BluetoothDiscovery", "--- Device Found: '$deviceName' [$deviceAddress], RSSI: $rssi, Class: $deviceClass ---")
+
+                            // Filtering Logic with Logs
+                            if (rssi < -60) {
+                                Log.d("BluetoothDiscovery", "REJECTED '$deviceName': Signal too weak (RSSI: $rssi).")
+                                return
                             }
+                            if (device.bluetoothClass?.deviceClass != BluetoothClass.Device.PHONE_SMART) {
+                                Log.d("BluetoothDiscovery", "REJECTED '$deviceName': Not a smart phone (Class: $deviceClass).")
+                                return
+                            }
+                            if (foundDevices.contains(device)) {
+                                Log.d("BluetoothDiscovery", "REJECTED '$deviceName': Already in the list of candidates.")
+                                return
+                            }
+
+                            // If all checks pass
+                            Log.i("BluetoothDiscovery", "ACCEPTED '$deviceName' as a candidate. Stopping discovery.")
+                            // --- End of Detailed Logging ---
+
+                            foundDevices.add(device)
+                            try {
+                                if (checkBluetoothPermissions()) {
+                                    bluetoothAdapter.cancelDiscovery()
+                                }
+                            } catch (e: SecurityException) {
+                                Log.e("BluetoothDiscovery", "Failed to cancel discovery after finding a device.", e)
+                            }
+                            latch.countDown()
                         }
                     }
                 }
@@ -384,10 +417,14 @@ class BluetoothCommunicationProtocol(
         try {
             if (checkBluetoothPermissions()) {
                 if (bluetoothAdapter.isDiscovering) {
+                    Log.w("BluetoothDiscovery", "Discovery was already running. Cancelling before starting new one.")
                     bluetoothAdapter.cancelDiscovery()
                 }
                 val started = bluetoothAdapter.startDiscovery()
-                if (!started) {
+                if (started) {
+                    Log.i("BluetoothDiscovery", "startDiscovery() returned true. Waiting for results.")
+                } else {
+                    Log.e("BluetoothDiscovery", "startDiscovery() returned false. Aborting.")
                     Handler(Looper.getMainLooper()).post {
                         Toast.makeText(appContext, "startDiscovery() failed", Toast.LENGTH_LONG).show()
                     }
@@ -399,6 +436,7 @@ class BluetoothCommunicationProtocol(
                 }
             }
         } catch (e: SecurityException) {
+            Log.e("BluetoothDiscovery", "SecurityException on starting discovery.", e)
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(appContext, "Bluetooth permission denied: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -409,30 +447,40 @@ class BluetoothCommunicationProtocol(
             return null
         }
 
+        // Timeout logic
         Handler(Looper.getMainLooper()).postDelayed({
             if (latch.count > 0) {
                 try {
                     if (checkBluetoothPermissions()) {
-                        bluetoothAdapter.cancelDiscovery()
+                        if (bluetoothAdapter.isDiscovering) {
+                            Log.w("BluetoothDiscovery", "Discovery timed out after 40 seconds. Cancelling.")
+                            bluetoothAdapter.cancelDiscovery()
+                        }
                     }
                 } catch (e: SecurityException) {
-                    Log.e("BluetoothProtocol", "Failed to cancel discovery: ${e.message}")
+                    Log.e("BluetoothDiscovery", "Failed to cancel discovery on timeout.", e)
                 }
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(appContext, "TIMEOUT", Toast.LENGTH_SHORT).show()
                 }
-                latch.countDown()
+                latch.countDown() // Release the main thread
             }
         }, 40_000)
 
+        Log.i("BluetoothDiscovery", "Waiting on latch...")
         latch.await()
+        Log.i("BluetoothDiscovery", "Latch released. Unregistering receiver.")
 
         try {
             context.unregisterReceiver(receiver)
-        } catch (_: Exception) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(appContext, "Receiver already unregistered", Toast.LENGTH_SHORT).show()
-            }
+        } catch (e: IllegalArgumentException) {
+            Log.w("BluetoothDiscovery", "Receiver was already unregistered. This is okay.", e)
+        }
+
+        if (foundDevices.isEmpty()){
+            Log.w("BluetoothDiscovery", "No suitable devices were found.")
+        } else {
+            Log.i("BluetoothDiscovery", "Returning first suitable device: ${foundDevices.firstOrNull()?.name}")
         }
 
         return foundDevices.firstOrNull()
@@ -510,8 +558,9 @@ class BluetoothCommunicationProtocol(
     ): Element {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
 
@@ -521,8 +570,16 @@ class BluetoothCommunicationProtocol(
 
             val randomnessBytes = input.readObject() as ByteArray
             return group.gElementFromBytes(randomnessBytes)
+        } catch (e: Exception) {
+            // Log the exception and rethrow a more specific one
+            Log.e("BluetoothProtocol", "getBlindSignatureRandomness failed", e)
+            throw Exception("Failed to get blind signature randomness: ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in getBlindSignatureRandomness", e)
+            }
         }
     }
 
@@ -533,8 +590,9 @@ class BluetoothCommunicationProtocol(
     ): BigInteger {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
 
@@ -544,8 +602,15 @@ class BluetoothCommunicationProtocol(
             output.flush()
 
             return input.readObject() as BigInteger
+        } catch (e: Exception) {
+            Log.e("BluetoothProtocol", "requestBlindSignature failed", e)
+            throw Exception("Failed to request blind signature: ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in requestBlindSignature", e)
+            }
         }
     }
 
@@ -561,8 +626,9 @@ class BluetoothCommunicationProtocol(
     ): RandomizationElements {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
 
@@ -573,8 +639,15 @@ class BluetoothCommunicationProtocol(
 
             val randBytes = input.readObject() as RandomizationElementsBytes
             return randBytes.toRandomizationElements(group)
+        } catch (e: Exception) {
+            Log.e("BluetoothProtocol", "requestTransactionRandomness failed", e)
+            throw Exception("Failed to request transaction randomness: ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in requestTransactionRandomness", e)
+            }
         }
     }
 
@@ -584,8 +657,9 @@ class BluetoothCommunicationProtocol(
     ): String {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
 
@@ -595,8 +669,15 @@ class BluetoothCommunicationProtocol(
             output.flush()
 
             return input.readObject() as String
+        } catch (e: Exception) {
+            Log.e("BluetoothProtocol", "sendTransactionDetails failed", e)
+            throw Exception("Failed to send transaction details: ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in sendTransactionDetails", e)
+            }
         }
     }
 
@@ -631,8 +712,9 @@ class BluetoothCommunicationProtocol(
     ): Element {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
 
@@ -642,16 +724,24 @@ class BluetoothCommunicationProtocol(
             val publicKeyBytes = input.readObject() as ByteArray
             this.bankPublicKey = group.gElementFromBytes(publicKeyBytes)
             return this.bankPublicKey
+        } catch (e: Exception) {
+            Log.e("BluetoothProtocol", "getPublicKeyOf failed", e)
+            throw Exception("Failed to get public key of '$name': ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in getPublicKeyOf", e)
+            }
         }
     }
 
     override fun requestBloomFilter(participantName: String): BloomFilter {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
             val input = ObjectInputStream(socket.inputStream)
 
@@ -668,8 +758,15 @@ class BluetoothCommunicationProtocol(
             val falsePositiveRate = input.readObject() as Double
 
             return BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
+        } catch (e: Exception) {
+            Log.e("BluetoothProtocol", "requestBloomFilter failed", e)
+            throw Exception("Failed to request bloom filter: ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in requestBloomFilter", e)
+            }
         }
     }
 
@@ -679,18 +776,27 @@ class BluetoothCommunicationProtocol(
     ) {
         if (!startSession()) throw Exception("No peer connected")
 
-        val socket = createAndConnectSocket() ?: throw Exception("Failed to create socket")
+        val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
+            socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
 
+            // Note: sendBloomFilter doesn't seem to expect a reply from the other side.
+            // If it did, you would need an ObjectInputStream as well.
             output.writeObject("BLOOM_FILTER_REPLY")
             output.writeObject(bloomFilter.toBytes())
             output.writeObject(bloomFilter.expectedElements)
             output.writeObject(bloomFilter.falsePositiveRate)
             output.flush()
+        } catch (e: Exception) {
+            Log.e("BluetoothProtocol", "sendBloomFilter failed", e)
+            throw Exception("Failed to send bloom filter: ${e.message}")
         } finally {
-            socket.close()
+            try {
+                socket.close()
+            } catch (e: IOException) {
+                Log.e("BluetoothProtocol", "Error closing socket in sendBloomFilter", e)
+            }
         }
     }
 
@@ -843,7 +949,7 @@ class BluetoothCommunicationProtocol(
         }
     }
 
-    private fun createAndConnectSocket(): BluetoothSocket? {
+    private fun createSocket(): BluetoothSocket? {
         if (!checkBluetoothPermissions()) {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context.applicationContext, "Bluetooth permissions are required", Toast.LENGTH_LONG).show()
@@ -851,10 +957,15 @@ class BluetoothCommunicationProtocol(
             return null
         }
 
+        if (activeDevice == null) {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context.applicationContext, "No active device selected for connection.", Toast.LENGTH_SHORT).show()
+            }
+            return null
+        }
+
         return try {
-            val socket = activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
-            socket.connect()
-            socket
+            activeDevice!!.createRfcommSocketToServiceRecord(SERVICE_UUID)
         } catch (e: SecurityException) {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(context.applicationContext, "Bluetooth permission denied: ${e.message}", Toast.LENGTH_LONG).show()
@@ -862,7 +973,7 @@ class BluetoothCommunicationProtocol(
             null
         } catch (e: Exception) {
             Handler(Looper.getMainLooper()).post {
-                Toast.makeText(context.applicationContext, "Failed to connect: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context.applicationContext, "Failed to create socket: ${e.message}", Toast.LENGTH_LONG).show()
             }
             null
         }
