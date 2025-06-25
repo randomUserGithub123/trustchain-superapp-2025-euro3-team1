@@ -1,10 +1,11 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
-import net.openhft.hashing.LongHashFunction
 import java.util.BitSet
 import kotlin.math.ln
 import kotlin.math.pow
 import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
+import net.openhft.hashing.LongHashFunction
+
 
 /**
  * A secure bloom filter implementation for double-spending detection in the offline euro system.
@@ -35,7 +36,8 @@ class BloomFilter(
      * Returns the size of the bit array in bytes
      */
     fun getBitArraySize(): Int {
-        return bitSet.size() / 8
+        // Use the calculated size for an accurate byte count
+        return (size + 7) / 8
     }
 
     /**
@@ -73,7 +75,8 @@ class BloomFilter(
             val xxHash = LongHashFunction.xx(i.toLong())
             val hash = xxHash.hashBytes(data)
 
-            val hashValue = Math.abs(hash.toInt()) % size
+            // Use Math.floorMod for a correct positive remainder
+            val hashValue = Math.floorMod(hash.toInt(), size)
             hashValues.add(hashValue)
         }
 
@@ -147,17 +150,25 @@ class BloomFilter(
         val m = size.toDouble()
         val k = numHashFunctions.toDouble()
 
-        if (s == m) return expectedElements.toDouble() // Filter is full, assume max elements
+        if (s >= m) return expectedElements.toDouble() // Handle case where filter is full
         if (s == 0.0) return 0.0 // Filter is empty
 
-        return -m / k * ln(1.0 - s / m)
+        // Prevent ln(0) or negative numbers
+        val base = 1.0 - s / m
+        if (base <= 0) return expectedElements.toDouble() // Approaching full
+
+        return -m / k * ln(base)
     }
 
     /**
      * Serializes the bloom filter to a byte array for transmission
      */
     fun toBytes(): ByteArray {
-        return bitSet.toByteArray()
+        val totalBytes = (size + 7) / 8
+        val fullByteArray = ByteArray(totalBytes)
+        val setBitsArray = bitSet.toByteArray()
+        System.arraycopy(setBitsArray, 0, fullByteArray, 0, setBitsArray.size)
+        return fullByteArray
     }
 
     /**
@@ -165,8 +176,10 @@ class BloomFilter(
      * Each byte of the BitSet's backing array is represented by two hexadecimal characters.
      */
     fun toHexString(): String {
-        return bitSet.toByteArray().joinToString("") { "%02x".format(it) }
+        // Use the corrected toBytes() method to get a consistently sized array
+        return toBytes().joinToString("") { "%02x".format(it) }
     }
+
 
     /**
      * Applies Algorithm 2 for sharing spent monies to update this Bloom filter.
@@ -197,7 +210,7 @@ class BloomFilter(
 
         // 3. Implement Algorithm 2's conditional logic (steps 7-14)
         val nextSharedBF: BloomFilter
-        var updateMessage: String = ""
+        var updateMessage: String
 
         // Calculate F_S_union_F_R: Union of (FS U FM) and FR
         val fsUnionFmUnionFr = BloomFilter(capacity, currentFS.falsePositiveRate)
