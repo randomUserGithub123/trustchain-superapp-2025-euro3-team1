@@ -7,6 +7,12 @@ import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.Serializable
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.EOFException // Import EOFException
+import java.io.InputStream
+import java.io.StreamCorruptedException
+
 
 private data class GrothSahaiProofBytes(
     val c1: ByteArray,
@@ -35,9 +41,19 @@ private data class GrothSahaiProofBytes(
         if (!pi2.contentEquals(other.pi2)) return false
         return target.contentEquals(other.target)
     }
+
+    companion object {
+        // const val ELEMENT_SIZE_BYTES = 128
+        const val NUM_ELEMENTS = 9
+        // const val TOTAL_SERIALIZED_SIZE = ELEMENT_SIZE_BYTES * NUM_ELEMENTS
+    }
 }
 
 object GrothSahaiSerializer {
+
+    const val MAX_ALLOWED_PROOFS = 1000
+    const val MAX_ALLOWED_PROOF_BYTES = 10000
+
     fun serializeGrothSahaiProofs(proofs: List<GrothSahaiProof>?): ByteArray? {
         if (proofs.isNullOrEmpty()) {
             return null
@@ -70,36 +86,107 @@ object GrothSahaiSerializer {
         return ArrayList(proofBytesList.map { x -> bytesToGrothSahai(x, group) })
     }
 
-    private fun serializeProofBytes(proofBytes: GrothSahaiProofBytes): ByteArray {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
-        objectOutputStream.writeObject(proofBytes)
-        objectOutputStream.close()
-        return byteArrayOutputStream.toByteArray()
-    }
-
     private fun serializeProofBytesList(proofList: List<GrothSahaiProofBytes>): ByteArray {
         val byteArrayOutputStream = ByteArrayOutputStream()
-        val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
-        objectOutputStream.writeObject(proofList)
-        objectOutputStream.close()
+        val dataOutputStream = DataOutputStream(byteArrayOutputStream)
+
+        dataOutputStream.writeInt(proofList.size)
+
+        proofList.forEach { proofBytes ->
+            val serializedProof = serializeProofBytes(proofBytes)
+            // Prefixing with length
+            dataOutputStream.writeInt(serializedProof.size)
+            dataOutputStream.write(serializedProof)
+        }
+        dataOutputStream.close()
         return byteArrayOutputStream.toByteArray()
     }
 
     private fun deserializeProofBytesList(bytes: ByteArray): List<GrothSahaiProofBytes> {
+        if (bytes.size < 4) {
+            return emptyList()
+        }
+
         val byteArrayInputStream = ByteArrayInputStream(bytes)
-        val objectInputStream = ObjectInputStream(byteArrayInputStream)
-        val proofList = objectInputStream.readObject() as List<GrothSahaiProofBytes>
-        objectInputStream.close()
-        return proofList
+        val dataInputStream = DataInputStream(byteArrayInputStream)
+        val list = mutableListOf<GrothSahaiProofBytes>()
+
+        val count = dataInputStream.readInt()
+        if (count < 0) {
+            throw StreamCorruptedException("Invalid negative count for proof list size: $count")
+        }
+        if (count > MAX_ALLOWED_PROOFS) {
+            throw StreamCorruptedException("Exceeded maximum allowed proofs. Count: $count, Max: $MAX_ALLOWED_PROOFS")
+        }
+
+
+        // Deserialize individual proof
+        for (i in 0 until count) {
+            // Read the length of the next serialized proof
+            val proofLength = dataInputStream.readInt()
+            if (proofLength < 0) {
+                throw StreamCorruptedException("Invalid negative length for proof item ${i + 1}: $proofLength")
+            }
+            if (proofLength > MAX_ALLOWED_PROOF_BYTES) {
+                throw StreamCorruptedException("Exceeded maximum allowed proof bytes for item ${i + 1}. Length: $proofLength, Max: $MAX_ALLOWED_PROOF_BYTES")
+            }
+            val proofData = ByteArray(proofLength)
+            dataInputStream.readFully(proofData)
+            list.add(deserializeProofBytes(proofData))
+        }
+        dataInputStream.close()
+        return list
+    }
+
+    private fun serializeProofBytes(proofBytes: GrothSahaiProofBytes): ByteArray {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        val dataOutputStream = DataOutputStream(byteArrayOutputStream)
+
+        val components = listOf(
+            proofBytes.c1, proofBytes.c2, proofBytes.d1, proofBytes.d2,
+            proofBytes.theta1, proofBytes.theta2, proofBytes.pi1, proofBytes.pi2,
+            proofBytes.target
+        )
+
+        components.forEach { byteArrayComponent ->
+            dataOutputStream.writeInt(byteArrayComponent.size)
+            dataOutputStream.write(byteArrayComponent)
+        }
+
+        dataOutputStream.close()
+        return byteArrayOutputStream.toByteArray()
     }
 
     private fun deserializeProofBytes(bytes: ByteArray): GrothSahaiProofBytes {
         val byteArrayInputStream = ByteArrayInputStream(bytes)
-        val objectInputStream = ObjectInputStream(byteArrayInputStream)
-        val proof = objectInputStream.readObject() as GrothSahaiProofBytes
-        objectInputStream.close()
-        return proof
+        val dataInputStream = DataInputStream(byteArrayInputStream)
+
+        val componentsList = mutableListOf<ByteArray>()
+        for (i in 0 until GrothSahaiProofBytes.NUM_ELEMENTS) {
+            // Read length of the next element
+            val length = dataInputStream.readInt()
+            if (length < 0) throw IllegalStateException("Invalid negative length for byte array component.")
+            val componentBytes = ByteArray(length)
+            dataInputStream.readFully(componentBytes)
+            componentsList.add(componentBytes)
+        }
+        dataInputStream.close()
+
+        // Ensure we've read all expected components and the stream isn't prematurely short/long
+        if (componentsList.size != GrothSahaiProofBytes.NUM_ELEMENTS) {
+            throw IllegalStateException("Deserialization error: Expected ${GrothSahaiProofBytes.NUM_ELEMENTS} components, but read ${componentsList.size}")
+        }
+        return GrothSahaiProofBytes(
+            c1 = componentsList[0],
+            c2 = componentsList[1],
+            d1 = componentsList[2],
+            d2 = componentsList[3],
+            theta1 = componentsList[4],
+            theta2 = componentsList[5],
+            pi1 = componentsList[6],
+            pi2 = componentsList[7],
+            target = componentsList[8]
+        )
     }
 
     private fun grothSahaiProofToBytes(grothSahaiProof: GrothSahaiProof): GrothSahaiProofBytes {
