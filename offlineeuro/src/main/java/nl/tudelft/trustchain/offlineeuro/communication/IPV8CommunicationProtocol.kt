@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.communication
 
+import android.util.Log
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
@@ -11,7 +12,10 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRandomn
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.CommunityMessageType
+import nl.tudelft.trustchain.offlineeuro.community.message.ExchangeBloomFilterReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ExchangeBloomFilterRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
@@ -69,6 +73,23 @@ class IPV8CommunicationProtocol(
         val ttpAddress = addressBookManager.getAddressByName(nameTTP)
         community.registerAtTTP(userName, publicKey.toBytes(), ttpAddress.peerPublicKey!!)
     }
+
+    override fun exchangeBloomFilters(participantName: String, localFilter: BloomFilter): BloomFilter {
+        val peerAddress = addressBookManager.getAddressByName(participantName)
+        val peerPublicKey = peerAddress.peerPublicKey ?: throw Exception("Peer public key not found for $participantName")
+
+        Log.d("IPV8_PROTOCOL", "Sending exchange request to $participantName")
+
+        community.sendExchangeBloomFilterRequest(localFilter, peerPublicKey)
+
+        // Wait for the corresponding reply, which will contain the peer's merged filter
+        Log.d("IPV8_PROTOCOL", "Waiting for bloom filter reply from $participantName...")
+        val replyMessage = waitForMessage(CommunityMessageType.EXCHANGE_BLOOM_FILTER_REPLY) as ExchangeBloomFilterReplyMessage
+        Log.d("IPV8_PROTOCOL", "Received bloom filter reply from $participantName")
+
+        return replyMessage.bloomFilter
+    }
+
 
     override fun getBlindSignatureRandomness(
         publicKey: Element,
@@ -292,9 +313,27 @@ class IPV8CommunicationProtocol(
             is TransactionMessage -> handleTransactionMessage(message)
             is TTPRegistrationMessage -> handleRegistrationMessage(message)
             is FraudControlRequestMessage -> handleFraudControlRequestMessage(message)
+            is ExchangeBloomFilterRequestMessage -> handleExchangeBloomFilterRequest(message)
             else -> throw Exception("Unsupported message type")
         }
         return
+    }
+
+    private fun handleExchangeBloomFilterRequest(message: ExchangeBloomFilterRequestMessage) {
+        Log.d("IPV8_PROTOCOL", "Received bloom filter exchange request from peer.")
+
+        // Get the filter sent by the peer
+        val receivedFilter = message.bloomFilter
+
+        // Merge it into our own filter. Assumes `updateBloomFilter` is an abstract method in Participant.
+        participant.updateBloomFilter(receivedFilter)
+        Log.d("IPV8_PROTOCOL", "Merged peer's filter. Sending my updated filter back.")
+
+        // Get our newly updated filter
+        val localUpdatedFilter = participant.getBloomFilter()
+
+        // Send our updated filter back as a reply.
+        community.sendExchangeBloomFilterReply(localUpdatedFilter, message.requestingPeer)
     }
 
     private fun getParticipantRole(): Role {

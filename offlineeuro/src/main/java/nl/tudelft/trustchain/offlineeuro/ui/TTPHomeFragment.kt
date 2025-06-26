@@ -54,13 +54,6 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             ParticipantHolder.ttp = ttp
         }
 
-        bloomFilterSizeText = view.findViewById(R.id.bloom_filter_size)
-        bloomFilterElementsText = view.findViewById(R.id.bloom_filter_elements)
-        bloomFilterFalsePositiveText = view.findViewById(R.id.bloom_filter_false_positive)
-        bloomFilterCurrentFalsePositiveText = view.findViewById(R.id.bloom_filter_current_false_positive)
-        bloomFilterEstimatedElementsText = view.findViewById(R.id.bloom_filter_estimated_elements)
-        bloomFilterRawStateText = view.findViewById(R.id.bloom_filter_raw_state)
-
         updateBloomFilterStats()
         onDataChangeCallback(null)
     }
@@ -79,15 +72,6 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         val bloomFilter = ttp.getBloomFilter()
         val rawFilterHex = bloomFilter.toHexString()
         Log.d(TAG, "updateBloomFilterStats: Raw filter content is '$rawFilterHex'")
-
-        bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
-        bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
-        bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100)}%"
-        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
-            bloomFilter.getCurrentFalsePositiveRate() * 100
-        )}%"
-        bloomFilterRawStateText.text = "Raw Bloom Filter: $rawFilterHex"
-        bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->

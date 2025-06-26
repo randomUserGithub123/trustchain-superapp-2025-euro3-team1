@@ -17,6 +17,8 @@ import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureReplyMe
 import nl.tudelft.trustchain.offlineeuro.community.message.BlindSignatureRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.BloomFilterRequestMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ExchangeBloomFilterReplyMessage
+import nl.tudelft.trustchain.offlineeuro.community.message.ExchangeBloomFilterRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlReplyMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.FraudControlRequestMessage
 import nl.tudelft.trustchain.offlineeuro.community.message.ICommunityMessage
@@ -67,6 +69,9 @@ object MessageID {
 
     const val BLOOM_FILTER_REQUEST = 24
     const val BLOOM_FILTER_REPLY = 25
+
+    const val EXCHANGE_BLOOM_FILTER_REQUEST = 26
+    const val EXCHANGE_BLOOM_FILTER_REPLY = 27
 }
 
 class OfflineEuroCommunity(
@@ -106,6 +111,9 @@ class OfflineEuroCommunity(
 
         messageHandlers[MessageID.BLOOM_FILTER_REQUEST] = ::onBloomFilterRequestPacket
         messageHandlers[MessageID.BLOOM_FILTER_REPLY] = ::onBloomFilterReplyPacket
+
+        messageHandlers[MessageID.EXCHANGE_BLOOM_FILTER_REQUEST] = ::onExchangeBloomFilterRequestPacket
+        messageHandlers[MessageID.EXCHANGE_BLOOM_FILTER_REPLY] = ::onExchangeBloomFilterReplyPacket
     }
 
     fun getGroupDescriptionAndCRS() {
@@ -616,6 +624,41 @@ class OfflineEuroCommunity(
         addMessage(BloomFilterReplyMessage(bloomFilter))
     }
 
+
+    fun sendExchangeBloomFilterRequest(filter: BloomFilter, targetPeerPublicKeyBytes: ByteArray) {
+        val targetPeer = getPeerByPublicKeyBytes(targetPeerPublicKeyBytes)
+        targetPeer ?: throw Exception("Peer for bloom filter exchange not found")
+
+        // We can reuse BloomFilterReplyPayload since it has the same structure
+        val payload = BloomFilterReplyPayload(filter.toBytes(), filter.expectedElements, filter.falsePositiveRate)
+        val packet = serializePacket(MessageID.EXCHANGE_BLOOM_FILTER_REQUEST, payload)
+
+        send(targetPeer, packet)
+    }
+
+    private fun onExchangeBloomFilterRequestPacket(packet: Packet) {
+        val (requestingPeer, payload) = packet.getAuthPayload(BloomFilterReplyPayload)
+        val receivedFilter = BloomFilter.fromBytes(payload.bloomFilterBytes, payload.expectedElements, payload.falsePositiveRate)
+        val message = ExchangeBloomFilterRequestMessage(receivedFilter, requestingPeer)
+        addMessage(message)
+    }
+
+    fun sendExchangeBloomFilterReply(filter: BloomFilter, targetPeer: Peer) {
+        // We can reuse BloomFilterReplyPayload since it has the same structure
+        val payload = BloomFilterReplyPayload(filter.toBytes(), filter.expectedElements, filter.falsePositiveRate)
+        val packet = serializePacket(MessageID.EXCHANGE_BLOOM_FILTER_REPLY, payload)
+        send(targetPeer, packet)
+    }
+
+    private fun onExchangeBloomFilterReplyPacket(packet: Packet) {
+        val (_, payload) = packet.getAuthPayload(BloomFilterReplyPayload)
+        val receivedFilter = BloomFilter.fromBytes(payload.bloomFilterBytes, payload.expectedElements, payload.falsePositiveRate)
+        // Note: The reply message doesn't need to contain the sender's peer info, as the
+        // waitForMessage logic in the protocol doesn't require it.
+        val message = ExchangeBloomFilterReplyMessage(receivedFilter)
+        addMessage(message)
+    }
+
     class Factory(
         private val settings: TrustChainSettings,
         private val database: TrustChainStore,
@@ -625,4 +668,6 @@ class OfflineEuroCommunity(
             return OfflineEuroCommunity(settings, database, crawler)
         }
     }
+
+
 }

@@ -156,8 +156,8 @@ class Bank(
         return depositedEuros
     }
 
-    fun getBloomFilter(): BloomFilter {
-        return bloomFilter
+    override fun getBloomFilter(): BloomFilter {
+//        return bloomFilter
     }
 
     override fun onReceivedTransaction(
@@ -174,29 +174,27 @@ class Bank(
         return transactionResult.description
     }
 
-    fun updateBloomFilter(receivedBF: BloomFilter) {
-        Log.d("Bank_DEBUG", "updateBloomFilter called. Received filter has cardinality: ${receivedBF.getBitSet().cardinality()}")
-
-        val myReceivedMoniesIds = depositedEuros
-        Log.d("Bank_DEBUG", "Number of depositedEuros to process: ${myReceivedMoniesIds.size}")
-        if (myReceivedMoniesIds.isEmpty()) {
-            Log.w("Bank_DEBUG", "Deposited euros list is empty. Algorithm 2 will likely do nothing.")
-        }
-
-        var updateMessage = ""
-
-        try {
-            // Assign the result to the variable, DON'T declare a new one with 'val'
-            updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
-            Log.d("Bank_DEBUG", "Algorithm 2 finished. Update message: '$updateMessage'")
-
-        } catch (e: Exception) {
-            updateMessage = "Error updating filter: ${e.message}"
-            Log.e("Bank_DEBUG", "Exception during bloom filter update!", e)
-        }
-
-        // Call the callback only ONCE at the end with the final message.
-        onDataChangeCallback?.invoke(updateMessage)
+    override fun updateBloomFilter(receivedBF: BloomFilter) {
+//        Log.d("Bank_DEBUG", "updateBloomFilter called. Received filter has cardinality: ${receivedBF.getBitSet().cardinality()}")
+//
+//        val myReceivedMoniesIds = depositedEuros
+//        Log.d("Bank_DEBUG", "Number of depositedEuros to process: ${myReceivedMoniesIds.size}")
+//        if (myReceivedMoniesIds.isEmpty()) {
+//            Log.w("Bank_DEBUG", "Deposited euros list is empty. Algorithm 2 will likely do nothing.")
+//        }
+//
+//        var updateMessage = ""
+//
+//        try {
+//            updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
+//            Log.d("Bank_DEBUG", "Algorithm 2 finished. Update message: '$updateMessage'")
+//
+//        } catch (e: Exception) {
+//            updateMessage = "Error updating filter: ${e.message}"
+//            Log.e("Bank_DEBUG", "Exception during bloom filter update!", e)
+//        }
+//
+//        onDataChangeCallback?.invoke(updateMessage)
     }
 
     override fun reset() {

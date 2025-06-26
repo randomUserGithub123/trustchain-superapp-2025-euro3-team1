@@ -59,4 +59,6 @@ interface ICommunicationProtocol {
         participantName: String,
         bloomFilter: BloomFilter
     )
+
+    fun exchangeBloomFilters(participantName: String, localFilter: BloomFilter): BloomFilter
 }
