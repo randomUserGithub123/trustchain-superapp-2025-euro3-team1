@@ -76,16 +76,11 @@ class User(
         wallet.addToWallet(digitalEuro, firstT)
         onDataChangeCallback?.invoke("Withdrawn ${digitalEuro.serialNumber} successfully!")
 
-        try {
-            communicationProtocol.sendBloomFilter(bank, getBloomFilter())
-            onDataChangeCallback?.invoke("Successfully withdrawn and sent bloom filter to $bank!")
-        } catch (e: Exception) {
-            onDataChangeCallback?.invoke("Withdrawn, but failed to send bloom filter: ${e.message}")
-        }
 
         try {
             val bankBloomFilter = communicationProtocol.requestBloomFilter(bank)
             updateBloomFilter(bankBloomFilter) // Update your own bloom filter with the bank's
+            communicationProtocol.sendBloomFilter(bank, getBloomFilter())
             onDataChangeCallback?.invoke("Received bank's bloom filter and updated local filter!")
         } catch (e: Exception) {
             onDataChangeCallback?.invoke("Withdrawn, but failed to request bank's bloom filter: ${e.message}")

@@ -10,6 +10,7 @@ import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.R
+import nl.tudelft.trustchain.offlineeuro.communication.NotRightServiceException
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
@@ -86,29 +87,64 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
         withdrawButton.setOnClickListener {
             thread {
-                try {
-                    val protocol = user.communicationProtocol
-                    if (protocol is BluetoothCommunicationProtocol) {
-                        if (!protocol.startSession()) {
-                            throw Exception("startSession() ERROR")
+                var isWithdrawalSuccessful = false
+                val maxRetries = 5 // Set a limit to avoid getting stuck forever
+                var attempts = 0
+
+                while (!isWithdrawalSuccessful && attempts < maxRetries) {
+                    attempts++
+                    try {
+                        val protocol = user.communicationProtocol
+                        if (protocol is BluetoothCommunicationProtocol) {
+                            // This finds a new device on each loop if the last one failed
+                            requireActivity().runOnUiThread {
+                                val message = if (attempts == 1) "Searching for bank..." else "Wrong device, searching again... (Attempt $attempts)"
+                                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                            }
+                            if (!protocol.startSession()) {
+                                throw Exception("No nearby devices found.") // No devices found, stop trying
+                            }
+                        }
+
+                        // This is the main operation that might throw our custom exception
+                        user.withdrawDigitalEuro("Bank")
+
+                        // If we get here, it means no exception was thrown, so we succeeded
+                        isWithdrawalSuccessful = true
+                        requireActivity().runOnUiThread {
+                            updateBalance()
+                            updateBloomFilterStats()
+                            Toast.makeText(requireContext(), "Withdraw successful", Toast.LENGTH_LONG).show()
+                        }
+
+                    } catch (e: NotRightServiceException) {
+                        // ---- THIS IS THE KEY PART ----
+                        // We caught the specific "wrong peer" error. Log it and let the loop continue.
+                        Log.w("WithdrawProcess", "Attempt $attempts: Connected to a non-bank peer. Retrying...")
+                        // The 'finally' block below will clean up, and the while loop will try again.
+
+                    } catch (e: Exception) {
+                        // This is for all other, non-recoverable errors (no connection, etc.)
+                        Log.e("WithdrawProcess", "Withdrawal failed with a fatal error on attempt $attempts", e)
+                        requireActivity().runOnUiThread {
+                            Toast.makeText(requireContext(), "Withdraw failed: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                        // Stop the loop since this is a fatal error
+                        break
+                    } finally {
+                        // Always end the session to clear the 'activeDevice' and allow
+                        // startSession() to discover a new device on the next attempt.
+                        val protocol = user.communicationProtocol
+                        if (protocol is BluetoothCommunicationProtocol) {
+                            protocol.endSession()
                         }
                     }
+                }
 
-                    user.withdrawDigitalEuro("Bank")
-
+                // Check if the loop finished because of too many retries
+                if (!isWithdrawalSuccessful && attempts >= maxRetries) {
                     requireActivity().runOnUiThread {
-                        updateBalance()
-                        updateBloomFilterStats()
-                        Toast.makeText(requireContext(), "Withdraw successful", Toast.LENGTH_SHORT).show()
-                    }
-                } catch (e: Exception) {
-                    requireActivity().runOnUiThread {
-                        Toast.makeText(requireContext(), "Withdraw failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                } finally {
-                    val protocol = user.communicationProtocol
-                    if (protocol is BluetoothCommunicationProtocol) {
-                        protocol.endSession()
+                        Toast.makeText(requireContext(), "Could not find the bank after $maxRetries attempts.", Toast.LENGTH_LONG).show()
                     }
                 }
             }

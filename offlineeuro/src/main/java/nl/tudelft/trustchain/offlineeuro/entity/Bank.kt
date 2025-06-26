@@ -175,15 +175,28 @@ class Bank(
     }
 
     fun updateBloomFilter(receivedBF: BloomFilter) {
-        // Prepare M (Set of All Received Monies) specific to Bank
-        val myReceivedMoniesIds = depositedEuros
-        //    depositedEuros.map {
-        //        it.serialNumber.toByteArray() + it.firstTheta1.toBytes() + it.signature.toBytes()
-        //    }
+        Log.d("Bank_DEBUG", "updateBloomFilter called. Received filter has cardinality: ${receivedBF.getBitSet().cardinality()}")
 
-        // Call the centralized Algorithm 2 logic in the BloomFilter class
-        val updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
-        onDataChangeCallback?.invoke(updateMessage) // Use the message for UI/logging
+        val myReceivedMoniesIds = depositedEuros
+        Log.d("Bank_DEBUG", "Number of depositedEuros to process: ${myReceivedMoniesIds.size}")
+        if (myReceivedMoniesIds.isEmpty()) {
+            Log.w("Bank_DEBUG", "Deposited euros list is empty. Algorithm 2 will likely do nothing.")
+        }
+
+        var updateMessage = ""
+
+        try {
+            // Assign the result to the variable, DON'T declare a new one with 'val'
+            updateMessage = this.bloomFilter.applyAlgorithm2Update(receivedBF, myReceivedMoniesIds)
+            Log.d("Bank_DEBUG", "Algorithm 2 finished. Update message: '$updateMessage'")
+
+        } catch (e: Exception) {
+            updateMessage = "Error updating filter: ${e.message}"
+            Log.e("Bank_DEBUG", "Exception during bloom filter update!", e)
+        }
+
+        // Call the callback only ONCE at the end with the final message.
+        onDataChangeCallback?.invoke(updateMessage)
     }
 
     override fun reset() {

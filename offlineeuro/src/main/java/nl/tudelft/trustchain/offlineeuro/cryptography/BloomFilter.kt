@@ -1,5 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import java.util.BitSet
 import kotlin.math.ln
 import kotlin.math.pow
@@ -30,6 +33,10 @@ class BloomFilter(
         size = calculateOptimalSize(expectedElements, falsePositiveRate)
         numHashFunctions = calculateOptimalHashFunctions(size, expectedElements)
         bitSet = BitSet(size)
+    }
+
+    fun getBitSet(): BitSet {
+        return this.bitSet
     }
 
     /**
@@ -193,6 +200,7 @@ class BloomFilter(
         receivedBF: BloomFilter,
         myReceivedMonies: List<DigitalEuro>
     ): String {
+
         val currentFS = this
         val receivedFR = receivedBF
         val capacity = currentFS.expectedElements

@@ -50,6 +50,10 @@ import nl.tudelft.trustchain.offlineeuro.libraries.GrothSahaiSerializer
 import androidx.core.app.ActivityCompat
 import java.io.IOException
 
+
+class NotRightServiceException(message: String) : IOException(message)
+
+
 class BluetoothCommunicationProtocol(
     val addressBookManager: AddressBookManager,
     val community: OfflineEuroCommunity,
@@ -271,6 +275,10 @@ class BluetoothCommunicationProtocol(
                             val expectedElements = input.readObject() as Int
                             val falsePositiveRate = input.readObject() as Double
                             handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
+
+                            output.writeObject("ACK")
+                            output.flush()
+                            Log.d("BluetoothProtocol", "Bloom filter processed. ACK sent.")
                         }
                         else -> {
                             Log.w("BluetoothProtocol", "Received unknown request type: '$requestType'")
@@ -594,29 +602,34 @@ class BluetoothCommunicationProtocol(
         if (!startSession()) throw Exception("No peer connected")
 
         val socket = createSocket() ?: throw Exception("Failed to create socket")
-        try {
-            socket.connect()
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
 
-            output.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
-            output.writeObject(publicKey.toBytes())
-            output.flush()
-
-            val randomnessBytes = input.readObject() as ByteArray
-            return group.gElementFromBytes(randomnessBytes)
-        } catch (e: Exception) {
-            // Log the exception and rethrow a more specific one
-            Log.e("BluetoothProtocol", "getBlindSignatureRandomness failed", e)
-            throw Exception("Failed to get blind signature randomness: ${e.message}")
-        } finally {
+        // CHANGED: Using a .use block for automatic socket closing
+        return socket.use { sock ->
             try {
-                socket.close()
-            } catch (e: IOException) {
-                Log.e("BluetoothProtocol", "Error closing socket in getBlindSignatureRandomness", e)
+                sock.connect()
+                val output = ObjectOutputStream(sock.outputStream)
+                val input = ObjectInputStream(sock.inputStream)
+
+                output.writeObject("BLIND_SIGNATURE_RANDOMNESS_REQUEST")
+                output.writeObject(publicKey.toBytes())
+                output.flush()
+
+                val randomnessBytes = input.readObject() as ByteArray
+                group.gElementFromBytes(randomnessBytes)
+            } catch (e: Exception) {
+                // CHANGED: Check for the specific error from the peer
+                // The server-side (handleIncomingConnection) throws an exception containing "Not a bank"
+                if (e.message?.contains("Not a bank", ignoreCase = true) == true) {
+                    // This is the error we want to handle specifically. Throw our custom exception.
+                    throw NotRightServiceException("Connected to a peer, but it's not a bank.")
+                }
+                // For all other errors, re-throw a generic exception
+                Log.e("BluetoothProtocol", "getBlindSignatureRandomness failed", e)
+                throw Exception("Failed to get blind signature randomness: ${e.message}", e)
             }
         }
     }
+
 
     override fun requestBlindSignature(
         publicKey: Element,
@@ -626,25 +639,27 @@ class BluetoothCommunicationProtocol(
         if (!startSession()) throw Exception("No peer connected")
 
         val socket = createSocket() ?: throw Exception("Failed to create socket")
-        try {
-            socket.connect()
-            val output = ObjectOutputStream(socket.outputStream)
-            val input = ObjectInputStream(socket.inputStream)
 
-            output.writeObject("BLIND_SIGNATURE_REQUEST")
-            output.writeObject(publicKey.toBytes())
-            output.writeObject(challenge)
-            output.flush()
-
-            return input.readObject() as BigInteger
-        } catch (e: Exception) {
-            Log.e("BluetoothProtocol", "requestBlindSignature failed", e)
-            throw Exception("Failed to request blind signature: ${e.message}")
-        } finally {
+        // CHANGED: Using a .use block
+        return socket.use { sock ->
             try {
-                socket.close()
-            } catch (e: IOException) {
-                Log.e("BluetoothProtocol", "Error closing socket in requestBlindSignature", e)
+                sock.connect()
+                val output = ObjectOutputStream(sock.outputStream)
+                val input = ObjectInputStream(sock.inputStream)
+
+                output.writeObject("BLIND_SIGNATURE_REQUEST")
+                output.writeObject(publicKey.toBytes())
+                output.writeObject(challenge)
+                output.flush()
+
+                input.readObject() as BigInteger
+            } catch (e: Exception) {
+                // CHANGED: Also check here for consistency
+                if (e.message?.contains("not a bank", ignoreCase = true) == true) {
+                    throw NotRightServiceException("Connected to a peer, but it's not a bank.")
+                }
+                Log.e("BluetoothProtocol", "requestBlindSignature failed", e)
+                throw Exception("Failed to request blind signature: ${e.message}", e)
             }
         }
     }
@@ -792,6 +807,10 @@ class BluetoothCommunicationProtocol(
             val expectedElements = input.readObject() as Int
             val falsePositiveRate = input.readObject() as Double
 
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "Bloom Filter received.", Toast.LENGTH_SHORT).show()
+            }
+
             return BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
         } catch (e: Exception) {
             Log.e("BluetoothProtocol", "requestBloomFilter failed", e)
@@ -811,10 +830,16 @@ class BluetoothCommunicationProtocol(
     ) {
         if (!startSession()) throw Exception("No peer connected")
 
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, "Sending Bloom Filter...", Toast.LENGTH_SHORT).show()
+        }
+
         val socket = createSocket() ?: throw Exception("Failed to create socket")
         try {
             socket.connect()
             val output = ObjectOutputStream(socket.outputStream)
+
+            val input = ObjectInputStream(socket.inputStream) // Need an input stream to read the ACK
 
             // Note: sendBloomFilter doesn't seem to expect a reply from the other side.
             // If it did, you would need an ObjectInputStream as well.
@@ -823,6 +848,16 @@ class BluetoothCommunicationProtocol(
             output.writeObject(bloomFilter.expectedElements)
             output.writeObject(bloomFilter.falsePositiveRate)
             output.flush()
+
+            Log.d("BluetoothProtocol", "Filter sent. Waiting for ACK...")
+
+            val response = input.readObject() as String
+            if (response == "ACK") {
+                Log.d("BluetoothProtocol", "ACK received from bank.")
+            } else {
+                throw IOException("Invalid ACK received: $response")
+            }
+
         } catch (e: Exception) {
             Log.e("BluetoothProtocol", "sendBloomFilter failed", e)
             throw Exception("Failed to send bloom filter: ${e.message}")
@@ -836,7 +871,12 @@ class BluetoothCommunicationProtocol(
     }
 
     private fun handleBloomFilterRequest(output: ObjectOutputStream) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, "Request received, sending Bloom Filter...", Toast.LENGTH_SHORT).show()
+        }
+
         if (participant is User || participant is Bank || participant is TTP) {
+
             val bloomFilter =
                 when (participant) {
                     is User -> (participant as User).getBloomFilter()
@@ -857,6 +897,10 @@ class BluetoothCommunicationProtocol(
         expectedElements: Int,
         falsePositiveRate: Double
     ) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, "Receiving Bloom Filter...", Toast.LENGTH_SHORT).show()
+        }
+
         val bloomFilter = BloomFilter.fromBytes(bloomFilterBytes, expectedElements, falsePositiveRate)
         when (participant) {
             is User -> (participant as User).updateBloomFilter(bloomFilter)
