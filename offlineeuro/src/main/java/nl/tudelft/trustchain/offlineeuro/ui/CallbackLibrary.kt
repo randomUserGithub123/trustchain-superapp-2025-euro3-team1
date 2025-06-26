@@ -51,7 +51,7 @@ object CallbackLibrary {
         // This is the function you suspect is failing
         TableHelpers.removeAllRows(table)
 
-        Log.d("UI_DEBUG", "2. After clearing, the table should have 1 child (the header). It has: ${table.childCount}")
+        Log.d("UI_DEBUG", "2. After clearing, the table should have 1 child (the Fheader). It has: ${table.childCount}")
 
         val users = ttp.getRegisteredUsers()
         Log.d("UI_DEBUG", "3. Database has ${users.size} users. Adding them now.")

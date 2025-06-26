@@ -2,6 +2,7 @@ package nl.tudelft.trustchain.offlineeuro.ui
 
 import kotlin.concurrent.thread
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
@@ -26,6 +27,7 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
 
     private lateinit var communicationProtocol: BluetoothCommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
+    private val TAG = "UserHomeFragment_DEBUG"
 
     override fun onViewCreated(
         view: View,
@@ -151,7 +153,13 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
             protocol.stopServer()
         }
 
-        ParticipantHolder.user = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (!requireActivity().isChangingConfigurations) {
+            ParticipantHolder.user = null
+        }
     }
 
     private fun updateBalance() {
@@ -160,16 +168,21 @@ class UserHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_user_home) {
     }
 
     private fun updateBloomFilterStats() {
+        Log.d(TAG, "updateBloomFilterStats: Function CALLED.")
         val bloomFilter = user.getBloomFilter()
+        val rawFilterHex = bloomFilter.toHexString()
+        Log.d(TAG, "updateBloomFilterStats: Raw filter content is '$rawFilterHex'")
+
         bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
         bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
         bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100)}%"
-                bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
+        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
             bloomFilter.getCurrentFalsePositiveRate() * 100
         )}%"
-        bloomFilterRawStateText.text = "Raw Bloom Filter: ${bloomFilter.toHexString()}"
+        bloomFilterRawStateText.text = "Raw Bloom Filter: $rawFilterHex"
         bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }
+
 
     private val onUserDataChangeCallBack: (String?) -> Unit = { message ->
         if (this::user.isInitialized) {

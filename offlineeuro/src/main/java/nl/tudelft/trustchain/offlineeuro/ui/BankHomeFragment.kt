@@ -1,6 +1,7 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import nl.tudelft.trustchain.offlineeuro.R
@@ -22,6 +23,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
     private lateinit var bloomFilterRawStateText: TextView
     private lateinit var communicationProtocol: BluetoothCommunicationProtocol
     private lateinit var community: OfflineEuroCommunity
+    private val TAG = "BankHomeFragment_DEBUG" // Tag for filtering logs
 
     override fun onViewCreated(
         view: View,
@@ -73,19 +75,29 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
         if (protocol is BluetoothCommunicationProtocol) {
             protocol.stopServer()
         }
-
-        ParticipantHolder.bank = null
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        if (!requireActivity().isChangingConfigurations) {
+            ParticipantHolder.bank = null
+        }
+    }
+
+
     fun updateBloomFilterStats() {
+        Log.d(TAG, "updateBloomFilterStats: Function CALLED.")
         val bloomFilter = bank.getBloomFilter()
+        val rawFilterHex = bloomFilter.toHexString()
+        Log.d(TAG, "updateBloomFilterStats: Raw filter content is '$rawFilterHex'")
+
         bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
         bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
         bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100)}%"
-                bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
+        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
             bloomFilter.getCurrentFalsePositiveRate() * 100
         )}%"
-        bloomFilterRawStateText.text = "Raw Bloom Filter: ${bloomFilter.toHexString()}"
+        bloomFilterRawStateText.text = "Raw Bloom Filter: $rawFilterHex"
         bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }
 

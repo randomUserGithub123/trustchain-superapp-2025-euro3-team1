@@ -154,114 +154,149 @@ class BluetoothCommunicationProtocol(
     }
 
     private fun handleIncomingConnection(socket: BluetoothSocket) {
+        // This outer log confirms a connection was accepted
+        Log.d("BluetoothProtocol", "Connection accepted from ${socket.remoteDevice.address}. Starting handler thread.")
+
         thread {
-            try {
-                val output = ObjectOutputStream(socket.outputStream)
-                val input = ObjectInputStream(socket.inputStream)
+            // Using a 'use' block ensures the socket is ALWAYS closed, preventing resource leaks.
+            socket.use { sock ->
+                try {
+                    val output = ObjectOutputStream(sock.outputStream)
+                    val input = ObjectInputStream(sock.inputStream)
 
-                when (val requestType = input.readObject() as String) {
-                    "BLIND_SIGNATURE_RANDOMNESS_REQUEST" -> {
-                        val publicKeyBytes = input.readObject() as ByteArray
+                    // Read the request type from the stream
+                    val requestTypeObject = input.readObject()
 
-                        if (participant !is Bank) {
-                            throw Exception("Not a bank")
+                    // It tells us what the protocol thinks
+                    // the active participant is AT THE MOMENT a message is received.
+                    val participantInfo = if (::participant.isInitialized) {
+                        "${participant.javaClass.simpleName} (hashCode: ${participant.hashCode()})"
+                    } else {
+                        "Not Initialized"
+                    }
+
+                    Log.d(
+                        "BluetoothProtocol",
+                        "--> Received request. Object type: '${requestTypeObject::class.java.simpleName}'. Current participant: $participantInfo"
+                    )
+
+                    val requestType = requestTypeObject as String
+                    Log.d("BluetoothProtocol", "Processing request: '$requestType'")
+
+
+                    when (requestType) {
+                        "BLIND_SIGNATURE_RANDOMNESS_REQUEST" -> {
+                            val publicKeyBytes = input.readObject() as ByteArray
+
+                            if (participant !is Bank) {
+                                throw Exception("Not a bank. Current participant is $participantInfo")
+                            }
+
+                            val bank = participant as Bank
+                            val publicKey = bank.group.gElementFromBytes(publicKeyBytes)
+                            val randomness = bank.getBlindSignatureRandomness(publicKey)
+
+                            output.writeObject(randomness.toBytes())
+                            output.flush()
                         }
 
-                        val bank = participant as Bank
-                        val publicKey = bank.group.gElementFromBytes(publicKeyBytes)
-                        val randomness = bank.getBlindSignatureRandomness(publicKey)
+                        "BLIND_SIGNATURE_REQUEST" -> {
+                            val publicKeyBytes = input.readObject() as ByteArray
+                            val challenge = input.readObject() as BigInteger
 
-                        output.writeObject(randomness.toBytes())
-                        output.flush()
-                    }
+                            if (participant !is Bank) {
+                                throw Exception("Participant is not a bank. Current participant is $participantInfo")
+                            }
 
-                    "BLIND_SIGNATURE_REQUEST" -> {
-                        val publicKeyBytes = input.readObject() as ByteArray
-                        val challenge = input.readObject() as BigInteger
+                            val bank = participant as Bank
+                            val publicKey = bank.group.gElementFromBytes(publicKeyBytes)
 
-                        if (participant !is Bank) {
-                            throw Exception("Participant is not a bank")
+                            val signature = bank.createBlindSignature(challenge, publicKey)
+
+                            output.writeObject(signature)
+                            output.flush()
                         }
 
-                        val bank = participant as Bank
-                        val publicKey = bank.group.gElementFromBytes(publicKeyBytes)
-
-                        val signature = bank.createBlindSignature(challenge, publicKey)
-
-                        output.writeObject(signature)
-                        output.flush()
-                    }
-
-                    "GET_PUBLIC_KEY" -> {
-                        val publicKeyBytes = participant.publicKey.toBytes()
-                        output.writeObject(publicKeyBytes)
-                        output.flush()
-                    }
-
-                    "TRANSACTION_RANDOMNESS_REQUEST" -> {
-                        val publicKeyBytes = input.readObject() as ByteArray
-                        val bankPublicKeyBytes = input.readObject() as ByteArray
-
-                        if (participant !is User) {
-                            throw Exception("Participant is not a user. Participant is: ${participant::class.qualifiedName}")
+                        "GET_PUBLIC_KEY" -> {
+                            val publicKeyBytes = participant.publicKey.toBytes()
+                            output.writeObject(publicKeyBytes)
+                            output.flush()
                         }
 
-                        val user = participant as User
-                        val publicKey = user.group.gElementFromBytes(publicKeyBytes)
+                        "TRANSACTION_RANDOMNESS_REQUEST" -> {
+                            val publicKeyBytes = input.readObject() as ByteArray
+                            val bankPublicKeyBytes = input.readObject() as ByteArray
 
-                        this.bankPublicKey = user.group.gElementFromBytes(bankPublicKeyBytes)
+                            if (participant !is User) {
+                                throw Exception("Participant is not a user. Current participant is $participantInfo")
+                            }
 
-                        val randomizationElements = participant.generateRandomizationElements(publicKey)
-                        val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
+                            val user = participant as User
+                            val publicKey = user.group.gElementFromBytes(publicKeyBytes)
+                            this.bankPublicKey = user.group.gElementFromBytes(bankPublicKeyBytes)
+                            val randomizationElements = participant.generateRandomizationElements(publicKey)
+                            val randomizationElementBytes = randomizationElements.toRandomizationElementsBytes()
 
-                        output.writeObject(randomizationElementBytes)
-                        output.flush()
-                    }
+                            output.writeObject(randomizationElementBytes)
+                            output.flush()
+                        }
 
-                    "TRANSACTION_DETAILS" -> {
-                        val publicKeyBytes = input.readObject() as ByteArray
-                        val transactionDetailsBytes = input.readObject() as TransactionDetailsBytes
+                        "TRANSACTION_DETAILS" -> {
+                            val publicKeyBytes = input.readObject() as ByteArray
+                            val transactionDetailsBytes = input.readObject() as TransactionDetailsBytes
 
-                        val bankPublicKey =
-                            if (participant is Bank) {
+                            val bankPublicKey = if (participant is Bank) {
                                 participant.publicKey
                             } else {
                                 this.bankPublicKey
                             }
 
-                        val group = participant.group
-                        val publicKey = group.gElementFromBytes(publicKeyBytes)
-                        val transactionDetails = transactionDetailsBytes.toTransactionDetails(group)
+                            val group = participant.group
+                            val publicKey = group.gElementFromBytes(publicKeyBytes)
+                            val transactionDetails = transactionDetailsBytes.toTransactionDetails(group)
+                            val result = participant.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
 
-                        val result = participant.onReceivedTransaction(transactionDetails, bankPublicKey, publicKey)
+                            output.writeObject(result)
+                            output.flush()
+                        }
 
-                        output.writeObject(result)
-                        output.flush()
+                        "BLOOM_FILTER_REQUEST" -> {
+                            Log.d("BluetoothProtocol", "Handling 'BLOOM_FILTER_REQUEST' for participant: $participantInfo")
+                            handleBloomFilterRequest(output)
+                        }
+
+                        "BLOOM_FILTER_REPLY" -> {
+                            Log.d("BluetoothProtocol", "Handling 'BLOOM_FILTER_REPLY' for participant: $participantInfo")
+                            val bloomFilterBytes = input.readObject() as ByteArray
+                            val expectedElements = input.readObject() as Int
+                            val falsePositiveRate = input.readObject() as Double
+                            handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
+                        }
+                        else -> {
+                            Log.w("BluetoothProtocol", "Received unknown request type: '$requestType'")
+                        }
                     }
 
-                    "BLOOM_FILTER_REQUEST" -> {
-                        handleBloomFilterRequest(output)
+                } catch (e: Exception) {
+                    // Get participant info again for the error log
+                    val participantInfo = if (::participant.isInitialized) {
+                        "${participant.javaClass.simpleName} (hashCode: ${participant.hashCode()})"
+                    } else {
+                        "Not Initialized"
                     }
 
-                    "BLOOM_FILTER_REPLY" -> {
-                        val bloomFilterBytes = input.readObject() as ByteArray
-                        val expectedElements = input.readObject() as Int
-                        val falsePositiveRate = input.readObject() as Double
-                        handleBloomFilterReply(bloomFilterBytes, expectedElements, falsePositiveRate)
+                    if (e.message?.contains("closed") == true || e is java.io.EOFException) {
+                        Log.i("BluetoothProtocol", "Socket closed normally during read. Participant was: $participantInfo")
+                    } else {
+                        // Log the full exception stack trace for better debugging
+                        Log.e("BluetoothProtocol", "Exception in connection handler for participant: $participantInfo", e)
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(context.applicationContext, "Connection Error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
-
-                socket.close()
-            } catch (e: Exception) {
-                if (e.message?.contains("closed") == true) {
-                    Log.i("BluetoothProtocol", "Socket closed normally.")
-                } else {
-                    Log.e("BluetoothProtocol", "Exception during connection", e)
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context.applicationContext, "Error: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
+            } // The socket is automatically closed here
+            Log.d("BluetoothProtocol", "Handler thread for ${socket.remoteDevice.address} finished.")
         }
     }
 

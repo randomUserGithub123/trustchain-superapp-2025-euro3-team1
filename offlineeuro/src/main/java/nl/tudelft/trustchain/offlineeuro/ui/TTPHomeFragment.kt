@@ -1,6 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.ui
 
+import android.content.ContentValues.TAG
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import nl.tudelft.trustchain.offlineeuro.R
@@ -70,15 +72,21 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         }
     }
 
+
+
     private fun updateBloomFilterStats() {
+        Log.d(TAG, "updateBloomFilterStats: Function CALLED.")
         val bloomFilter = ttp.getBloomFilter()
+        val rawFilterHex = bloomFilter.toHexString()
+        Log.d(TAG, "updateBloomFilterStats: Raw filter content is '$rawFilterHex'")
+
         bloomFilterSizeText.text = "Size: ${bloomFilter.getBitArraySize()} bytes"
         bloomFilterElementsText.text = "Expected Elements: ${bloomFilter.expectedElements}"
         bloomFilterFalsePositiveText.text = "False Positive Rate: ${(bloomFilter.falsePositiveRate * 100)}%"
-                bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
+        bloomFilterCurrentFalsePositiveText.text = "Current False Positive Rate: ${"%.5f".format(
             bloomFilter.getCurrentFalsePositiveRate() * 100
         )}%"
-        bloomFilterRawStateText.text = "Raw Bloom Filter: ${bloomFilter.toHexString()}"
+        bloomFilterRawStateText.text = "Raw Bloom Filter: $rawFilterHex"
         bloomFilterEstimatedElementsText.text = "Estimated Elements: ${"%.2f".format(bloomFilter.getApproximateElementCount())}"
     }
 
