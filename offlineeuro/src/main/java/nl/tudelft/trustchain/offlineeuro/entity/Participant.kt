@@ -21,8 +21,14 @@ abstract class Participant(
     val randomizationElementMap: HashMap<Element, Element> = hashMapOf()
     lateinit var crs: CRS
 
+    @Volatile
+    protected var isSetupComplete = true
+
     fun setUp() {
         thread {
+
+            isSetupComplete = false
+
             try {
                 
                 if (communicationProtocol is BluetoothCommunicationProtocol) {
@@ -42,6 +48,9 @@ abstract class Participant(
                     communicationProtocol.endSession()
                 }
             }
+
+            isSetupComplete = true
+
         }
     }
 
