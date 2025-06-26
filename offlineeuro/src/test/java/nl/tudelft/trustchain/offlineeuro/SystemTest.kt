@@ -40,6 +40,8 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
+import org.mockito.MockedStatic
+import android.util.Log
 
 class SystemTest {
     private val group: BilinearGroup = BilinearGroup(PairingTypes.A)
@@ -50,6 +52,8 @@ class SystemTest {
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0 // For print statement in withdraw, consider localizing if tests run parallel
+    private lateinit var logMock: MockedStatic<Log>
+
 
     // Mocks for OfflineEuroCommunity constructor if it were real, not strictly needed for Mockito.mock()
     // but good to have if prepareCommunityMock were to change to instantiate real objects.
@@ -62,9 +66,11 @@ class SystemTest {
     fun setup() {
         ByteCounter.reset() // Reset counter before each test
 
+
         // mockSettings = Mockito.mock(TrustChainSettings::class.java)
         // mockStore = Mockito.mock(TrustChainStore::class.java)
 
+        logMock = Mockito.mockStatic(Log::class.java)
         createTTP()
         createBank()
         val firstProofCaptor = argumentCaptor<ByteArray>()
@@ -104,6 +110,8 @@ class SystemTest {
     @After
     fun tearDown() {
         ByteCounter.printStats() // Print stats after each test
+
+        logMock.close()
     }
 
     @Test
