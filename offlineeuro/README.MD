@@ -150,3 +150,11 @@ fun applyAlgorithm2Update(receivedBF: BloomFilter, myReceivedMonies: List<Digita
 - **False Positive Rate**: 0.1% (0.001)
 - **Hash Functions**: Automatically calculated for optimal performance
 - **Filter Size**: Automatically calculated based on expected elements and false positive rate
+
+
+## NFC HCE Communication Attempt
+There was an attempt at implementing the NFC (HCE) communication protocol in addition to the Bluetooth communication protocol, which can be seen in this [branch](https://github.com/randomUserGithub123/trustchain-superapp-2025-euro3-team1/tree/NFC_implementation)
+
+In our approach, we have tried to stay on track with the `OfflineEuro` implementation, which would mean that similar to Bluetooth (ideally) we would have a listener on each device listen indefinitely for new messages and the sender can be initiated with a certain callback, such as a button click. However, we did not manage to trigger NFC communication in the direction of the user pressing the button towards the receiver, as the NFC communication would be triggered as soon as the devices would be in proximity of each other and the direction would be arbitrary. The possible cause of this is that both devices would listen for NFC messages at the same time, which is the approach we have had for our Bluetooth protocol. 
+
+A solution to the following problem would be to dynamically adjust the listener, such that not both devices listen to the messages at the same time. We had tried with this approach but have not been able to successfully add state to the `HostApduService.kt` instantiated class, which is the receiver in the NFC communication protocol.
