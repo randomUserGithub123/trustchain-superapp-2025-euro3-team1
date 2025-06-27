@@ -17,8 +17,8 @@ class BloomFilterPerformanceTest {
     private lateinit var signature: SchnorrSignature
     private lateinit var depositedEuroManager: DepositedEuroManager
     private val resultsDir = File("test-results")
-    private val testSizes = listOf(1000, 5000, 10000, 25000, 50000, 100000)
-    private val numTrials = 100 // Number of trials for each test size
+    private val testSizes = listOf(100, 500, 1000, 5000, 10000, 25000, 50000, 100000)
+    private val numTrials = 1000 // Increased from 20 to 1000 for more accurate measurements
 
     @Before
     fun setup() {
@@ -37,11 +37,7 @@ class BloomFilterPerformanceTest {
 
         // Setup mock behavior
         `when`(mockElement.toBytes()).thenReturn(ByteArray(32))
-        // `when`(mockSignature.toBytes()).thenReturn(ByteArray(64))
-        // `when`(mockSignature.signedMessage).thenReturn(ByteArray(32))
-        // `when`(SchnorrSignatureSerializer.serializeSchnorrSignature(any())).thenReturn(ByteArray(64))
-        // `when`(GrothSahaiSerializer.serializeGrothSahaiProofs(any())).thenReturn(ByteArray(32))
-        // `when`(depositedEuroManager.getDigitalEurosByDescriptor(any(DigitalEuro::class.java))).thenReturn(emptyList())
+
     }
 
     @Test
@@ -64,152 +60,175 @@ class BloomFilterPerformanceTest {
         writeResults("memory_usage.csv", results)
     }
 
-    // @Test
-    // fun testTransactionProcessingTime() {
-    //     val results = mutableListOf<String>()
-    //     results.add("Size,OldMethodTime(ms),BloomFilterTime(ms)")
+    @Test
+    fun testDoubleSpendingDetectionPerformance() {
+        val results = mutableListOf<String>()
+        results.add("Size,LinearSearchTime(micros),BloomFilterTime(micros),SpeedupFactor")
 
-    //     for (size in testSizes) {
-    //         var oldMethodTotalTime = 0L
-    //         var bloomFilterTotalTime = 0L
+        for (size in testSizes) {
+            println("Testing double spending detection performance for size: $size")
+            
+            val linearSearchTimes = mutableListOf<Long>()
+            val bloomFilterTimes = mutableListOf<Long>()
 
-    //         repeat(numTrials) {
-    //             // Test old method
-    //             val oldMethodTime =
-    //                 measureTimeMillis {
-    //                     val euro = createMockDigitalEuro()
-    //                     val duplicateEuros = depositedEuroManager.getDigitalEurosByDescriptor(euro)
-    //                     if (duplicateEuros.isEmpty()) {
-    //                         depositedEuroManager.insertDigitalEuro(euro)
-    //                     }
-    //                 }
+            // Create test data ONCE outside the timing loop
+            val existingEuros = createMockEuros(size)
+            val bloomFilter = BloomFilter(size)
+            existingEuros.forEach { bloomFilter.add(it) }
 
-    //             // Test Bloom filter method
-    //             val bloomFilter = BloomFilter(size)
-    //             val bloomFilterTime =
-    //                 measureTimeMillis {
-    //                     val euro = createMockDigitalEuro()
-    //                     if (!bloomFilter.mightContain(euro)) {
-    //                         bloomFilter.add(euro)
-    //                         depositedEuroManager.insertDigitalEuro(euro)
-    //                     }
-    //                 }
+            // Warmup phase to avoid JVM warmup effects
+            repeat(10) {
+                val warmupEuro = createMockDigitalEuro("warmup-$it")
+                linearSearchForDoubleSpend(warmupEuro, existingEuros)
+                bloomFilter.mightContain(warmupEuro)
+            }
 
-    //             oldMethodTotalTime += oldMethodTime
-    //             bloomFilterTotalTime += bloomFilterTime
-    //         }
+            // Run multiple trials
+            repeat(numTrials) {
+                // Create a new test euro for each trial
+                val testEuro = createMockDigitalEuro("test-euro-${System.currentTimeMillis()}-$it")
+                
+                // Test 1: Linear search method
+                val linearStartTime = System.nanoTime()
+                val linearResult = linearSearchForDoubleSpend(testEuro, existingEuros)
+                val linearEndTime = System.nanoTime()
+                val linearTime = (linearEndTime - linearStartTime) / 1000 // Convert to microseconds
+                linearSearchTimes.add(linearTime)
 
-    //         val avgOldMethodTime = oldMethodTotalTime / numTrials
-    //         val avgBloomFilterTime = bloomFilterTotalTime / numTrials
-    //         results.add("$size,$avgOldMethodTime,$avgBloomFilterTime")
-    //     }
+                // Test 2: BloomFilter method
+                val bloomStartTime = System.nanoTime()
+                val bloomResult = bloomFilter.mightContain(testEuro)
+                val bloomEndTime = System.nanoTime()
+                val bloomTime = (bloomEndTime - bloomStartTime) / 1000 // Convert to microseconds
+                bloomFilterTimes.add(bloomTime)
+            }
 
-    //     writeResults("transaction_processing_time.csv", results)
-    // }
+            // Calculate average times
+            val avgLinearTime = linearSearchTimes.average()
+            val avgBloomTime = bloomFilterTimes.average()
+            val speedupFactor = if (avgBloomTime > 0) avgLinearTime / avgBloomTime else Double.POSITIVE_INFINITY
 
-    // @Test
-    // fun testDoubleSpendingDetectionTime() {
-    //     val results = mutableListOf<String>()
-    //     results.add("Size,OldMethodTime(ms),BloomFilterTime(ms)")
+            results.add("$size,${String.format("%.3f", avgLinearTime)},${String.format("%.3f", avgBloomTime)},${String.format("%.2f", speedupFactor)}")
+            
+            println("Size: $size, Linear: ${String.format("%.3f", avgLinearTime)}μs, Bloom: ${String.format("%.3f", avgBloomTime)}μs, Speedup: ${String.format("%.2f", speedupFactor)}x")
+        }
 
-    //     for (size in testSizes) {
-    //         var oldMethodTotalTime = 0L
-    //         var bloomFilterTotalTime = 0L
+        writeResults("double_spending_detection_performance.csv", results)
+    }
 
-    //         repeat(numTrials) {
-    //             val euro = createMockDigitalEuro()
+    @Test
+    fun testDoubleSpendingDetectionWithExistingToken() {
+        val results = mutableListOf<String>()
+        results.add("Size,LinearSearchTime(micros),BloomFilterTime(micros),SpeedupFactor")
 
-    //             // Test old method
-    //             val oldMethodTime =
-    //                 measureTimeMillis {
-    //                     val duplicateEuros = depositedEuroManager.getDigitalEurosByDescriptor(euro)
-    //                     if (duplicateEuros.isNotEmpty()) {
-    //                         // Double spending detected
-    //                     }
-    //                 }
+        for (size in testSizes) {
+            println("Testing double spending detection with existing token for size: $size")
+            
+            val linearSearchTimes = mutableListOf<Long>()
+            val bloomFilterTimes = mutableListOf<Long>()
 
-    //             // Test Bloom filter method
-    //             val bloomFilter = BloomFilter(size)
-    //             bloomFilter.add(euro) // Add the euro first to simulate double spending
-    //             val bloomFilterTime =
-    //                 measureTimeMillis {
-    //                     if (bloomFilter.mightContain(euro)) {
-    //                         // Potential double spending detected
-    //                     }
-    //                 }
+            // Create test data ONCE outside the timing loop
+            val existingEuros = createMockEuros(size)
+            val bloomFilter = BloomFilter(size)
+            existingEuros.forEach { bloomFilter.add(it) }
 
-    //             oldMethodTotalTime += oldMethodTime
-    //             bloomFilterTotalTime += bloomFilterTime
-    //         }
+            // Run multiple trials
+            repeat(numTrials) {
+                // Use different existing tokens for each trial to avoid caching effects
+                val testEuro = existingEuros[it % existingEuros.size]
+                
+                // Test 1: Linear search method
+                val linearStartTime = System.nanoTime()
+                val linearResult = linearSearchForDoubleSpend(testEuro, existingEuros)
+                val linearEndTime = System.nanoTime()
+                val linearTime = (linearEndTime - linearStartTime) / 1000
+                linearSearchTimes.add(linearTime)
 
-    //         val avgOldMethodTime = oldMethodTotalTime / numTrials
-    //         val avgBloomFilterTime = bloomFilterTotalTime / numTrials
-    //         results.add("$size,$avgOldMethodTime,$avgBloomFilterTime")
-    //     }
+                // Test 2: BloomFilter method
+                val bloomStartTime = System.nanoTime()
+                val bloomResult = bloomFilter.mightContain(testEuro)
+                val bloomEndTime = System.nanoTime()
+                val bloomTime = (bloomEndTime - bloomStartTime) / 1000
+                bloomFilterTimes.add(bloomTime)
+            }
 
-    //     writeResults("double_spending_detection_time.csv", results)
-    // }
+            // Calculate average times
+            val avgLinearTime = linearSearchTimes.average()
+            val avgBloomTime = bloomFilterTimes.average()
+            val speedupFactor = if (avgBloomTime > 0) avgLinearTime / avgBloomTime else Double.POSITIVE_INFINITY
 
-    // @Test
-    // fun testFalsePositiveRate() {
-    //     val results = mutableListOf<String>()
-    //     results.add("Size,FalsePositiveRate")
+            results.add("$size,${String.format("%.3f", avgLinearTime)},${String.format("%.3f", avgBloomTime)},${String.format("%.2f", speedupFactor)}")
+            
+            println("Size: $size, Linear: ${String.format("%.3f", avgLinearTime)}μs, Bloom: ${String.format("%.3f", avgBloomTime)}μs, Speedup: ${String.format("%.2f", speedupFactor)}x")
+        }
 
-    //     for (size in testSizes) {
-    //         val bloomFilter = BloomFilter(size)
-    //         var falsePositives = 0
+        writeResults("double_spending_detection_existing_token.csv", results)
+    }
 
-    //         // Add some elements to the filter
-    //         repeat(size / 2) {
-    //             bloomFilter.add(createMockDigitalEuro())
-    //         }
+    @Test
+    fun testHashCreationPerformance() {
+        val results = mutableListOf<String>()
+        results.add("Size,HashCreationTime(micros),LinearSearchTime(micros),HashVsLinearRatio")
 
-    //         // Test for false positives
-    //         repeat(numTrials) {
-    //             val testEuro = createMockDigitalEuro()
-    //             if (bloomFilter.mightContain(testEuro)) {
-    //                 falsePositives++
-    //             }
-    //         }
+        for (size in testSizes) {
+            println("Testing hash creation performance for size: $size")
+            
+            val hashCreationTimes = mutableListOf<Long>()
+            val linearSearchTimes = mutableListOf<Long>()
 
-    //         val falsePositiveRate = falsePositives.toDouble() / numTrials
-    //         results.add("$size,$falsePositiveRate")
-    //     }
+            // Create test data ONCE outside the timing loop
+            val existingEuros = createMockEuros(size)
 
-    //     writeResults("false_positive_rate.csv", results)
-    // }
+            // Run multiple trials
+            repeat(numTrials) {
+                // Create new test data for each trial
+                val testEuro = createMockDigitalEuro("test-euro-${System.currentTimeMillis()}-$it")
+                val bloomFilter = BloomFilter(size)
 
-    // @Test
-    // fun testLookupAvoidanceRate() {
-    //     val results = mutableListOf<String>()
-    //     results.add("Size,LookupAvoidanceRate")
+                // Test 1: Hash creation time (BloomFilter add operation)
+                val hashStartTime = System.nanoTime()
+                bloomFilter.add(testEuro)
+                val hashEndTime = System.nanoTime()
+                val hashTime = (hashEndTime - hashStartTime) / 1000
+                hashCreationTimes.add(hashTime)
 
-    //     for (size in testSizes) {
-    //         val bloomFilter = BloomFilter(size)
-    //         var avoidedLookups = 0
+                // Test 2: Linear search time
+                val linearStartTime = System.nanoTime()
+                val linearResult = linearSearchForDoubleSpend(testEuro, existingEuros)
+                val linearEndTime = System.nanoTime()
+                val linearTime = (linearEndTime - linearStartTime) / 1000
+                linearSearchTimes.add(linearTime)
+            }
 
-    //         // Add some elements to the filter
-    //         repeat(size / 2) {
-    //             bloomFilter.add(createMockDigitalEuro())
-    //         }
+            // Calculate average times
+            val avgHashTime = hashCreationTimes.average()
+            val avgLinearTime = linearSearchTimes.average()
+            val ratio = if (avgLinearTime > 0) avgHashTime / avgLinearTime else Double.POSITIVE_INFINITY
 
-    //         // Test lookup avoidance
-    //         repeat(numTrials) {
-    //             val testEuro = createMockDigitalEuro()
-    //             if (!bloomFilter.mightContain(testEuro)) {
-    //                 avoidedLookups++
-    //             }
-    //         }
+            results.add("$size,${String.format("%.3f", avgHashTime)},${String.format("%.3f", avgLinearTime)},${String.format("%.4f", ratio)}")
+            
+            println("Size: $size, Hash: ${String.format("%.3f", avgHashTime)}μs, Linear: ${String.format("%.3f", avgLinearTime)}μs, Ratio: ${String.format("%.4f", ratio)}")
+        }
 
-    //         val avoidanceRate = avoidedLookups.toDouble() / numTrials
-    //         results.add("$size,$avoidanceRate")
-    //     }
+        writeResults("hash_creation_performance.csv", results)
+    }
 
-    //     writeResults("lookup_avoidance_rate.csv", results)
-    // }
+    private fun linearSearchForDoubleSpend(testEuro: DigitalEuro, existingEuros: List<DigitalEuro>): Boolean {
+        return existingEuros.any { it.descriptorEquals(testEuro) }
+    }
+
+    private fun createMockEuros(count: Int): List<DigitalEuro> {
+        return (0 until count).map { 
+            createMockDigitalEuro("euro-$it-${System.currentTimeMillis()}")
+        }
+    }
 
     private fun createMockDigitalEuro(): DigitalEuro {
         val serialNumber = "test-${System.currentTimeMillis()}"
+        return DigitalEuro(serialNumber, mockElement, signature, ArrayList())
+    }
+
+    private fun createMockDigitalEuro(serialNumber: String): DigitalEuro {
         return DigitalEuro(serialNumber, mockElement, signature, ArrayList())
     }
 
