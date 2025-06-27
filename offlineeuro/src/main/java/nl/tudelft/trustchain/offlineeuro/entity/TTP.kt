@@ -19,8 +19,6 @@ class TTP(
 ) : Participant(communicationProtocol, name, onDataChangeCallback) {
     val crsMap: Map<Element, Element>
     private val bloomFilter: BloomFilter = BloomFilter(1000)
-    private val registeredUsers = mutableListOf<Pair<String, Element>>()
-
 
     init {
         communicationProtocol.participant = this
@@ -36,8 +34,6 @@ class TTP(
         publicKey: Element
     ): Boolean {
         val result = registeredUserManager.addRegisteredUser(name, publicKey)
-        registeredUsers.add(name to publicKey)
-
         onDataChangeCallback?.invoke("Registered $name")
         return result
     }

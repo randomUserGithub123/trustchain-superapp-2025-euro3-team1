@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
@@ -25,6 +26,8 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     private lateinit var bloomFilterRawStateText: TextView
     private var communicationProtocol: Any? = null
     private lateinit var community: OfflineEuroCommunity
+
+    private var userListNeedsUpdate = false
 
     override fun onViewCreated(
         view: View,
@@ -66,6 +69,34 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // If an update was flagged while the fragment was not visible, apply it now.
+        if (userListNeedsUpdate) {
+            Log.d(TAG, "Fragment resumed, applying pending UI update for user list.")
+            updateUserList(requireView(), ttp)
+            userListNeedsUpdate = false // Reset the flag
+        }
+    }
+
+    private fun updateUserList(view: View, ttp: TTP) {
+        if (!isAdded) return // Safety check
+
+        val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
+        Log.d("UI_DEBUG", "1. Before clearing, the table has ${table.childCount} children.")
+
+        TableHelpers.removeAllRows(table)
+
+        Log.d("UI_DEBUG", "2. After clearing, the table should have 1 child (the header). It has: ${table.childCount}")
+
+        val users = ttp.getRegisteredUsers()
+        Log.d("UI_DEBUG", "3. Database has ${users.size} users. Adding them now.")
+
+        TableHelpers.addRegisteredUsersToTable(table, users)
+
+        Log.d("UI_DEBUG", "4. After adding, the table has ${table.childCount} children.")
+    }
+
 
 
     private fun updateBloomFilterStats() {
@@ -76,20 +107,22 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     }
 
     private val onDataChangeCallback: (String?) -> Unit = { message ->
-        if (this::ttp.isInitialized) {
-            requireActivity().runOnUiThread {
-                val context = requireContext()
-                CallbackLibrary.ttpCallback(context, message, requireView(), ttp)
-                updateBloomFilterStats()
-                updateUserList(requireView())
-            }
-        }
-    }
 
-    private fun updateUserList(view: View) {
-        val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
-        val users = ttp.getRegisteredUsers()
-        TableHelpers.removeAllButFirstRow(table)
-        TableHelpers.addRegisteredUsersToTable(table, users)
+        if (isAdded) {
+            requireActivity().runOnUiThread {
+                if (this::ttp.isInitialized) {
+                    message?.let {
+                        Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                    }
+                    // The UI is ready, so update it now.
+                    updateUserList(requireView(), ttp)
+                    updateBloomFilterStats()
+                }
+            }
+        } else {
+            // The fragment is not visible. Flag that an update is needed.
+            userListNeedsUpdate = true
+            Log.w(TAG, "onDataChangeCallback triggered, but Fragment is not attached. Flagging for update on resume.")
+        }
     }
 }
