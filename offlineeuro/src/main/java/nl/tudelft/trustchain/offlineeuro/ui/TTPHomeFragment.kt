@@ -45,7 +45,7 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
 
-            communicationProtocol = BluetoothCommunicationProtocol(addressBookManager, community,requireContext())
+            communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
 
             ttp =
                 TTP(
