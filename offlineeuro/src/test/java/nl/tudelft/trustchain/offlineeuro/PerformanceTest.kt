@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
@@ -28,8 +29,11 @@ import nl.tudelft.trustchain.offlineeuro.entity.TransactionDetails
 import nl.tudelft.trustchain.offlineeuro.entity.User
 import nl.tudelft.trustchain.offlineeuro.entity.WalletEntry
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -50,6 +54,18 @@ class PerformanceTest {
     private val exponents = crsMap.second
 
     private var i = 0
+
+    private lateinit var logMock: MockedStatic<Log>
+
+    @Before
+    fun setup() {
+        logMock = Mockito.mockStatic(Log::class.java)
+    }
+
+    @After
+    fun tearDown() {
+        logMock.close()
+    }
 
     @Test
     fun testPerformance() {

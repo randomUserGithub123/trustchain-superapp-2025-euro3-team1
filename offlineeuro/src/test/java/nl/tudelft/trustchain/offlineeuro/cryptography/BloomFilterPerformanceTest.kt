@@ -1,8 +1,8 @@
 package nl.tudelft.trustchain.offlineeuro.cryptography
 
 import it.unisa.dia.gas.jpbc.Element
-import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
+import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.mock
@@ -32,12 +32,10 @@ class BloomFilterPerformanceTest {
                 BigInteger("22222222222222222222222222222222"),
                 "SchnorrSignatureTest".toByteArray()
             )
-        // depositedEuroManager = mock(DepositedEuroManager::class.java)
         resultsDir.mkdirs()
 
         // Setup mock behavior
         `when`(mockElement.toBytes()).thenReturn(ByteArray(32))
-
     }
 
     @Test
@@ -67,7 +65,7 @@ class BloomFilterPerformanceTest {
 
         for (size in testSizes) {
             println("Testing double spending detection performance for size: $size")
-            
+
             val linearSearchTimes = mutableListOf<Long>()
             val bloomFilterTimes = mutableListOf<Long>()
 
@@ -87,20 +85,18 @@ class BloomFilterPerformanceTest {
             repeat(numTrials) {
                 // Create a new test euro for each trial
                 val testEuro = createMockDigitalEuro("test-euro-${System.currentTimeMillis()}-$it")
-                
+
                 // Test 1: Linear search method
                 val linearStartTime = System.nanoTime()
-                val linearResult = linearSearchForDoubleSpend(testEuro, existingEuros)
+                linearSearchForDoubleSpend(testEuro, existingEuros)
                 val linearEndTime = System.nanoTime()
-                val linearTime = (linearEndTime - linearStartTime) / 1000 // Convert to microseconds
-                linearSearchTimes.add(linearTime)
+                linearSearchTimes.add((linearEndTime - linearStartTime) / 1000) // Convert to microseconds
 
                 // Test 2: BloomFilter method
                 val bloomStartTime = System.nanoTime()
-                val bloomResult = bloomFilter.mightContain(testEuro)
+                bloomFilter.mightContain(testEuro)
                 val bloomEndTime = System.nanoTime()
-                val bloomTime = (bloomEndTime - bloomStartTime) / 1000 // Convert to microseconds
-                bloomFilterTimes.add(bloomTime)
+                bloomFilterTimes.add((bloomEndTime - bloomStartTime) / 1000) // Convert to microseconds
             }
 
             // Calculate average times
@@ -108,9 +104,16 @@ class BloomFilterPerformanceTest {
             val avgBloomTime = bloomFilterTimes.average()
             val speedupFactor = if (avgBloomTime > 0) avgLinearTime / avgBloomTime else Double.POSITIVE_INFINITY
 
-            results.add("$size,${String.format("%.3f", avgLinearTime)},${String.format("%.3f", avgBloomTime)},${String.format("%.2f", speedupFactor)}")
-            
-            println("Size: $size, Linear: ${String.format("%.3f", avgLinearTime)}μs, Bloom: ${String.format("%.3f", avgBloomTime)}μs, Speedup: ${String.format("%.2f", speedupFactor)}x")
+            val resultLine =
+                "$size,${String.format("%.3f", avgLinearTime)},${String.format("%.3f", avgBloomTime)},${String.format("%.2f", speedupFactor)}"
+            results.add(resultLine)
+
+            println(
+                "Size: $size, " +
+                    "Linear: ${String.format("%.3f", avgLinearTime)}μs, " +
+                    "Bloom: ${String.format("%.3f", avgBloomTime)}μs, " +
+                    "Speedup: ${String.format("%.2f", speedupFactor)}x"
+            )
         }
 
         writeResults("double_spending_detection_performance.csv", results)
@@ -123,7 +126,7 @@ class BloomFilterPerformanceTest {
 
         for (size in testSizes) {
             println("Testing double spending detection with existing token for size: $size")
-            
+
             val linearSearchTimes = mutableListOf<Long>()
             val bloomFilterTimes = mutableListOf<Long>()
 
@@ -136,20 +139,18 @@ class BloomFilterPerformanceTest {
             repeat(numTrials) {
                 // Use different existing tokens for each trial to avoid caching effects
                 val testEuro = existingEuros[it % existingEuros.size]
-                
+
                 // Test 1: Linear search method
                 val linearStartTime = System.nanoTime()
-                val linearResult = linearSearchForDoubleSpend(testEuro, existingEuros)
+                linearSearchForDoubleSpend(testEuro, existingEuros)
                 val linearEndTime = System.nanoTime()
-                val linearTime = (linearEndTime - linearStartTime) / 1000
-                linearSearchTimes.add(linearTime)
+                linearSearchTimes.add((linearEndTime - linearStartTime) / 1000)
 
                 // Test 2: BloomFilter method
                 val bloomStartTime = System.nanoTime()
-                val bloomResult = bloomFilter.mightContain(testEuro)
+                bloomFilter.mightContain(testEuro)
                 val bloomEndTime = System.nanoTime()
-                val bloomTime = (bloomEndTime - bloomStartTime) / 1000
-                bloomFilterTimes.add(bloomTime)
+                bloomFilterTimes.add((bloomEndTime - bloomStartTime) / 1000)
             }
 
             // Calculate average times
@@ -157,9 +158,16 @@ class BloomFilterPerformanceTest {
             val avgBloomTime = bloomFilterTimes.average()
             val speedupFactor = if (avgBloomTime > 0) avgLinearTime / avgBloomTime else Double.POSITIVE_INFINITY
 
-            results.add("$size,${String.format("%.3f", avgLinearTime)},${String.format("%.3f", avgBloomTime)},${String.format("%.2f", speedupFactor)}")
-            
-            println("Size: $size, Linear: ${String.format("%.3f", avgLinearTime)}μs, Bloom: ${String.format("%.3f", avgBloomTime)}μs, Speedup: ${String.format("%.2f", speedupFactor)}x")
+            val resultLine =
+                "$size,${String.format("%.3f", avgLinearTime)},${String.format("%.3f", avgBloomTime)},${String.format("%.2f", speedupFactor)}"
+            results.add(resultLine)
+
+            println(
+                "Size: $size, " +
+                    "Linear: ${String.format("%.3f", avgLinearTime)}μs, " +
+                    "Bloom: ${String.format("%.3f", avgBloomTime)}μs, " +
+                    "Speedup: ${String.format("%.2f", speedupFactor)}x"
+            )
         }
 
         writeResults("double_spending_detection_existing_token.csv", results)
@@ -172,7 +180,7 @@ class BloomFilterPerformanceTest {
 
         for (size in testSizes) {
             println("Testing hash creation performance for size: $size")
-            
+
             val hashCreationTimes = mutableListOf<Long>()
             val linearSearchTimes = mutableListOf<Long>()
 
@@ -189,15 +197,13 @@ class BloomFilterPerformanceTest {
                 val hashStartTime = System.nanoTime()
                 bloomFilter.add(testEuro)
                 val hashEndTime = System.nanoTime()
-                val hashTime = (hashEndTime - hashStartTime) / 1000
-                hashCreationTimes.add(hashTime)
+                hashCreationTimes.add((hashEndTime - hashStartTime) / 1000)
 
                 // Test 2: Linear search time
                 val linearStartTime = System.nanoTime()
-                val linearResult = linearSearchForDoubleSpend(testEuro, existingEuros)
+                linearSearchForDoubleSpend(testEuro, existingEuros)
                 val linearEndTime = System.nanoTime()
-                val linearTime = (linearEndTime - linearStartTime) / 1000
-                linearSearchTimes.add(linearTime)
+                linearSearchTimes.add((linearEndTime - linearStartTime) / 1000)
             }
 
             // Calculate average times
@@ -205,9 +211,16 @@ class BloomFilterPerformanceTest {
             val avgLinearTime = linearSearchTimes.average()
             val ratio = if (avgLinearTime > 0) avgHashTime / avgLinearTime else Double.POSITIVE_INFINITY
 
-            results.add("$size,${String.format("%.3f", avgHashTime)},${String.format("%.3f", avgLinearTime)},${String.format("%.4f", ratio)}")
-            
-            println("Size: $size, Hash: ${String.format("%.3f", avgHashTime)}μs, Linear: ${String.format("%.3f", avgLinearTime)}μs, Ratio: ${String.format("%.4f", ratio)}")
+            val resultLine =
+                "$size,${String.format("%.3f", avgHashTime)},${String.format("%.3f", avgLinearTime)},${String.format("%.4f", ratio)}"
+            results.add(resultLine)
+
+            println(
+                "Size: $size, " +
+                    "Hash: ${String.format("%.3f", avgHashTime)}μs, " +
+                    "Linear: ${String.format("%.3f", avgLinearTime)}μs, " +
+                    "Ratio: ${String.format("%.4f", ratio)}"
+            )
         }
 
         writeResults("hash_creation_performance.csv", results)
@@ -218,7 +231,7 @@ class BloomFilterPerformanceTest {
     }
 
     private fun createMockEuros(count: Int): List<DigitalEuro> {
-        return (0 until count).map { 
+        return (0 until count).map {
             createMockDigitalEuro("euro-$it-${System.currentTimeMillis()}")
         }
     }
@@ -232,10 +245,7 @@ class BloomFilterPerformanceTest {
         return DigitalEuro(serialNumber, mockElement, signature, ArrayList())
     }
 
-    private fun writeResults(
-        filename: String,
-        results: List<String>
-    ) {
+    private fun writeResults(filename: String, results: List<String>) {
         File(resultsDir, filename).writeText(results.joinToString("\n"))
     }
 }

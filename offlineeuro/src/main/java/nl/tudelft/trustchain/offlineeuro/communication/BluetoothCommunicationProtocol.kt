@@ -1,6 +1,9 @@
+@file:SuppressLint("MissingPermission")
+
 package nl.tudelft.trustchain.offlineeuro.communication
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -437,6 +440,7 @@ class BluetoothCommunicationProtocol(
                                 Log.d("BluetoothDiscovery", "REJECTED '$deviceName': Signal too weak (RSSI: $rssi).")
                                 return
                             }
+
                             if (device.bluetoothClass?.deviceClass != BluetoothClass.Device.PHONE_SMART) {
                                 Log.d("BluetoothDiscovery", "REJECTED '$deviceName': Not a smart phone (Class: $deviceClass).")
                                 return

@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.util.Log
 import nl.tudelft.trustchain.offlineeuro.communication.IPV8CommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.community.message.AddressMessage
@@ -11,8 +12,11 @@ import nl.tudelft.trustchain.offlineeuro.cryptography.Schnorr
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
 import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
+import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -21,7 +25,21 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigInteger
 
+
 class BankTest {
+
+    private lateinit var logMock: MockedStatic<Log>
+
+    @Before
+    fun setup() {
+        logMock = Mockito.mockStatic(Log::class.java)
+    }
+
+    @After
+    fun tearDown() {
+        logMock.close()
+    }
+
     private val ttpGroup = BilinearGroup(PairingTypes.FromFile)
     private val crs = CRSGenerator.generateCRSMap(ttpGroup).first
     private val depositedEuroManager = Mockito.mock(DepositedEuroManager::class.java)

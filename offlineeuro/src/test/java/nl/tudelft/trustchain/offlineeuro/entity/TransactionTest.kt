@@ -1,5 +1,6 @@
 package nl.tudelft.trustchain.offlineeuro.entity
 
+import android.util.Log
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.ipv8.Peer
@@ -24,9 +25,11 @@ import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.db.RegisteredUserManager
 import nl.tudelft.trustchain.offlineeuro.db.WalletManager
 import nl.tudelft.trustchain.offlineeuro.enums.Role
+import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -34,6 +37,13 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import java.math.BigInteger
 import kotlin.math.floor
+
+object Log {
+    fun d(tag: String?, msg: String?): Int = 0
+    fun i(tag: String?, msg: String?): Int = 0
+    fun e(tag: String?, msg: String?): Int = 0
+    fun w(tag: String?, msg: String?): Int = 0
+}
 
 class TransactionTest {
     // Setup the TTP
@@ -47,12 +57,21 @@ class TransactionTest {
     private lateinit var bank: Bank
     private lateinit var bankCommunity: OfflineEuroCommunity
     private var i = 0
+    private lateinit var logMock: MockedStatic<Log>
 
     @Before
     fun setup() {
         // Initiate
+        logMock = Mockito.mockStatic(Log::class.java)
         createTTP()
         createBank()
+
+
+    }
+
+    @After
+    fun tearDown() {
+        logMock.close()
     }
 
     @Test

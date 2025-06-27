@@ -14,6 +14,7 @@ import nl.tudelft.trustchain.offlineeuro.community.OfflineEuroCommunity
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
 import nl.tudelft.trustchain.offlineeuro.cryptography.PairingTypes
 import nl.tudelft.trustchain.offlineeuro.db.AddressBookManager
+import nl.tudelft.trustchain.offlineeuro.db.DepositedEuroManager
 import nl.tudelft.trustchain.offlineeuro.entity.TTP
 
 class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
@@ -44,7 +45,7 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
             val group = BilinearGroup(PairingTypes.FromFile, context = context)
             val addressBookManager = AddressBookManager(context, group)
 
-            communicationProtocol = IPV8CommunicationProtocol(addressBookManager, community)
+            communicationProtocol = BluetoothCommunicationProtocol(addressBookManager, community,requireContext())
 
             ttp =
                 TTP(
@@ -80,7 +81,10 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
     }
 
     private fun updateUserList(view: View, ttp: TTP) {
-        if (!isAdded) return // Safety check
+        if (!isAdded) {
+            userListNeedsUpdate = true
+            return
+        }
 
         val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
         Log.d("UI_DEBUG", "1. Before clearing, the table has ${table.childCount} children.")
