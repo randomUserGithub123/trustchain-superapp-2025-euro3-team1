@@ -1,5 +1,13 @@
 # Offline Euro 
 
+⚠️ **Important information when testing the app**
+
+To ensure the most reliable connection and successful transactions between devices, please adhere to the following best practices:
+- For best results, the two devices initiating a transaction should be in close proximity to one another.
+- Keep other Bluetooth-enabled devices far away from the transacting pair (or turn off bluetooth). This reduces the chance of signal interference.
+- The application is designed to only consider connecting to devices with a Received Signal Strength Indicator (RSSI) value greater than **-60 dBm**. This threshold helps filter out devices that are too far away. While RSSI is a useful metric, it is not a perfect measure of distance. We found that the signal strength does not always correspond to the distance between the devices. A device that is physically close might sometimes report a weaker signal than a more distant device in an open space. 
+
+
 ## Bluetooth communication
 
 ### Overview
