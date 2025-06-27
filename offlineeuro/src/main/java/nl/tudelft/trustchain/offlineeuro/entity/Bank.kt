@@ -157,7 +157,7 @@ class Bank(
     }
 
     override fun getBloomFilter(): BloomFilter {
-//        return bloomFilter
+        return bloomFilter
     }
 
     override fun onReceivedTransaction(

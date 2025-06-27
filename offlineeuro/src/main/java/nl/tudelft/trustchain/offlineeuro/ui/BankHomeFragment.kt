@@ -55,6 +55,7 @@ class BankHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_bank_home) {
                     depositedEuroManager,
                     onDataChangeCallback = onDataChangeCallback
                 )
+
         }
 
         onDataChangeCallback(null)

@@ -967,12 +967,16 @@ class BluetoothCommunicationProtocol(
     }
 
     private fun handleTransactionMessage(message: TransactionMessage) {
-        val bankPublicKey =
-            if (participant is Bank) {
-                participant.publicKey
-            } else {
-                addressBookManager.getAddressByName("Bank").publicKey
-            }
+//        val bankPublicKey =
+//            if (participant is Bank) {
+//                participant.publicKey
+//            } else {
+//                addressBookManager.getAddressByName("Bank").publicKey
+//            }
+
+        // for now, use the public key of the one, official "Bank"
+        val bankPublicKey = addressBookManager.getAddressByName("Bank").publicKey
+
 
         val group = participant.group
         val publicKey = group.gElementFromBytes(message.publicKeyBytes)

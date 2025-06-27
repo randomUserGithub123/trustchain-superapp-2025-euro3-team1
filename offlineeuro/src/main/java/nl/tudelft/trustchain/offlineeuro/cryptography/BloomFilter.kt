@@ -10,13 +10,6 @@ import nl.tudelft.trustchain.offlineeuro.entity.DigitalEuro
 import net.openhft.hashing.LongHashFunction
 
 
-/**
- * A secure bloom filter implementation for double-spending detection in the offline euro system.
- *
- * @property expectedElements The expected number of elements to be stored in the filter
- * @property falsePositiveRate The desired false positive rate (between 0 and 1). Default is 0.001 (1%)
- * @throws IllegalArgumentException if falsePositiveRate is not between 0 and 1
- */
 class BloomFilter(
     val expectedElements: Int,
     val falsePositiveRate: Double = 0.001
@@ -36,7 +29,7 @@ class BloomFilter(
     }
 
     fun getBitSet(): BitSet {
-        return this.bitSet
+        return this.bitSet;
     }
 
     /**
@@ -208,35 +201,29 @@ class BloomFilter(
         println("=== Algorithm 2 Update Start ===")
         println("Capacity (expectedElements): $capacity")
 
-        // 1. Create FM (Bloom filter from own monies M)
         val fm = BloomFilter(capacity, currentFS.falsePositiveRate)
         for (eur in myReceivedMonies) {
             fm.add(eur)
         }
         println("FM element count (approx): ${fm.getApproximateElementCount()}")
 
-        // 2. Compute FS_union_FM
         val fsUnionFm = BloomFilter(capacity, currentFS.falsePositiveRate)
         fsUnionFm.bitSet.or(currentFS.bitSet)
         fsUnionFm.bitSet.or(fm.bitSet)
         println("FS ∪ FM element count (approx): ${fsUnionFm.getApproximateElementCount()}")
 
-        // 3. FS_union_FM ∪ FR
         val fsUnionFmUnionFr = BloomFilter(capacity, currentFS.falsePositiveRate)
         fsUnionFmUnionFr.bitSet.or(fsUnionFm.bitSet)
         fsUnionFmUnionFr.bitSet.or(receivedFR.bitSet)
         println("(FS ∪ FM) ∪ FR element count (approx): ${fsUnionFmUnionFr.getApproximateElementCount()}")
 
-        // 4. FM ∪ FR
         val fmUnionFr = BloomFilter(capacity, currentFS.falsePositiveRate)
         fmUnionFr.bitSet.or(fm.bitSet)
         fmUnionFr.bitSet.or(receivedFR.bitSet)
         println("FM ∪ FR element count (approx): ${fmUnionFr.getApproximateElementCount()}")
 
-        // 5. CurrentFS count
         println("FS (current) element count (approx): ${currentFS.getApproximateElementCount()}")
 
-        // Decision logic
         val nextSharedBF: BloomFilter
         val updateMessage: String
 
@@ -258,7 +245,6 @@ class BloomFilter(
         println("New bitset cardinality: ${nextSharedBF.bitSet.cardinality()}")
         println("=== Algorithm 2 Update End ===")
 
-        // Apply the selected BF
         this.bitSet.clear()
         this.bitSet.or(nextSharedBF.bitSet)
 

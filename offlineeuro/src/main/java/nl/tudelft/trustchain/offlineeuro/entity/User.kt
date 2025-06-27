@@ -175,6 +175,9 @@ class User(
 
         if (transactionResult.valid) {
             wallet.addToWallet(transactionDetails, usedRandomness)
+
+            this.bloomFilter.add(transactionDetails.digitalEuro)
+
             onDataChangeCallback?.invoke("Received an euro from $publicKeySender")
             return transactionResult.description
         }

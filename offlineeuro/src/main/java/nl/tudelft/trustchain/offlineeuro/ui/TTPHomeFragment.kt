@@ -4,6 +4,7 @@ import android.content.ContentValues.TAG
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import nl.tudelft.trustchain.offlineeuro.R
 import nl.tudelft.trustchain.offlineeuro.communication.BluetoothCommunicationProtocol
@@ -80,7 +81,15 @@ class TTPHomeFragment : OfflineEuroBaseFragment(R.layout.fragment_ttp_home) {
                 val context = requireContext()
                 CallbackLibrary.ttpCallback(context, message, requireView(), ttp)
                 updateBloomFilterStats()
+                updateUserList(requireView())
             }
         }
+    }
+
+    private fun updateUserList(view: View) {
+        val table = view.findViewById<LinearLayout>(R.id.tpp_home_registered_user_list) ?: return
+        val users = ttp.getRegisteredUsers()
+        TableHelpers.removeAllButFirstRow(table)
+        TableHelpers.addRegisteredUsersToTable(table, users)
     }
 }

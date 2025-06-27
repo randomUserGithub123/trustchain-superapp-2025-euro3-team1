@@ -3,8 +3,9 @@ package nl.tudelft.trustchain.offlineeuro.entity
 import it.unisa.dia.gas.jpbc.Element
 import nl.tudelft.trustchain.offlineeuro.communication.ICommunicationProtocol
 import nl.tudelft.trustchain.offlineeuro.cryptography.BilinearGroup
-import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
 import nl.tudelft.trustchain.offlineeuro.cryptography.CRS
+import nl.tudelft.trustchain.offlineeuro.cryptography.BloomFilter
+
 import nl.tudelft.trustchain.offlineeuro.cryptography.GrothSahai
 import nl.tudelft.trustchain.offlineeuro.cryptography.RandomizationElements
 
@@ -77,4 +78,5 @@ abstract class Participant(
 
     abstract fun getBloomFilter(): BloomFilter
     abstract fun updateBloomFilter(receivedBF: BloomFilter)
+
 }
